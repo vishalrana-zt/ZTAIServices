@@ -7,21 +7,16 @@ import AVFoundation
 // Production: read keys from iOS Keychain.
 //
 // Whisper (recommended):
-//   CloudAPIConfiguration.provider    = .whisper
-//   CloudAPIConfiguration.whisperAPIKey = "sk-..."          // platform.openai.com
-//
-// Claude:
-//   CloudAPIConfiguration.provider    = .claude
-//   CloudAPIConfiguration.claudeAPIKey = "sk-ant-api03-..." // console.anthropic.com
+//   CloudAPIConfiguration.provider      = .whisper
+//   CloudAPIConfiguration.whisperAPIKey = "sk-..."   // platform.openai.com
 //
 // Gemini:
-//   CloudAPIConfiguration.provider    = .gemini
-//   CloudAPIConfiguration.geminiAPIKey = "AIza..."          // aistudio.google.com/apikey
+//   CloudAPIConfiguration.provider      = .gemini
+//   CloudAPIConfiguration.geminiAPIKey  = "AIza..."  // aistudio.google.com/apikey
 //
 enum CloudAPIConfiguration {
     enum Provider {
         case whisper
-        case claude
         case gemini
     }
 
@@ -29,10 +24,6 @@ enum CloudAPIConfiguration {
 
     static var whisperAPIKey: String? = nil
     static var whisperModel: String = "whisper-1"
-
-    static var claudeAPIKey: String? = nil
-    static var claudeModel: String = "claude-opus-4-8"
-    static var claudeMaxTokens: Int = 2048
 
     static var geminiAPIKey: String? = nil
     static var geminiModel: String = "gemini-3.6-flash"
@@ -48,7 +39,6 @@ enum CloudAPIConfiguration {
     static var activeAPIKey: String? {
         switch provider {
         case .whisper: return whisperAPIKey
-        case .claude:  return claudeAPIKey
         case .gemini:  return geminiAPIKey
         }
     }
@@ -57,13 +47,33 @@ enum CloudAPIConfiguration {
 // MARK: - Engine
 
 // Cloud-based transcription engine. Records audio, encodes it to WAV,
-// and forwards it to the configured cloud provider (Claude or Gemini).
+// and forwards it to the configured cloud provider (Whisper or Gemini).
 //
 // iOS < 26: primary engine (the only path available).
 // iOS 26+: fallback when DictationTranscriber / SpeechTranscriber are unavailable.
 //
 // Live partial transcription is NOT supported — callers receive nil from
 // transcribePartialCurrentBuffer when this engine is selected.
+// Returns a user-friendly error if the device is offline, otherwise returns nil.
+private func offlineError(from error: Error) -> TranscriptionEngineError? {
+    let nsError = error as NSError
+    guard nsError.domain == NSURLErrorDomain else { return nil }
+    let offlineCodes: Set<Int> = [
+        NSURLErrorNotConnectedToInternet,
+        NSURLErrorNetworkConnectionLost,
+        NSURLErrorCannotConnectToHost,
+        NSURLErrorCannotFindHost
+    ]
+    guard offlineCodes.contains(nsError.code) else { return nil }
+    return .transcriptionFailed(
+        underlying: NSError(
+            domain: "CloudTranscriptionEngine",
+            code: nsError.code,
+            userInfo: [NSLocalizedDescriptionKey: "No internet connection. Check your network and try again."]
+        )
+    )
+}
+
 final class CloudTranscriptionEngine: FinalTranscriptionEngine {
     let engineID = "cloudAPI"
 
@@ -86,13 +96,15 @@ final class CloudTranscriptionEngine: FinalTranscriptionEngine {
         let timeout = request.timeoutInterval ?? scaledTimeout
 
         let text: String
-        switch CloudAPIConfiguration.provider {
-        case .whisper:
-            text = try await callWhisperAPI(audioData: audioData, locale: locale, apiKey: apiKey, timeout: timeout)
-        case .claude:
-            text = try await callClaudeAPI(audioData: audioData, locale: locale, apiKey: apiKey, timeout: timeout)
-        case .gemini:
-            text = try await callGeminiAPI(audioData: audioData, locale: locale, apiKey: apiKey, timeout: timeout)
+        do {
+            switch CloudAPIConfiguration.provider {
+            case .whisper:
+                text = try await callWhisperAPI(audioData: audioData, locale: locale, apiKey: apiKey, timeout: timeout)
+            case .gemini:
+                text = try await callGeminiAPI(audioData: audioData, locale: locale, apiKey: apiKey, timeout: timeout)
+            }
+        } catch {
+            throw offlineError(from: error) ?? error
         }
 
         let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -222,59 +234,6 @@ final class CloudTranscriptionEngine: FinalTranscriptionEngine {
         }
     }
 
-    // MARK: - Claude Messages API
-
-    private func callClaudeAPI(
-        audioData: Data,
-        locale: Locale,
-        apiKey: String,
-        timeout: TimeInterval
-    ) async throws -> String {
-        let url = URL(string: "https://api.anthropic.com/v1/messages")!
-
-        let body = ClaudeRequest(
-            model: CloudAPIConfiguration.claudeModel,
-            maxTokens: CloudAPIConfiguration.claudeMaxTokens,
-            messages: [
-                ClaudeRequest.Message(role: "user", content: [
-                    .document(audioData: audioData, mediaType: "audio/wav"),
-                    .text(transcriptionPrompt(for: locale))
-                ])
-            ]
-        )
-
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.timeoutInterval = timeout
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        urlRequest.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        urlRequest.httpBody = try JSONEncoder().encode(body)
-
-        let (data, response) = try await URLSession.shared.data(for: urlRequest)
-
-        guard let http = response as? HTTPURLResponse else {
-            throw TranscriptionEngineError.engineUnavailable
-        }
-        guard http.statusCode == 200 else {
-            let detail = (try? JSONDecoder().decode(ClaudeErrorEnvelope.self, from: data))?.error.message
-                ?? "HTTP \(http.statusCode)"
-            throw TranscriptionEngineError.transcriptionFailed(
-                underlying: NSError(
-                    domain: "CloudTranscriptionEngine",
-                    code: http.statusCode,
-                    userInfo: [NSLocalizedDescriptionKey: detail]
-                )
-            )
-        }
-
-        let decoded = try JSONDecoder().decode(ClaudeResponse.self, from: data)
-        guard let text = decoded.content.first(where: { $0.type == "text" })?.text else {
-            throw TranscriptionEngineError.noFinalText
-        }
-        return text
-    }
-
     // MARK: - Gemini Files API
     //
     // Three-step flow:
@@ -322,8 +281,17 @@ final class CloudTranscriptionEngine: FinalTranscriptionEngine {
     private func isRetryableGeminiUploadError(_ error: Error) -> Bool {
         if error is CancellationError { return false }
         let nsError = error as NSError
-        // Retry on network-layer errors and 5xx server errors
-        if nsError.domain == NSURLErrorDomain { return true }
+        if nsError.domain == NSURLErrorDomain {
+            // Do NOT retry when the device is offline — fail fast and surface the error.
+            let offlineCodes: Set<Int> = [
+                NSURLErrorNotConnectedToInternet,
+                NSURLErrorNetworkConnectionLost,
+                NSURLErrorCannotConnectToHost,
+                NSURLErrorCannotFindHost
+            ]
+            if offlineCodes.contains(nsError.code) { return false }
+            return true  // retry other transient network errors (timeout, etc.)
+        }
         if nsError.code >= 500 && nsError.code < 600 { return true }
         return false
     }
@@ -407,69 +375,6 @@ final class CloudTranscriptionEngine: FinalTranscriptionEngine {
         req.timeoutInterval = 10
         _ = try? await URLSession.shared.data(for: req)
     }
-}
-
-// MARK: - Claude request / response models
-
-private struct ClaudeRequest: Encodable {
-    let model: String
-    let maxTokens: Int
-    let messages: [Message]
-
-    enum CodingKeys: String, CodingKey {
-        case model, messages
-        case maxTokens = "max_tokens"
-    }
-
-    struct Message: Encodable {
-        let role: String
-        let content: [ContentBlock]
-    }
-
-    enum ContentBlock: Encodable {
-        case document(audioData: Data, mediaType: String)
-        case text(String)
-
-        func encode(to encoder: Encoder) throws {
-            var c = encoder.container(keyedBy: CodingKeys.self)
-            switch self {
-            case let .document(audioData, mediaType):
-                try c.encode("document", forKey: .type)
-                try c.encode(
-                    Source(type: "base64", mediaType: mediaType, data: audioData.base64EncodedString()),
-                    forKey: .source
-                )
-            case let .text(value):
-                try c.encode("text", forKey: .type)
-                try c.encode(value, forKey: .text)
-            }
-        }
-
-        enum CodingKeys: String, CodingKey { case type, source, text }
-
-        struct Source: Encodable {
-            let type: String
-            let mediaType: String
-            let data: String
-            enum CodingKeys: String, CodingKey {
-                case type, data
-                case mediaType = "media_type"
-            }
-        }
-    }
-}
-
-private struct ClaudeResponse: Decodable {
-    let content: [Block]
-    struct Block: Decodable {
-        let type: String
-        let text: String?
-    }
-}
-
-private struct ClaudeErrorEnvelope: Decodable {
-    let error: APIError
-    struct APIError: Decodable { let message: String }
 }
 
 // MARK: - Gemini response models

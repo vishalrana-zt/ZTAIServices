@@ -11,17 +11,13 @@ import SwiftUI
 struct ZTSpeechToTextApp: App {
     init() {
         // ── Pick ONE provider ──────────────────────────────────────────
-        // Whisper (recommended)  →  platform.openai.com/api-keys
-        //CloudAPIConfiguration.provider      = .whisper
-        //CloudAPIConfiguration.whisperAPIKey = "sk-YOUR-OPENAI-KEY-HERE"
-
-        // Claude  →  console.anthropic.com
-        // CloudAPIConfiguration.provider     = .claude
-        // CloudAPIConfiguration.claudeAPIKey = "sk-ant-api03-YOUR-KEY-HERE"
+        // Whisper  →  platform.openai.com/api-keys
+        // CloudAPIConfiguration.provider      = .whisper
+        // CloudAPIConfiguration.whisperAPIKey = "sk-YOUR-OPENAI-KEY-HERE"
 
         // Gemini  →  aistudio.google.com/apikey
-         CloudAPIConfiguration.provider     = .gemini
-         CloudAPIConfiguration.geminiAPIKey = "AQ.Ab8RN6IBV9PeZwf1CnAkDw9x8pc_QFBvzTK9alX2ibjXmhg8LA"
+        CloudAPIConfiguration.provider     = .gemini
+        CloudAPIConfiguration.geminiAPIKey = "AQ.Ab8RN6IBV9PeZwf1CnAkDw9x8pc_QFBvzTK9alX2ibjXmhg8LA"
         // ──────────────────────────────────────────────────────────────
     }
 

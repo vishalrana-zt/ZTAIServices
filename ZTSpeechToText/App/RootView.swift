@@ -226,7 +226,7 @@ struct RootView: View {
             Button("Cancel", role: .cancel) {}
         }
         .fullScreenCover(isPresented: $isTextAISheetPresented) {
-            TextAIPrototypeView()
+            TextAIView()
         }
     }
 

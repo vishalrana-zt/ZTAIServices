@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		180D93093035C01C007CA704 /* LlamaSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 180D93083035C01C007CA704 /* LlamaSPM */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		18C9A695302B11B000205C88 /* ZTSpeechToText.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZTSpeechToText.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -27,7 +23,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				180D93093035C01C007CA704 /* LlamaSPM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -101,7 +96,6 @@
 			mainGroup = 18C9A68C302B11B000205C88;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				180D93073035C01C007CA704 /* XCLocalSwiftPackageReference "LlamaSPM" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 18C9A696302B11B000205C88 /* Products */;
@@ -347,13 +341,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCLocalSwiftPackageReference section */
-		180D93073035C01C007CA704 /* XCLocalSwiftPackageReference "LlamaSPM" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = LlamaSPM;
-		};
-/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		180D93083035C01C007CA704 /* LlamaSPM */ = {
