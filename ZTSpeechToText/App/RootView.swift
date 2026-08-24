@@ -43,13 +43,14 @@ struct RootView: View {
     @State private var appleLastWindowText = ""
     @State private var lastAcceptedAppleWindowStart: TimeInterval = 0
     @State private var applePinnedPrefixText = ""
-    @State private var selectedLanguage: SpeechToTextManager.SupportedLanguage = RootView.defaultSupportedLanguage()
+    @State private var selectedLanguage: SupportedLanguage = RootView.defaultSupportedLanguage()
     @State private var selectedMode: CaptureMode = .liveStreaming
     @State private var isNoteEditorFocused = false
     @State private var isLogActionsPresented = false
     @State private var isLogSharePresented = false
     @State private var logShareText: String?
     @State private var isTextAISheetPresented = false
+    @State private var isImageAISheetPresented = false
     private let bottomPanelReservedHeight: CGFloat = 60
     private let invalidTranscriptMarkers: [String] = [
         "SwiftUI.ModifiedContent<",
@@ -64,7 +65,7 @@ struct RootView: View {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 10) {
                     Picker("Language", selection: $selectedLanguage) {
-                        ForEach(SpeechToTextManager.SupportedLanguage.allCases, id: \.self) { language in
+                        ForEach(SupportedLanguage.allCases, id: \.self) { language in
                             Text(language.displayName).tag(language)
                         }
                     }
@@ -128,20 +129,28 @@ struct RootView: View {
             .disabled(isSpeechToTextSheetPresented)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    HStack {
-                        Button {
-                            isLogActionsPresented = true
-                        } label: {
-                            Image(systemName: "doc.text")
-                        }
-                        .accessibilityLabel("Log Actions")
-
+                    Button {
+                        isLogActionsPresented = true
+                    } label: {
+                        Image(systemName: "doc.text")
+                    }
+                    .accessibilityLabel("Log Actions")
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    HStack(spacing: 2) {
                         Button {
                             isTextAISheetPresented = true
                         } label: {
                             Image(systemName: "character.textbox")
                         }
-                        .accessibilityLabel("Open offline text AI")
+                        .accessibilityLabel("Open text AI")
+
+                        Button {
+                            isImageAISheetPresented = true
+                        } label: {
+                            Image(systemName: "photo.badge.magnifyingglass")
+                        }
+                        .accessibilityLabel("Extract text from image")
                     }
                 }
 
@@ -227,6 +236,9 @@ struct RootView: View {
         }
         .fullScreenCover(isPresented: $isTextAISheetPresented) {
             TextAIView()
+        }
+        .fullScreenCover(isPresented: $isImageAISheetPresented) {
+            ImageTextAIView()
         }
     }
 
@@ -666,7 +678,7 @@ struct RootView: View {
         }
     }
 
-    private static func defaultSupportedLanguage() -> SpeechToTextManager.SupportedLanguage {
+    private static func defaultSupportedLanguage() -> SupportedLanguage {
         let preferred = Locale.preferredLanguages.first?.lowercased() ?? "en"
         if preferred.hasPrefix("es") { return .spanish }
         if preferred.hasPrefix("fr") { return .french }

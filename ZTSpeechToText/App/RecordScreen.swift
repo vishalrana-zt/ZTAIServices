@@ -18,7 +18,7 @@ struct RecordScreen: View {
 
     private let manager = SpeechToTextManager.shared
     private let autoStartOnAppear: Bool
-    private let preferredLanguage: SpeechToTextManager.SupportedLanguage?
+    private let preferredLanguage: SupportedLanguage?
     private let initialLiveTranscriptionEnabled: Bool?
     private let showsLiveTranscriptionToggle: Bool
     private let livePartialMaxAudioSeconds: Double
@@ -97,7 +97,7 @@ struct RecordScreen: View {
 
     init(
         autoStartOnAppear: Bool = false,
-        preferredLanguage: SpeechToTextManager.SupportedLanguage? = nil,
+        preferredLanguage: SupportedLanguage? = nil,
         initialLiveTranscriptionEnabled: Bool? = nil,
         showsLiveTranscriptionToggle: Bool = true,
         livePartialMaxAudioSeconds: Double = 12.0,
@@ -632,7 +632,7 @@ struct RecordScreen: View {
         }
     }
 
-    private func transcribeWithTimeout(seconds: UInt64) async throws -> (text: String, language: SpeechToTextManager.SupportedLanguage) {
+    private func transcribeWithTimeout(seconds: UInt64) async throws -> (text: String, language: SupportedLanguage) {
         let gate = TimeoutGate()
         let timeoutError = NSError(
             domain: "SpeechToText",

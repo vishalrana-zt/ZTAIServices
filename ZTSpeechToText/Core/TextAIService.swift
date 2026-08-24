@@ -3,36 +3,6 @@ import Foundation
 import FoundationModels
 #endif
 
-enum TextAISupportedLanguage: String, CaseIterable, Sendable {
-    case english = "en"
-    case french = "fr"
-    case spanish = "es"
-
-    nonisolated var displayName: String {
-        switch self {
-        case .english: return "English"
-        case .french: return "French"
-        case .spanish: return "Spanish"
-        }
-    }
-
-    nonisolated var localeIdentifier: String {
-        switch self {
-        case .english: return "en"
-        case .french: return "fr"
-        case .spanish: return "es"
-        }
-    }
-
-    nonisolated var responseLanguageInstruction: String {
-        switch self {
-        case .english: return "English"
-        case .french: return "French"
-        case .spanish: return "Spanish"
-        }
-    }
-}
-
 enum TextAIOperation: String, Sendable {
     case cleanup
     case summarize
@@ -55,7 +25,7 @@ enum TextAISummaryStyle: String, CaseIterable, Sendable {
 struct TextAIRequest: Sendable {
     let operation: TextAIOperation
     let text: String
-    let preferredLanguage: TextAISupportedLanguage
+    let preferredLanguage: SupportedLanguage
     let summaryStyle: TextAISummaryStyle?
 }
 
@@ -156,7 +126,7 @@ actor TextAIProviderResolver {
         return await CloudTextProvider()
     }
 
-    func preferredProviderDisplayName(for language: TextAISupportedLanguage) async -> String {
+    func preferredProviderDisplayName(for language: SupportedLanguage) async -> String {
         let request = TextAIRequest(operation: .cleanup, text: "ping", preferredLanguage: language, summaryStyle: nil)
         let resolution = await resolveProvider(for: request)
         return await MainActor.run { resolution.provider.id.resolvedDisplayName }
@@ -170,7 +140,7 @@ actor TextAIService {
         self.resolver = resolver
     }
 
-    func cleanup(text: String, preferredLanguage: TextAISupportedLanguage) async throws -> TextAIExecutionResult {
+    func cleanup(text: String, preferredLanguage: SupportedLanguage) async throws -> TextAIExecutionResult {
         let request = TextAIRequest(
             operation: .cleanup,
             text: text,
@@ -182,7 +152,7 @@ actor TextAIService {
 
     func summarize(
         text: String,
-        preferredLanguage: TextAISupportedLanguage,
+        preferredLanguage: SupportedLanguage,
         style: TextAISummaryStyle
     ) async throws -> TextAIExecutionResult {
         let request = TextAIRequest(
@@ -194,7 +164,7 @@ actor TextAIService {
         return try await process(request)
     }
 
-    func preferredProviderDisplayName(for language: TextAISupportedLanguage) async -> String {
+    func preferredProviderDisplayName(for language: SupportedLanguage) async -> String {
         await resolver.preferredProviderDisplayName(for: language)
     }
 
@@ -357,7 +327,7 @@ actor AppleFoundationModelProvider: TextModelProvider {
     nonisolated let id: TextAIProviderID = .appleFoundationModels
     private let model = SystemLanguageModel.default
 
-    fileprivate func capability(for language: TextAISupportedLanguage) -> AppleProviderCapability {
+    fileprivate func capability(for language: SupportedLanguage) -> AppleProviderCapability {
         if !model.isAvailable {
             return .unavailable(reason: "modelNotAvailable")
         }

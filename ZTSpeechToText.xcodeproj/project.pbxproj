@@ -259,6 +259,7 @@
 				DEVELOPMENT_TEAM = TS3BFX5G72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "We use camera to extract text from image";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We use your microphone to convert your voice to text.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We use speech recognition to convert your voice into text notes";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -294,6 +295,7 @@
 				DEVELOPMENT_TEAM = TS3BFX5G72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "We use camera to extract text from image";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We use your microphone to convert your voice to text.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We use speech recognition to convert your voice into text notes";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

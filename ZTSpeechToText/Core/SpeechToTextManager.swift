@@ -45,20 +45,6 @@ final class SpeechToTextManager: NSObject {
         }
     }
 
-    enum SupportedLanguage: String, CaseIterable {
-        case english = "en"
-        case spanish = "es"
-        case french  = "fr"
-
-        var displayName: String {
-            switch self {
-            case .english: return "English"
-            case .spanish: return "Spanish"
-            case .french:  return "French"
-            }
-        }
-    }
-
     enum OperationMode: String, CaseIterable {
         case liveStreaming
         case postRecording
@@ -2725,7 +2711,7 @@ final class AppleLiveTranscriptionCoordinator {
         }
     }
 
-    func latestLivePartial(language: SpeechToTextManager.SupportedLanguage) -> SpeechToTextManager.LivePartialResult? {
+    func latestLivePartial(language: SupportedLanguage) -> SpeechToTextManager.LivePartialResult? {
         stateLock.lock()
         let sorted = entries.sorted { lhs, rhs in
             if lhs.start == rhs.start { return lhs.end < rhs.end }

@@ -6,7 +6,7 @@ struct TextAIView: View {
 
     @State private var inputText = ""
     @State private var resultText = ""
-    @State private var selectedLanguage: TextAISupportedLanguage = .english
+    @State private var selectedLanguage: SupportedLanguage = .english
     @State private var selectedOperation: TextAIOperation = .cleanup
     @State private var summaryStyle: TextAISummaryStyle = .standard
     @State private var providerLabel = ""
@@ -60,7 +60,7 @@ struct TextAIView: View {
     private var languageSection: some View {
         Section {
             Picker("Language", selection: $selectedLanguage) {
-                ForEach(TextAISupportedLanguage.allCases, id: \.self) {
+                ForEach(SupportedLanguage.allCases, id: \.self) {
                     Text($0.displayName).tag($0)
                 }
             }

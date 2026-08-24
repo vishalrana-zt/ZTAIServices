@@ -7,7 +7,7 @@ import SwiftUI
 import UserNotifications
 
 struct SpeechToTextSheetConfiguration {
-    var preferredLanguage: SpeechToTextManager.SupportedLanguage? = nil
+    var preferredLanguage: SupportedLanguage? = nil
     var operationMode: SpeechToTextManager.OperationMode = .liveStreaming
     var modelProvider: SpeechToTextManager.ModelProvider? = nil
     var showsModelProviderSelector: Bool = true
@@ -301,7 +301,7 @@ extension View {
 
     func speechToTextSheet(
         isPresented: Binding<Bool>,
-        preferredLanguage: SpeechToTextManager.SupportedLanguage? = nil,
+        preferredLanguage: SupportedLanguage? = nil,
         onLiveTranscriptChanged: @escaping (LiveTranscriptPartial) -> Void = { _ in },
         onTextReady: @escaping (UUID, String) -> Void,
         onSetupReady: @escaping () -> Void = {}
