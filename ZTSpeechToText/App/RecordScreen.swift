@@ -68,6 +68,7 @@ struct RecordScreen: View {
         "AnyTextStorage("
     ]
 
+    @State private var isOnDeviceLiveStreamingAvailable = false
     @State private var uiPhase: RecordingUIPhase = .idle
     @State private var transcript = ""
     @State private var errorMessage: String?
@@ -139,26 +140,20 @@ struct RecordScreen: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .transition(.opacity)
                     } else if isTranscribing || ((isAutoStartingRecording || isStoppingRecording) && showDeferredTransitionStatus) {
                         HStack(spacing: 8) {
                             Text(statusText)
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.primary)
-                                .transaction { transaction in
-                                    transaction.animation = nil
-                                }
                             if isTranscribing || isStoppingRecording {
                                 Text(formattedRecordingDuration)
                                     .font(.subheadline.monospacedDigit().weight(.semibold))
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .transition(.opacity)
                     } else if isAutoStartingRecording || isStoppingRecording {
                         Text(" ")
                             .font(.subheadline.weight(.semibold))
-                            .transition(.opacity)
                     } else {
                         idlePromptText
                             .font(.subheadline.weight(.semibold))
@@ -166,12 +161,11 @@ struct RecordScreen: View {
                             .lineLimit(nil)
                             .fixedSize(horizontal: false, vertical: true)
                             .multilineTextAlignment(.leading)
-                            .transaction { transaction in
-                                transaction.animation = nil
-                            }
-                            .transition(.opacity)
                     }
                 }
+                // Instant switch — no cross-fade between states so two labels
+                // never appear simultaneously during the recording→processing transition.
+                .transaction { $0.animation = nil }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: 32, alignment: .leading)
 
@@ -191,6 +185,8 @@ struct RecordScreen: View {
                                 .tint(Color.accentColor)
                                 .scaleEffect(1.2)
                                 .frame(width: 20, height: 20)
+                            Text(isTranscribing ? "Processing…" : (isStoppingRecording ? "Stopping…" : "Starting…"))
+                                .font(.subheadline.weight(.semibold))
                         } else {
                             Image(systemName: isListening ? "pause.fill" : "play.fill")
                                 .font(.system(size: 13, weight: .semibold))
@@ -225,7 +221,7 @@ struct RecordScreen: View {
             }
             .padding(.horizontal, 2)
 
-            if showsLiveTranscriptionToggle {
+            if showsLiveTranscriptionToggle && isOnDeviceLiveStreamingAvailable {
                 Toggle("Live transcription", isOn: $isLiveTranscriptionEnabled)
                     .font(.caption.weight(.semibold))
                     .tint(.accentColor)
@@ -303,6 +299,18 @@ struct RecordScreen: View {
             manager.onSilenceAutoStopTriggered = {
                 Task { await handleManagerAutoStop() }
             }
+            manager.onBackendStatusChange = { _ in
+                Task { @MainActor in
+                    let capable = manager.isOnDeviceLiveStreamingAvailable
+                    isOnDeviceLiveStreamingAvailable = capable
+                    if !capable {
+                        isLiveTranscriptionEnabled = false
+                        manager.isLiveTranscriptionEnabled = false
+                        stopLiveTranscription()
+                    }
+                }
+            }
+            isOnDeviceLiveStreamingAvailable = manager.isOnDeviceLiveStreamingAvailable
             syncDeferredTransitionStatus(for: uiPhase)
             manager.prewarmRecordingPathIfNeeded()
             if let initialLiveTranscriptionEnabled {
@@ -705,15 +713,6 @@ struct RecordScreen: View {
                 guard shouldContinue else { break }
 
                 let effectivePollingInterval = await MainActor.run {
-                    let isSpeechRecognizerBackend = manager.isSpeechRecognizerLiveBackend
-                    if isSpeechRecognizerBackend {
-                        let bufferedSeconds = manager.currentBufferedAudioSeconds()
-                        if bufferedSeconds > 22.0 {
-                            return UInt64(1_100_000_000)
-                        }
-                        let speechRecognizerBase: UInt64 = 650_000_000
-                        return micLevel < 0.05 ? 850_000_000 : speechRecognizerBase
-                    }
                     if !hasLoggedFirstLiveText, isListening {
                         // Keep first-pass cadence responsive, but avoid busy-loop churn.
                         return UInt64(220_000_000)

@@ -76,7 +76,6 @@
 			productReference = 18C9A695302B11B000205C88 /* ZTSpeechToText.app */;
 			productType = "com.apple.product-type.application";
 		};
-
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */

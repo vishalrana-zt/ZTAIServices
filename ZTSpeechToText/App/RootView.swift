@@ -30,6 +30,7 @@ struct RootView: View {
         }
     }
 
+    @State private var isOnDeviceLiveStreamingAvailable = false
     @State private var noteText = ""
     @State private var isSpeechToTextSheetPresented = false
     @State private var liveSessionID: UUID?
@@ -70,13 +71,15 @@ struct RootView: View {
                     .pickerStyle(.segmented)
                     .disabled(isSpeechToTextSheetPresented)
 
-                    Picker("Mode", selection: $selectedMode) {
-                        ForEach(CaptureMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
+                    if isOnDeviceLiveStreamingAvailable {
+                        Picker("Mode", selection: $selectedMode) {
+                            ForEach(CaptureMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
                         }
+                        .pickerStyle(.segmented)
+                        .disabled(isSpeechToTextSheetPresented)
                     }
-                    .pickerStyle(.segmented)
-                    .disabled(isSpeechToTextSheetPresented)
 
                 }
 
@@ -122,6 +125,7 @@ struct RootView: View {
             .padding()
             .padding(.bottom, isSpeechToTextSheetPresented ? bottomPanelReservedHeight : 0)
             .navigationTitle("Notes")
+            .disabled(isSpeechToTextSheetPresented)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     HStack {
@@ -171,6 +175,8 @@ struct RootView: View {
         .onChange(of: isSpeechToTextSheetPresented) { isPresented in
             STTSessionLogger.shared.log(source: "RootView", message: "ui sheet_presented=\(isPresented)")
             if !isPresented {
+                // RecordScreen cleared onBackendStatusChange on dismiss — reattach here.
+                attachBackendStatusCallback()
                 resetLiveDraftState()
             }
         }
@@ -195,6 +201,11 @@ struct RootView: View {
                 source: "RootView",
                 message: "ui appear mode=\(selectedMode.rawValue) lang=\(selectedLanguage.rawValue) provider=appleModels"
             )
+            attachBackendStatusCallback()
+            Task {
+                _ = await manager.gateFeatureUsage()
+                await MainActor.run { refreshLiveStreamingCapability() }
+            }
         }
         .sheet(isPresented: $isLogSharePresented) {
             if let logShareText {
@@ -640,6 +651,19 @@ struct RootView: View {
         }
 
         return true
+    }
+
+    private func attachBackendStatusCallback() {
+        manager.onBackendStatusChange = { _ in
+            Task { @MainActor in refreshLiveStreamingCapability() }
+        }
+    }
+
+    private func refreshLiveStreamingCapability() {
+        isOnDeviceLiveStreamingAvailable = manager.isOnDeviceLiveStreamingAvailable
+        if !isOnDeviceLiveStreamingAvailable {
+            selectedMode = .postRecording
+        }
     }
 
     private static func defaultSupportedLanguage() -> SpeechToTextManager.SupportedLanguage {
