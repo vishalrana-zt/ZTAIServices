@@ -133,25 +133,35 @@ struct RootView: View {
                         isLogActionsPresented = true
                     } label: {
                         Image(systemName: "doc.text")
+                            .frame(width: 36, height: 36)
                     }
+                    .buttonStyle(.plain)
+                    .background(.thinMaterial, in: Capsule())
+                    .padding(.trailing, 8)
                     .accessibilityLabel("Log Actions")
                 }
+
                 ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 2) {
+                    HStack(spacing: 0) {
                         Button {
                             isTextAISheetPresented = true
                         } label: {
                             Image(systemName: "character.textbox")
+                                .frame(width: 36, height: 36)
                         }
+                        .buttonStyle(.plain)
                         .accessibilityLabel("Open text AI")
 
                         Button {
                             isImageAISheetPresented = true
                         } label: {
                             Image(systemName: "photo.badge.magnifyingglass")
+                                .frame(width: 36, height: 36)
                         }
+                        .buttonStyle(.plain)
                         .accessibilityLabel("Extract text from image")
                     }
+                    .background(.thinMaterial, in: Capsule())
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {

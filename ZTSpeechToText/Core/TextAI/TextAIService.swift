@@ -425,6 +425,7 @@ actor AppleFoundationModelProvider: TextModelProvider {
             return "Summarize this text:\n\n\(request.text)"
         }
     }
+
 }
 #endif
 

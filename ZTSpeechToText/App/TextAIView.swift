@@ -32,9 +32,6 @@ struct TextAIView: View {
             .navigationTitle("Text AI")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    providerBadge
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                         .fontWeight(.semibold)
@@ -105,7 +102,7 @@ struct TextAIView: View {
     }
 
     private var operationSection: some View {
-        Section("Operation") {
+        Section {
             Picker("Type", selection: $selectedOperation) {
                 Text("Clean Up").tag(TextAIOperation.cleanup)
                 Text("Summarize").tag(TextAIOperation.summarize)
@@ -121,6 +118,12 @@ struct TextAIView: View {
                 }
                 .pickerStyle(.segmented)
                 .disabled(isProcessing)
+            }
+        } header: {
+            HStack {
+                Text("Operation")
+                Spacer()
+                providerBadge
             }
         }
     }
@@ -189,17 +192,21 @@ struct TextAIView: View {
     }
 
     private var providerBadge: some View {
-        Group {
-            if !providerLabel.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "cpu")
-                        .font(.caption2)
-                    Text(providerLabel)
-                        .font(.caption)
-                }
-                .foregroundStyle(.secondary)
-            }
+        HStack(spacing: 4) {
+            Image(systemName: "cpu")
+                .font(.caption2)
+            Text(compactProviderLabel.isEmpty ? "Detecting…" : compactProviderLabel)
+                .font(.caption)
+                .lineLimit(1)
         }
+        .foregroundStyle(.secondary)
+    }
+
+    private var compactProviderLabel: String {
+        if providerLabel == "Apple Foundation Models" {
+            return "Apple AI"
+        }
+        return providerLabel
     }
 
     // MARK: - Actions
