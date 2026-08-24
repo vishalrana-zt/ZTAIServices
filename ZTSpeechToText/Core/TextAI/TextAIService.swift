@@ -6,6 +6,7 @@ import FoundationModels
 enum TextAIOperation: String, Sendable {
     case cleanup
     case summarize
+    case structuredExtraction
 }
 
 enum TextAISummaryStyle: String, CaseIterable, Sendable {
@@ -164,6 +165,16 @@ actor TextAIService {
         return try await process(request)
     }
 
+    func structuredExtract(text: String, preferredLanguage: SupportedLanguage) async throws -> TextAIExecutionResult {
+        let request = TextAIRequest(
+            operation: .structuredExtraction,
+            text: text,
+            preferredLanguage: preferredLanguage,
+            summaryStyle: nil
+        )
+        return try await process(request)
+    }
+
     func preferredProviderDisplayName(for language: SupportedLanguage) async -> String {
         await resolver.preferredProviderDisplayName(for: language)
     }
@@ -279,6 +290,72 @@ actor CloudTextProvider: TextModelProvider {
             Summarize this transcript. Respond in \(language). \(style) Return only the summary, no explanation.
 
             Transcript:
+            \(request.text)
+            """
+        case .structuredExtraction:
+            return """
+            Extract structured information from this OCR text. Respond in \(language).
+            Document can be invoice, estimate, bill, receipt, contact card, business card, fire inspection report, HVAC/electrical/plumbing inspection note, or other.
+            Return valid JSON only with this exact shape:
+            {
+              "documentType": "",
+              "keyFacts": [""],
+              "entities": [{"name": "", "type": "", "value": ""}],
+              "inspectionContext": {
+                "domain": "",
+                "inspectionType": "",
+                "inspectionId": "",
+                "workOrderNumber": "",
+                "permitNumber": "",
+                "jurisdiction": "",
+                "status": "",
+                "priority": ""
+              },
+              "site": {
+                "siteName": "",
+                "buildingName": "",
+                "area": "",
+                "floor": "",
+                "unit": "",
+                "room": "",
+                "address": {
+                  "street1": "",
+                  "street2": "",
+                  "city": "",
+                  "state": "",
+                  "postalCode": "",
+                  "country": "",
+                  "full": ""
+                }
+              },
+              "dates": [{"label": "", "value": "", "normalized": ""}],
+              "amounts": [{"label": "", "value": "", "currency": "", "normalized": ""}],
+              "contactInfo": {
+                "phones": [{"label": "", "countryCode": "", "number": "", "extension": "", "raw": ""}],
+                "emails": [{"label": "", "value": ""}],
+                "websites": [{"label": "", "value": ""}],
+                "addresses": [{"label": "", "street1": "", "street2": "", "city": "", "state": "", "postalCode": "", "country": "", "full": ""}]
+              },
+              "parties": [{"role": "", "name": "", "taxId": "", "registrationId": ""}],
+              "equipment": [{"system": "", "component": "", "assetTag": "", "serialNumber": "", "location": "", "condition": "", "status": ""}],
+              "checklistItems": [{"system": "", "category": "", "item": "", "result": "", "measuredValue": "", "unit": "", "codeReference": "", "notes": ""}],
+              "deficiencies": [{"id": "", "system": "", "severity": "", "description": "", "location": "", "recommendedAction": "", "codeReference": "", "dueDate": "", "photoRefs": [""]}],
+              "compliance": {"passed": "", "score": "", "authorityHavingJurisdiction": "", "codes": [""]},
+              "lineItems": [{"description": "", "quantity": "", "unitPrice": "", "amount": ""}],
+              "totals": {"subtotal": "", "tax": "", "discount": "", "shipping": "", "grandTotal": "", "balanceDue": ""},
+              "payment": {"method": "", "terms": "", "dueDate": "", "accountNumber": "", "iban": "", "swift": ""},
+              "nextActions": [""],
+              "summary": ""
+            }
+            Rules:
+            - Keep facts exactly from OCR; do not invent values.
+            - Use empty strings/empty arrays when data is missing.
+            - Keep phone countryCode separate from number when possible.
+            - Parse addresses into components and also provide full.
+            - For trade systems use values like fire, hvac, electrical, plumbing when identifiable.
+            - Do not add markdown fences or commentary.
+
+            OCR Text:
             \(request.text)
             """
         }
@@ -414,6 +491,70 @@ actor AppleFoundationModelProvider: TextModelProvider {
             \(styleInstruction)
             Return only the summary.
             """
+        case .structuredExtraction:
+            return """
+            You extract structured information from OCR text.
+            You MUST respond in \(request.preferredLanguage.responseLanguageInstruction).
+            Document can be invoice, estimate, bill, receipt, contact card, business card, fire inspection report, HVAC/electrical/plumbing inspection note, or other.
+            Keep source facts exactly; do not invent values.
+            Return valid JSON only, no markdown.
+            Use this exact shape:
+            {
+              "documentType": "",
+              "keyFacts": [""],
+              "entities": [{"name": "", "type": "", "value": ""}],
+              "inspectionContext": {
+                "domain": "",
+                "inspectionType": "",
+                "inspectionId": "",
+                "workOrderNumber": "",
+                "permitNumber": "",
+                "jurisdiction": "",
+                "status": "",
+                "priority": ""
+              },
+              "site": {
+                "siteName": "",
+                "buildingName": "",
+                "area": "",
+                "floor": "",
+                "unit": "",
+                "room": "",
+                "address": {
+                  "street1": "",
+                  "street2": "",
+                  "city": "",
+                  "state": "",
+                  "postalCode": "",
+                  "country": "",
+                  "full": ""
+                }
+              },
+              "dates": [{"label": "", "value": "", "normalized": ""}],
+              "amounts": [{"label": "", "value": "", "currency": "", "normalized": ""}],
+              "contactInfo": {
+                "phones": [{"label": "", "countryCode": "", "number": "", "extension": "", "raw": ""}],
+                "emails": [{"label": "", "value": ""}],
+                "websites": [{"label": "", "value": ""}],
+                "addresses": [{"label": "", "street1": "", "street2": "", "city": "", "state": "", "postalCode": "", "country": "", "full": ""}]
+              },
+              "parties": [{"role": "", "name": "", "taxId": "", "registrationId": ""}],
+              "equipment": [{"system": "", "component": "", "assetTag": "", "serialNumber": "", "location": "", "condition": "", "status": ""}],
+              "checklistItems": [{"system": "", "category": "", "item": "", "result": "", "measuredValue": "", "unit": "", "codeReference": "", "notes": ""}],
+              "deficiencies": [{"id": "", "system": "", "severity": "", "description": "", "location": "", "recommendedAction": "", "codeReference": "", "dueDate": "", "photoRefs": [""]}],
+              "compliance": {"passed": "", "score": "", "authorityHavingJurisdiction": "", "codes": [""]},
+              "lineItems": [{"description": "", "quantity": "", "unitPrice": "", "amount": ""}],
+              "totals": {"subtotal": "", "tax": "", "discount": "", "shipping": "", "grandTotal": "", "balanceDue": ""},
+              "payment": {"method": "", "terms": "", "dueDate": "", "accountNumber": "", "iban": "", "swift": ""},
+              "nextActions": [""],
+              "summary": ""
+            }
+            Rules:
+            - Use empty arrays/empty strings when missing.
+            - Keep phone countryCode separate from number when possible.
+            - Parse addresses into components and also provide full.
+            - For trade systems use values like fire, hvac, electrical, plumbing when identifiable.
+            """
         }
     }
 
@@ -423,6 +564,8 @@ actor AppleFoundationModelProvider: TextModelProvider {
             return "Improve this text:\n\n\(request.text)"
         case .summarize:
             return "Summarize this text:\n\n\(request.text)"
+        case .structuredExtraction:
+            return "Extract structured data from this OCR text:\n\n\(request.text)"
         }
     }
 
