@@ -100,6 +100,7 @@ private struct SpeechToTextFlowSheet: View {
             RecordScreen(
                 autoStartOnAppear: shouldAutoStartRecording,
                 preferredLanguage: configuration.preferredLanguage,
+                operationMode: configuration.operationMode,
                 initialLiveTranscriptionEnabled: configuration.initialLiveTranscriptionEnabled,
                 showsLiveTranscriptionToggle: configuration.showsLiveTranscriptionToggle,
                 livePartialMaxAudioSeconds: configuration.livePartialMaxAudioSeconds,

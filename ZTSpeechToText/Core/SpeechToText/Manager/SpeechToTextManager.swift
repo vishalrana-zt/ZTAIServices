@@ -506,6 +506,7 @@ final class SpeechToTextManager: NSObject {
 
     var onSilenceAutoStopTriggered: (() -> Void)?
     var onAudioLevelChange: ((Float) -> Void)?
+    var onPreviewAudioBuffer: ((AVAudioPCMBuffer) -> Void)?
     
     /// Compatibility bridge used by existing logic; now driven by model provider selection.
     var useSpeechAnalyzerWhenAvailable: Bool {
@@ -856,6 +857,10 @@ final class SpeechToTextManager: NSObject {
             self.sampleBuffer.append(contentsOf: frames)
             self.bufferLock.unlock()
             self.appendPostRecordingBufferIfNeeded(outBuffer)
+            if let onPreviewAudioBuffer = self.onPreviewAudioBuffer,
+               let previewBuffer = self.copyPCMBuffer(outBuffer) {
+                onPreviewAudioBuffer(previewBuffer)
+            }
 
             if self.selectedModelProvider == .appleModels,
                self.useAdvancedAppleLiveTranscribers {
@@ -947,6 +952,7 @@ final class SpeechToTextManager: NSObject {
         }
 
         onAudioLevelChange?(0)
+        onPreviewAudioBuffer = nil
         accumulatedSilenceDuration = 0
         accumulatedRecordingDuration = 0
         hasTriggeredAutoStop = false

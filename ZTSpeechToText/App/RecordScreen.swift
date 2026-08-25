@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import Speech
 
 struct RecordScreen: View {
     private enum RecordingUIPhase: Equatable {
@@ -19,6 +20,7 @@ struct RecordScreen: View {
     private let manager = SpeechToTextManager.shared
     private let autoStartOnAppear: Bool
     private let preferredLanguage: SupportedLanguage?
+    private let operationMode: SpeechToTextManager.OperationMode
     private let initialLiveTranscriptionEnabled: Bool?
     private let showsLiveTranscriptionToggle: Bool
     private let livePartialMaxAudioSeconds: Double
@@ -94,10 +96,17 @@ struct RecordScreen: View {
     @State private var recordingUITimerTask: Task<Void, Never>?
     @State private var displayedRecordingSeconds: Int = 0
     @State private var stopTapCoolingDown = false
+    @State private var previewRecognitionTask: SFSpeechRecognitionTask?
+    @State private var previewRecognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    @State private var previewSpeechRecognizer: SFSpeechRecognizer?
+    @State private var previewFallbackTask: Task<Void, Never>?
+    @State private var previewDidReceivePartial = false
+    @State private var previewIsUsingOnDevice = true
 
     init(
         autoStartOnAppear: Bool = false,
         preferredLanguage: SupportedLanguage? = nil,
+        operationMode: SpeechToTextManager.OperationMode = .liveStreaming,
         initialLiveTranscriptionEnabled: Bool? = nil,
         showsLiveTranscriptionToggle: Bool = true,
         livePartialMaxAudioSeconds: Double = 12.0,
@@ -109,6 +118,7 @@ struct RecordScreen: View {
     ) {
         self.autoStartOnAppear = autoStartOnAppear
         self.preferredLanguage = preferredLanguage
+        self.operationMode = operationMode
         self.initialLiveTranscriptionEnabled = initialLiveTranscriptionEnabled
         self.showsLiveTranscriptionToggle = showsLiveTranscriptionToggle
         self.livePartialMaxAudioSeconds = max(2.0, livePartialMaxAudioSeconds)
@@ -134,7 +144,13 @@ struct RecordScreen: View {
                             Text(formatDuration(seconds: displayedRecordingSeconds))
                                 .font(.title2.monospacedDigit().weight(.bold))
                                 .foregroundStyle(.red)
-                            if !hasLoggedFirstLiveText {
+                            if hasLoggedFirstLiveText {
+                                Text(transcript)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                            } else {
                                 Text("Listening…")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
@@ -344,6 +360,7 @@ struct RecordScreen: View {
         }
         .onDisappear {
             stopLiveTranscription()
+            stopPostRecordingLivePreview()
             DispatchQueue.global(qos: .utility).async {
                 self.manager.stopListening()
             }
@@ -496,7 +513,7 @@ struct RecordScreen: View {
         displayedRecordingSeconds = 0
         startRecordingUITimer()
         uiPhase = .recording
-        startLiveTranscriptionIfNeeded()
+        startRecordingPreviewIfNeeded()
     }
 
     @MainActor
@@ -534,6 +551,7 @@ struct RecordScreen: View {
     @MainActor
     private func finalizeRecordingSessionMetadata() {
         stopLiveTranscription()
+        stopPostRecordingLivePreview()
         if let recordingStartedAt {
             lastRecordingDuration = max(0, Date().timeIntervalSince(recordingStartedAt))
         }
@@ -685,6 +703,15 @@ struct RecordScreen: View {
             return
         }
         await transcribeCurrentRecording()
+    }
+
+    @MainActor
+    private func startRecordingPreviewIfNeeded() {
+        if operationMode == .postRecording {
+            startPostRecordingLivePreview()
+        } else {
+            startLiveTranscriptionIfNeeded()
+        }
     }
 
     @MainActor
@@ -887,6 +914,122 @@ struct RecordScreen: View {
         if words.count == 2 { return text.count >= 7 }
         if words.count == 1 { return text.count >= 6 && text.last.map({ ".!?".contains($0) }) == true }
         return false
+    }
+
+    @MainActor
+    private func startPostRecordingLivePreview() {
+        guard isListening, operationMode == .postRecording else { return }
+        stopPostRecordingLivePreview()
+        Task {
+            let authorized = await ensureSpeechAuthorization()
+            await MainActor.run {
+                guard authorized, isListening else { return }
+                startPostRecordingLivePreviewRecognizer(onDevice: true)
+            }
+        }
+    }
+
+    @MainActor
+    private func startPostRecordingLivePreviewRecognizer(onDevice: Bool) {
+        previewRecognitionTask?.cancel()
+        previewRecognitionRequest = nil
+        previewDidReceivePartial = false
+        previewIsUsingOnDevice = onDevice
+
+        let recognizer = SFSpeechRecognizer(locale: previewLocale())
+        guard let recognizer else {
+            return
+        }
+        previewSpeechRecognizer = recognizer
+
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        request.requiresOnDeviceRecognition = onDevice
+        previewRecognitionRequest = request
+
+        manager.onPreviewAudioBuffer = { [weak request] buffer in
+            request?.append(buffer)
+        }
+
+        previewRecognitionTask = recognizer.recognitionTask(with: request) { result, error in
+            if let result {
+                let cleaned = self.cleanedTranscript(result.bestTranscription.formattedString)
+                if !cleaned.isEmpty {
+                    Task { @MainActor in
+                        guard self.isListening, self.operationMode == .postRecording else { return }
+                        self.transcript = cleaned
+                        self.previewDidReceivePartial = true
+                        if !self.hasLoggedFirstLiveText {
+                            self.hasLoggedFirstLiveText = true
+                        }
+                    }
+                }
+            }
+
+            if error != nil {
+                Task { @MainActor in
+                    guard self.isListening, self.operationMode == .postRecording else { return }
+                    if self.previewIsUsingOnDevice && !self.previewDidReceivePartial {
+                        self.startPostRecordingLivePreviewRecognizer(onDevice: false)
+                    }
+                }
+            }
+        }
+
+        previewFallbackTask?.cancel()
+        if onDevice {
+            previewFallbackTask = Task {
+                try? await Task.sleep(nanoseconds: 1_800_000_000)
+                await MainActor.run {
+                    guard isListening, operationMode == .postRecording else { return }
+                    if !previewDidReceivePartial && previewIsUsingOnDevice {
+                        startPostRecordingLivePreviewRecognizer(onDevice: false)
+                    }
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func stopPostRecordingLivePreview() {
+        previewFallbackTask?.cancel()
+        previewFallbackTask = nil
+        manager.onPreviewAudioBuffer = nil
+        previewRecognitionRequest?.endAudio()
+        previewRecognitionTask?.cancel()
+        previewRecognitionTask = nil
+        previewRecognitionRequest = nil
+        previewSpeechRecognizer = nil
+        previewDidReceivePartial = false
+    }
+
+    private func ensureSpeechAuthorization() async -> Bool {
+        let status = SFSpeechRecognizer.authorizationStatus()
+        if status == .authorized {
+            return true
+        }
+        if status != .notDetermined {
+            return false
+        }
+
+        return await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { resolved in
+                continuation.resume(returning: resolved == .authorized)
+            }
+        }
+    }
+
+    private func previewLocale() -> Locale {
+        switch preferredLanguage {
+        case .some(.english):
+            return Locale(identifier: "en-US")
+        case .some(.spanish):
+            return Locale(identifier: "es-MX")
+        case .some(.french):
+            return Locale(identifier: "fr-FR")
+        case .none:
+            return Locale.current
+        }
     }
 
     private func cleanedTranscript(_ text: String) -> String {
