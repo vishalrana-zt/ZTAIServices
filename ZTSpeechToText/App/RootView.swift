@@ -142,7 +142,7 @@ struct RootView: View {
                 }
 
                 ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 0) {
+                    HStack(spacing: 16) {
                         Button {
                             isTextAISheetPresented = true
                         } label: {
@@ -150,18 +150,19 @@ struct RootView: View {
                                 .frame(width: 36, height: 36)
                         }
                         .buttonStyle(.plain)
+                        .background(.thinMaterial, in: Capsule())
                         .accessibilityLabel("Open text AI")
 
                         Button {
                             isImageAISheetPresented = true
                         } label: {
-                            Image(systemName: "photo.badge.magnifyingglass")
+                            Image(systemName: "photo.on.rectangle.angled")
                                 .frame(width: 36, height: 36)
                         }
                         .buttonStyle(.plain)
+                        .background(.thinMaterial, in: Capsule())
                         .accessibilityLabel("Extract text from image")
                     }
-                    .background(.thinMaterial, in: Capsule())
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {

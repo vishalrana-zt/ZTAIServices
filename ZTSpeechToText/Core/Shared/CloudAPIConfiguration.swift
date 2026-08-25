@@ -5,9 +5,9 @@ import Foundation
 // Set provider + key once at app startup before any transcription occurs.
 // Production: read keys from iOS Keychain.
 //
-// Whisper (recommended):
-//   CloudAPIConfiguration.provider      = .whisper
-//   CloudAPIConfiguration.whisperAPIKey = "sk-..."   // platform.openai.com
+// OpenAI (recommended):
+//   CloudAPIConfiguration.provider      = .openAI
+//   CloudAPIConfiguration.openAIAPIKey  = "sk-..."   // platform.openai.com
 //
 // Gemini:
 //   CloudAPIConfiguration.provider      = .gemini
@@ -15,14 +15,17 @@ import Foundation
 //
 enum CloudAPIConfiguration {
     enum Provider {
-        case whisper
+        case openAI
         case gemini
     }
 
-    static var provider: Provider = .whisper
+    static var provider: Provider = .openAI
 
-    static var whisperAPIKey: String? = nil
-    static var whisperModel: String = "whisper-1"
+    static var openAIAPIKey: String? = nil
+    static var openAIModel: String = "whisper-1"
+    static var openAITextModel: String = "gpt-5-mini"
+    static var openAITextTimeout: TimeInterval = 60.0
+    static var openAITextMaxRetries: Int = 2
 
     static var geminiAPIKey: String? = nil
     static var geminiModel: String = "gemini-3.6-flash"
@@ -37,8 +40,8 @@ enum CloudAPIConfiguration {
 
     static var activeAPIKey: String? {
         switch provider {
-        case .whisper: return whisperAPIKey
-        case .gemini:  return geminiAPIKey
+        case .openAI: return openAIAPIKey
+        case .gemini: return geminiAPIKey
         }
     }
 }

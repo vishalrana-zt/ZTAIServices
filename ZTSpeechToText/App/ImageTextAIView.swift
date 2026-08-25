@@ -23,22 +23,34 @@ struct ImageTextAIView: View {
     @State private var extractedText = ""
     @State private var structuredText = ""
     @State private var structuredProviderLabel = ""
+    @State private var providerLabel = ""
 
     @State private var errorMessage: String?
     @State private var structuredErrorMessage: String?
     @State private var activeTask: Task<Void, Never>?
+    @State private var loadingMessage = ""
 
     @State private var didCopyOCR = false
     @State private var didCopyStructured = false
 
     @State private var isStructuredExtractionEnabled = true
+    @State private var selectedDocumentType: StructuredDocumentType?
 
     private var isBusy: Bool {
         phase == .extracting || phase == .structuring
     }
 
     private var canExtract: Bool {
-        selectedImage != nil && !isBusy
+        selectedImage != nil
+            && !isBusy
+            && (!isStructuredExtractionEnabled || selectedDocumentType != nil)
+    }
+
+    private var providerBadgeText: String {
+        if phase == .structuring {
+            return "Auto (Apple -> Cloud)"
+        }
+        return compactProviderLabel
     }
 
     private var structuredDocument: StructuredExtractionDocument? {
@@ -81,6 +93,7 @@ struct ImageTextAIView: View {
             .sheet(isPresented: $showCameraPicker) {
                 CameraImagePicker(image: $selectedImage)
             }
+            .onAppear { refreshProviderLabel() }
             .onChange(of: selectedItem) { item in loadPickedItem(item) }
             .onChange(of: selectedImage) { _ in resetOutputs() }
             .onDisappear { activeTask?.cancel() }
@@ -153,18 +166,49 @@ struct ImageTextAIView: View {
 
     private var actionSection: some View {
         Section {
-            Toggle("Structured extraction", isOn: $isStructuredExtractionEnabled)
+            HStack {
+                Text("Structured extraction")
+                Spacer()
+                if !providerLabel.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "cpu")
+                            .font(.caption2)
+                        Text(providerBadgeText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Toggle("", isOn: $isStructuredExtractionEnabled)
+                    .labelsHidden()
+            }
+            .disabled(isBusy)
+
+            if isStructuredExtractionEnabled {
+                Picker("Document type", selection: $selectedDocumentType) {
+                    Text("").tag(StructuredDocumentType?.none)
+                    ForEach(StructuredDocumentType.allCases) { type in
+                        Text(type.displayName).tag(Optional(type))
+                    }
+                }
                 .disabled(isBusy)
+            }
+
+            if isStructuredExtractionEnabled && selectedDocumentType == nil && !isBusy {
+                Text("Select document type to continue.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
 
             if isBusy {
                 HStack {
-                    ProgressView()
-                    Text(phase == .structuring ? "Structuring OCR text…" : "Reading text…")
+                    ProgressView(loadingMessage.isEmpty ? "Processing…" : loadingMessage)
+                        .tint(.accentColor)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Cancel", role: .destructive) {
                         activeTask?.cancel()
                         phase = .idle
+                        loadingMessage = ""
                     }
                 }
             } else {
@@ -346,6 +390,20 @@ struct ImageTextAIView: View {
         return nil
     }
 
+    private var compactProviderLabel: String {
+        if providerLabel == "Apple Foundation Models" {
+            return "Apple AI"
+        }
+        return providerLabel
+    }
+
+    private func refreshProviderLabel() {
+        Task {
+            let value = await textAIService.preferredProviderDisplayName(for: .english)
+            await MainActor.run { providerLabel = value }
+        }
+    }
+
     private func loadPickedItem(_ item: PhotosPickerItem?) {
         guard let item else { return }
         Task {
@@ -360,6 +418,8 @@ struct ImageTextAIView: View {
         extractedText = ""
         structuredText = ""
         structuredProviderLabel = ""
+        selectedDocumentType = nil
+        loadingMessage = ""
         structuredErrorMessage = nil
         errorMessage = nil
         didCopyOCR = false
@@ -371,19 +431,20 @@ struct ImageTextAIView: View {
         guard let image = selectedImage else { return }
         let hints: [String] = []
 
+        phase = .extracting
+        loadingMessage = "Reading image text locally…"
+        errorMessage = nil
+        structuredErrorMessage = nil
+        extractedText = ""
+        structuredText = ""
+        structuredProviderLabel = ""
+        didCopyOCR = false
+        didCopyStructured = false
+
         activeTask?.cancel()
         activeTask = Task {
-            await MainActor.run {
-                phase = .extracting
-                errorMessage = nil
-                structuredErrorMessage = nil
-                extractedText = ""
-                structuredText = ""
-                structuredProviderLabel = ""
-                didCopyOCR = false
-                didCopyStructured = false
-            }
-
+            // Let SwiftUI render the busy state before OCR/model work starts.
+            await Task.yield()
             do {
                 let text = try await ocrEngine.recognizeText(in: image, languageHints: hints)
                 await MainActor.run {
@@ -391,13 +452,32 @@ struct ImageTextAIView: View {
                 }
 
                 guard isStructuredExtractionEnabled else {
-                    await MainActor.run { phase = .done }
+                    await MainActor.run {
+                        phase = .done
+                        loadingMessage = ""
+                    }
+                    return
+                }
+                guard let selectedDocumentType else {
+                    await MainActor.run {
+                        phase = .idle
+                        loadingMessage = ""
+                        structuredErrorMessage = "Please select a document type."
+                    }
                     return
                 }
 
-                await MainActor.run { phase = .structuring }
+                await MainActor.run {
+                    phase = .structuring
+                    loadingMessage = "Structuring \(selectedDocumentType.displayName)…"
+                }
+                await Task.yield()
                 do {
-                    let result = try await textAIService.structuredExtract(text: text, preferredLanguage: .english)
+                    let result = try await textAIService.structuredExtract(
+                        text: text,
+                        preferredLanguage: .english,
+                        documentType: selectedDocumentType
+                    )
                     let normalizedPrimary = normalizeStructuredJSONString(result.outputText)
 
                     if let normalizedPrimary {
@@ -405,11 +485,13 @@ struct ImageTextAIView: View {
                             structuredText = normalizedPrimary
                             structuredProviderLabel = result.provider.resolvedDisplayName
                             phase = .done
+                            loadingMessage = ""
                         }
                     } else {
                         let repaired = try await textAIService.structuredExtract(
                             text: repairInput(ocrText: text, invalidJSON: result.outputText),
-                            preferredLanguage: .english
+                            preferredLanguage: .english,
+                            documentType: selectedDocumentType
                         )
                         guard let normalizedRepaired = normalizeStructuredJSONString(repaired.outputText) else {
                             throw TextAIError.inferenceFailed(reason: "Invalid structured JSON format")
@@ -419,11 +501,24 @@ struct ImageTextAIView: View {
                             structuredProviderLabel = repaired.provider.resolvedDisplayName
                             structuredErrorMessage = "Structured JSON auto-repaired after initial invalid output."
                             phase = .done
+                            loadingMessage = ""
                         }
                     }
                 } catch {
+                    if error is CancellationError || Task.isCancelled {
+                        await MainActor.run {
+                            phase = .idle
+                            loadingMessage = ""
+                            structuredErrorMessage = nil
+                        }
+                        return
+                    }
+                    #if DEBUG
+                    print("[IMAGE_TEXT_AI] structured_extraction_error=\(error)")
+                    #endif
                     await MainActor.run {
                         phase = .done
+                        loadingMessage = ""
                         let message = (error as? TextAIError)?.localizedDescription ?? error.localizedDescription
                         structuredErrorMessage = "Structured extraction unavailable: \(message)"
                     }
@@ -432,6 +527,7 @@ struct ImageTextAIView: View {
                 if Task.isCancelled { return }
                 await MainActor.run {
                     phase = .idle
+                    loadingMessage = ""
                     errorMessage = (error as? ImageOCRError)?.localizedDescription ?? error.localizedDescription
                 }
             }

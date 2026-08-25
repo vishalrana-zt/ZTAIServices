@@ -65,7 +65,6 @@
 			);
 			name = ZTSpeechToText;
 			packageProductDependencies = (
-				180D93083035C01C007CA704 /* LlamaSPM */,
 			);
 			productName = ZTSpeechToText;
 			productReference = 18C9A695302B11B000205C88 /* ZTSpeechToText.app */;
@@ -343,13 +342,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		180D93083035C01C007CA704 /* LlamaSPM */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = LlamaSPM;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 18C9A68D302B11B000205C88 /* Project object */;
 }

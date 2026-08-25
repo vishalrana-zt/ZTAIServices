@@ -45,7 +45,6 @@ final class CloudTranscriptionEngine: FinalTranscriptionEngine {
         let trimmedAudio = request.audio.count > maxSamples
             ? Array(request.audio.suffix(maxSamples))
             : request.audio
-        let audioData = try encodeToWAV(audio: trimmedAudio, sampleRate: request.sampleRate)
         let locale = request.localeHint ?? Locale.current
         let audioDurationSeconds = Double(trimmedAudio.count) / request.sampleRate
         let scaledTimeout = CloudAPIConfiguration.defaultTimeout
@@ -55,9 +54,16 @@ final class CloudTranscriptionEngine: FinalTranscriptionEngine {
         let text: String
         do {
             switch CloudAPIConfiguration.provider {
-            case .whisper:
-                text = try await callWhisperAPI(audioData: audioData, locale: locale, apiKey: apiKey, timeout: timeout)
+            case .openAI:
+                text = try await transcribeOpenAIAudio(
+                    fullAudio: request.audio,
+                    sampleRate: request.sampleRate,
+                    locale: locale,
+                    apiKey: apiKey,
+                    timeoutOverride: request.timeoutInterval
+                )
             case .gemini:
+                let audioData = try encodeToWAV(audio: trimmedAudio, sampleRate: request.sampleRate)
                 text = try await callGeminiAPI(audioData: audioData, locale: locale, apiKey: apiKey, timeout: timeout)
             }
         } catch {
@@ -67,6 +73,52 @@ final class CloudTranscriptionEngine: FinalTranscriptionEngine {
         let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { throw TranscriptionEngineError.noFinalText }
         return TranscriptionResult(text: normalized, locale: locale)
+    }
+
+    // OpenAI path:
+    // - short audio: one upload
+    // - long audio: split into sequential chunks and merge transcripts
+    private func transcribeOpenAIAudio(
+        fullAudio: [Float],
+        sampleRate: Double,
+        locale: Locale,
+        apiKey: String,
+        timeoutOverride: TimeInterval?
+    ) async throws -> String {
+        let maxSamples = max(1, Int(sampleRate * CloudAPIConfiguration.maxAudioDurationSeconds))
+        guard fullAudio.count > maxSamples else {
+            let audioData = try encodeToWAV(audio: fullAudio, sampleRate: sampleRate)
+            let durationSeconds = Double(fullAudio.count) / sampleRate
+            let timeout = timeoutOverride ?? (
+                CloudAPIConfiguration.defaultTimeout
+                + durationSeconds * CloudAPIConfiguration.timeoutPerAudioSecond
+            )
+            return try await callWhisperAPI(audioData: audioData, locale: locale, apiKey: apiKey, timeout: timeout)
+        }
+
+        var parts: [String] = []
+        parts.reserveCapacity((fullAudio.count / maxSamples) + 1)
+
+        var start = 0
+        while start < fullAudio.count {
+            try Task.checkCancellation()
+            let end = min(start + maxSamples, fullAudio.count)
+            let chunk = Array(fullAudio[start..<end])
+            let chunkData = try encodeToWAV(audio: chunk, sampleRate: sampleRate)
+            let durationSeconds = Double(chunk.count) / sampleRate
+            let timeout = timeoutOverride ?? (
+                CloudAPIConfiguration.defaultTimeout
+                + durationSeconds * CloudAPIConfiguration.timeoutPerAudioSecond
+            )
+            let chunkText = try await callWhisperAPI(audioData: chunkData, locale: locale, apiKey: apiKey, timeout: timeout)
+            let cleaned = chunkText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !cleaned.isEmpty {
+                parts.append(cleaned)
+            }
+            start = end
+        }
+
+        return parts.joined(separator: "\n")
     }
 
     // MARK: - WAV encoding
@@ -137,10 +189,10 @@ final class CloudTranscriptionEngine: FinalTranscriptionEngine {
         var body = Data()
 
         // model field
-        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n\(CloudAPIConfiguration.whisperModel)\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n\(CloudAPIConfiguration.openAIModel)\r\n".data(using: .utf8)!)
 
         // language field — ISO 639-1 code (en, es, fr); omit for auto-detect
-        if let langCode = whisperLanguageCode(for: locale) {
+        if let langCode = openAILanguageCode(for: locale) {
             body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\n\(langCode)\r\n".data(using: .utf8)!)
         }
 
@@ -177,17 +229,17 @@ final class CloudTranscriptionEngine: FinalTranscriptionEngine {
             )
         }
 
-        struct WhisperResponse: Decodable { let text: String }
-        let decoded = try JSONDecoder().decode(WhisperResponse.self, from: data)
+        struct OpenAITranscriptionResponse: Decodable { let text: String }
+        let decoded = try JSONDecoder().decode(OpenAITranscriptionResponse.self, from: data)
         return decoded.text
     }
 
-    private func whisperLanguageCode(for locale: Locale) -> String? {
+    private func openAILanguageCode(for locale: Locale) -> String? {
         switch locale.language.languageCode?.identifier {
         case "en": return "en"
         case "es": return "es"
         case "fr": return "fr"
-        default:   return nil  // nil = Whisper auto-detects language
+        default:   return nil  // nil = OpenAI auto-detects language
         }
     }
 
