@@ -118,65 +118,8 @@ private struct SpeechToTextFlowSheet: View {
         }
     }
 
-    private var bundledPreparingView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "waveform.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(Color.accentColor)
-
-                TimelineView(.periodic(from: .now, by: 0.6)) { context in
-                    let step = Int(context.date.timeIntervalSinceReferenceDate * (1.0 / 0.6)) % 4
-                    Text(bundledLoadingText + String(repeating: ".", count: step))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            ProgressView()
-                .controlSize(.regular)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(panelFillColor)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(panelBorderColor, lineWidth: 1)
-                )
-        )
-        .shadow(color: panelShadowColor, radius: 14, y: 4)
-    }
-
-    private var bundledLoadingText: String {
-        return "Preparing model"
-    }
-
     private var compactDownloadBarPreferenceKey: String {
         "SpeechToTextFlowSheet.prefersCompactDownloadBar.\(configuration.operationMode.rawValue)"
-    }
-
-    private var modeTitle: String {
-        switch configuration.operationMode {
-        case .liveStreaming:
-            return "Live dictation"
-        case .postRecording:
-            return "After recording"
-        }
-    }
-
-    private func startDownloadIfNeeded(force: Bool = false) {
-        guard force || !didStartDownloadInThisSession else { return }
-        didStartDownloadInThisSession = true
-        isPreparingBundledModel = true
-        Task {
-            await manager.prepareOnOptIn()
-            await MainActor.run {
-                isPreparingBundledModel = false
-            }
-        }
     }
 
     private func applyModeSelection(
@@ -195,22 +138,6 @@ private struct SpeechToTextFlowSheet: View {
         }
         guard shouldKickoffSetup else { return }
         return
-    }
-
-    private func requestNotifyPermissionAndShowMessage() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            DispatchQueue.main.async {
-                if granted {
-                    wantsSetupCompletionNotification = true
-                    notifyInfoTitle = "We’ll Notify You"
-                    notifyInfoMessage = "You’ll get a notification when the one-time model download is complete."
-                } else {
-                    notifyInfoTitle = "Notification Permission Needed"
-                    notifyInfoMessage = "Notifications are off. Enable them in Settings to get a setup-complete alert."
-                }
-                showNotifyInfoAlert = true
-            }
-        }
     }
 
     private func scheduleSetupReadyNotification() {

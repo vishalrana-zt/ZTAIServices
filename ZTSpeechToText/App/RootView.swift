@@ -426,94 +426,6 @@ struct RootView: View {
         !invalidTranscriptMarkers.contains(where: { text.contains($0) })
     }
 
-    private func stabilizedAppleLivePreview(from incoming: String) -> String {
-        let cleanedIncoming = incoming.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanedIncoming.isEmpty else { return livePreviewText }
-
-        let previous = livePreviewText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if previous.isEmpty {
-            return cleanedIncoming
-        }
-
-        let previousWords = words(from: previous)
-        let incomingWords = words(from: cleanedIncoming)
-        let sharedPrefixCount = sharedWordPrefixCount(lhs: previousWords, rhs: incomingWords)
-
-        if sharedPrefixCount >= 8 {
-            let keepMutableTailWords = 6
-            let commitCount = max(0, sharedPrefixCount - keepMutableTailWords)
-            if commitCount > 0 {
-                let commitChunk = incomingWords.prefix(commitCount).joined(separator: " ")
-                appleCommittedLiveText = stitchWords(left: appleCommittedLiveText, right: commitChunk)
-            }
-        }
-
-        let committedWords = words(from: appleCommittedLiveText)
-        let tailWords = incomingWords.dropFirst(sharedWordPrefixCountForCommitted(committedWords: committedWords, incomingWords: incomingWords))
-        let tailText = String(tailWords.joined(separator: " ")).trimmingCharacters(in: .whitespacesAndNewlines)
-        let rendered = stitchWords(left: appleCommittedLiveText, right: tailText)
-        return rendered.isEmpty ? cleanedIncoming : rendered
-    }
-
-    private func updatedAppleRollingLiveText(candidate: String, windowStartTime: TimeInterval) -> String {
-        let cleanedCandidate = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanedCandidate.isEmpty else { return livePreviewText }
-
-        let previousWindow = appleLastWindowText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let candidateWords = words(from: cleanedCandidate)
-        let previousWords = words(from: previousWindow)
-
-        if !previousWords.isEmpty {
-            let overlap = maxWordOverlapSuffixPrefix(previous: previousWords, current: candidateWords)
-            if overlap > 0 {
-                let droppedPrefix = previousWords.dropLast(overlap).joined(separator: " ")
-                if !droppedPrefix.isEmpty {
-                    appleCommittedLiveText = stitchWords(left: appleCommittedLiveText, right: droppedPrefix)
-                }
-            } else if windowStartTime > lastAcceptedAppleWindowStart + 0.6 {
-                // If window moved and no overlap is found, preserve prior window text
-                // as committed to avoid visible backtracking.
-                appleCommittedLiveText = stitchWords(left: appleCommittedLiveText, right: previousWindow)
-            }
-        }
-
-        appleLastWindowText = cleanedCandidate
-        return stitchWords(left: appleCommittedLiveText, right: cleanedCandidate)
-    }
-
-    private func stabilizedAppleShiftAwareLivePreview(candidate: String, windowStartTime: TimeInterval) -> String {
-        let cleanedCandidate = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanedCandidate.isEmpty else { return livePreviewText }
-
-        // Before rolling-window shift, recognizer output is typically cumulative.
-        if windowStartTime <= 0.5 {
-            return cleanedCandidate
-        }
-
-        let previous = livePreviewText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !previous.isEmpty else { return cleanedCandidate }
-
-        // Capture a stable prefix once when the rolling window starts shifting.
-        if applePinnedPrefixText.isEmpty,
-           let droppedPrefix = droppedLeadingPrefix(previous: previous, current: cleanedCandidate) {
-            applePinnedPrefixText = droppedPrefix
-        }
-
-        if !applePinnedPrefixText.isEmpty {
-            return stitchWords(left: applePinnedPrefixText, right: cleanedCandidate)
-        }
-
-        // If we cannot align but candidate shrank strongly, keep prior text
-        // instead of replacing with a likely regressive shifted hypothesis.
-        let previousWords = words(from: previous)
-        let candidateWords = words(from: cleanedCandidate)
-        if candidateWords.count + 5 < previousWords.count {
-            return previous
-        }
-
-        return cleanedCandidate
-    }
-
     private func droppedLeadingPrefix(previous: String, current: String) -> String? {
         let previousWords = words(from: previous)
         let currentWords = words(from: current)
@@ -598,18 +510,6 @@ struct RootView: View {
         return finalTrimmed
     }
 
-    private func volatileTail(from text: String, committedPrefix: String) -> String {
-        let full = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prefix = committedPrefix.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !full.isEmpty else { return "" }
-        guard !prefix.isEmpty else { return full }
-        if full.hasPrefix(prefix) {
-            let idx = full.index(full.startIndex, offsetBy: prefix.count)
-            return full[idx...].trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        return full
-    }
-
     private func words(from text: String) -> [String] {
         text.split(whereSeparator: \.isWhitespace).map(String.init)
     }
@@ -652,42 +552,6 @@ struct RootView: View {
         if lhs.hasSuffix(rhs) { return lhs }
         if rhs.hasPrefix(lhs) { return rhs }
         return lhs + " " + rhs
-    }
-
-    private func shouldAcceptAppleLiveCandidate(
-        previous: String,
-        candidate: String,
-        windowStartTime: TimeInterval
-    ) -> Bool {
-        let old = previous.trimmingCharacters(in: .whitespacesAndNewlines)
-        let next = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !next.isEmpty else { return false }
-        guard !old.isEmpty else { return true }
-        if next == old { return false }
-
-        let oldWords = words(from: old).map(normalizedWord).filter { !$0.isEmpty }
-        let nextWords = words(from: next).map(normalizedWord).filter { !$0.isEmpty }
-        guard !oldWords.isEmpty, !nextWords.isEmpty else { return true }
-
-        let oldSet = Set(oldWords)
-        let nextSet = Set(nextWords)
-        let intersection = oldSet.intersection(nextSet).count
-        let union = oldSet.union(nextSet).count
-        let overlap = union > 0 ? Double(intersection) / Double(union) : 0
-        let hasWindowShift = (windowStartTime - lastAcceptedAppleWindowStart) >= 0.8
-
-        let nextIsSignificantlyShorter = nextWords.count < Int(Double(oldWords.count) * 0.75)
-        if nextIsSignificantlyShorter && overlap < 0.55 && !hasWindowShift {
-            return false
-        }
-
-        let isHardDivergence = overlap < 0.25
-        let hasStrongGrowth = nextWords.count >= oldWords.count + 6
-        if isHardDivergence && !hasStrongGrowth && !hasWindowShift {
-            return false
-        }
-
-        return true
     }
 
     private func attachBackendStatusCallback() {

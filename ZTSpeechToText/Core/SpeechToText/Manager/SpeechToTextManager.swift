@@ -165,7 +165,6 @@ final class SpeechToTextManager: NSObject {
     private var pendingLiveLockLanguage: SupportedLanguage?
     private var pendingLiveLockConfirmations: Int = 0
     private var lastLiveResolvedLanguage: SupportedLanguage?
-    private let liveLanguageLockMinimumSeconds: Double = 2.0
     private let liveLanguageLockConfirmationsRequired: Int = 2
     private let advancedLiveStreamStartupGraceSeconds: TimeInterval = 1.6
     private var didPrewarmRecordingPath = false
@@ -201,9 +200,6 @@ final class SpeechToTextManager: NSObject {
     private var advancedDictationTranscriberCapable = false
     private var advancedSpeechTranscriberCapable = false
     private var didCheckAdvancedAppleTranscriberCapability = false
-    private let speechAnalyzerValidationTaskLock = NSLock()
-    private var speechAnalyzerValidationTaskID: UUID?
-    private var speechAnalyzerValidationTask: Task<Bool, Never>?
     private actor LiveDecodeCoordinator {
         private var isInFlight = false
         private var lastStart: Date?
@@ -546,7 +542,6 @@ final class SpeechToTextManager: NSObject {
         let provider: ModelProvider = .appleModels
         let previous = selectedModelProvider
         guard previous != provider else { return }
-        cancelSpeechAnalyzerValidationTaskIfNeeded()
         selectedModelProvider = provider
         hasDisabledSpeechAnalyzerForSession = false
         hasDisabledAdvancedLiveStreamForSession = false
@@ -593,7 +588,6 @@ final class SpeechToTextManager: NSObject {
     }
 
     func resetSessionStateForLanguageChange(_ language: SupportedLanguage) {
-        cancelSpeechAnalyzerValidationTaskIfNeeded()
         hasDisabledSpeechAnalyzerForSession = false
         hasDisabledAdvancedLiveStreamForSession = false
         hasValidatedSpeechAnalyzerForSession = false
@@ -1949,99 +1943,11 @@ final class SpeechToTextManager: NSObject {
         return false
     }
 
-    private func ensureSpeechAnalyzerReadyForUse() async -> Bool {
-        guard canAttemptSpeechAnalyzer else { return false }
-        guard !hasValidatedSpeechAnalyzerForSession else { return true }
-        guard #available(iOS 26.0, *) else { return false }
-
-        if let existing = currentSpeechAnalyzerValidationTask() {
-            return await existing.task.value
-        }
-
-        let taskID = UUID()
-        let task = Task<Bool, Never> { [weak self] in
-            guard let self else { return false }
-            return await self.performSpeechAnalyzerReadinessProbe()
-        }
-        setSpeechAnalyzerValidationTask(task, id: taskID)
-        let result = await task.value
-        clearSpeechAnalyzerValidationTask(ifID: taskID)
-        return result
-    }
-
-    @available(iOS 26.0, *)
-    private func performSpeechAnalyzerReadinessProbe() async -> Bool {
-        do {
-            let engine = SpeechAnalyzerTranscriptionEngine()
-            let preferred = liveLockedLanguage ?? preferredDeviceSupportedLanguage() ?? .english
-            let localeHint = speechAnalyzerLocaleHint(for: preferred)
-            try await engine.prepare(
-                localeHint: speechAnalyzerLocaleHint(for: preferred),
-                preset: .progressiveTranscription
-            )
-            // Readiness must prove decode viability, not only asset preparation.
-            // This avoids showing "Speak now" when subscription/asset status will fail on first decode.
-            _ = try await engine.transcribe(
-                audio: speechAnalyzerPreflightProbeAudio(),
-                sampleRate: targetSampleRate,
-                localeHint: localeHint,
-                preset: .progressiveTranscription
-            )
-            hasValidatedSpeechAnalyzerForSession = true
-            publishBackendStatus()
-            return true
-        } catch {
-            hasDisabledSpeechAnalyzerForSession = true
-            hasValidatedSpeechAnalyzerForSession = false
-            publishBackendStatus()
-            return false
-        }
-    }
-
-    private func currentSpeechAnalyzerValidationTask() -> (id: UUID, task: Task<Bool, Never>)? {
-        speechAnalyzerValidationTaskLock.lock()
-        defer { speechAnalyzerValidationTaskLock.unlock() }
-        guard let id = speechAnalyzerValidationTaskID, let task = speechAnalyzerValidationTask else {
-            return nil
-        }
-        return (id: id, task: task)
-    }
-
-    private func setSpeechAnalyzerValidationTask(_ task: Task<Bool, Never>, id: UUID) {
-        speechAnalyzerValidationTaskLock.lock()
-        defer { speechAnalyzerValidationTaskLock.unlock() }
-        speechAnalyzerValidationTaskID = id
-        speechAnalyzerValidationTask = task
-    }
-
-    private func clearSpeechAnalyzerValidationTask(ifID id: UUID) {
-        speechAnalyzerValidationTaskLock.lock()
-        defer { speechAnalyzerValidationTaskLock.unlock() }
-        if speechAnalyzerValidationTaskID == id {
-            speechAnalyzerValidationTaskID = nil
-            speechAnalyzerValidationTask = nil
-        }
-    }
-
-    private func cancelSpeechAnalyzerValidationTaskIfNeeded() {
-        speechAnalyzerValidationTaskLock.lock()
-        speechAnalyzerValidationTaskID = nil
-        let task = speechAnalyzerValidationTask
-        speechAnalyzerValidationTask = nil
-        speechAnalyzerValidationTaskLock.unlock()
-        task?.cancel()
-    }
-
     private func publishBackendStatus() {
         let label = backendStatusLabel
         DispatchQueue.main.async { [weak self] in
             self?.onBackendStatusChange?(label)
         }
-    }
-
-    private func speechAnalyzerPreflightProbeAudio() -> [Float] {
-        let sampleCount = max(1, Int(targetSampleRate * 0.35))
-        return Array(repeating: 0, count: sampleCount)
     }
 
     // Prefer one stable regional locale per supported language to reduce
@@ -2255,10 +2161,6 @@ final class SpeechToTextManager: NSObject {
         debugTrace("engine phase=\(phase) selected=\(engine.rawValue) detail=\(detail)")
     }
 
-    private func logDetectedLanguage(stage: String, language: SupportedLanguage) {
-        debugTrace("language stage=\(stage) value=\(language.rawValue)")
-    }
-
     private func logLivePartialResultIfPresent(_ result: LivePartialResult?, phase: String, previousText: String) {
         guard let result else { return }
         sttLivePartialSequence += 1
@@ -2370,25 +2272,6 @@ final class SpeechToTextManager: NSObject {
         lastPublishedLivePartialWindowStartTime = 0
         lastPublishedLivePartialWindowEndTime = 0
         lastPublishedLivePartialAt = .distantPast
-    }
-
-    private func isLiveStreamTextLanguageConsistent(_ text: String, expected: SupportedLanguage?) -> Bool {
-        guard expected != nil else { return true }
-
-        // Do not reject short/incremental live transcription.
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 20 else { return true }
-
-        // Diagnostic-only guard: language consistency must not decide
-        // engine routing without a true confidence API.
-        return true
-    }
-
-    private func logPreview(_ text: String, max: Int = 120) -> String {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " ")
-        guard trimmed.count > max else { return trimmed }
-        let idx = trimmed.index(trimmed.startIndex, offsetBy: max)
-        return String(trimmed[..<idx]) + "..."
     }
 
     private func debugTrace(_ message: String) {
