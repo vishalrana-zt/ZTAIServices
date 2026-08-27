@@ -21,3 +21,4 @@ xcuserdata/
 
 # Local bundled LLM weights
 *.gguf
+ZTSpeechToText/ZTSpeechToTextApp.swift

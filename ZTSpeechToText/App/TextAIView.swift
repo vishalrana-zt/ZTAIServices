@@ -8,12 +8,14 @@ struct TextAIView: View {
     @State private var resultText = ""
     @State private var selectedLanguage: SupportedLanguage = .english
     @State private var selectedOperation: TextAIOperation = .cleanup
+    @AppStorage("CloudAPIConfiguration.provider") private var cloudProviderKey: String = "openAI"
     @State private var summaryStyle: TextAISummaryStyle = .standard
     @State private var providerLabel = ""
     @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var activeTask: Task<Void, Never>?
     @State private var didCopyResult = false
+    @FocusState private var isInputFocused: Bool
 
     private var canRun: Bool {
         !isProcessing && !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -33,17 +35,14 @@ struct TextAIView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .fontWeight(.semibold)
-                }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
                     Button("Done") {
-                        UIApplication.shared.sendAction(
-                            #selector(UIResponder.resignFirstResponder),
-                            to: nil, from: nil, for: nil
-                        )
+                        if isInputFocused {
+                            isInputFocused = false
+                        } else {
+                            dismiss()
+                        }
                     }
+                    .fontWeight(.semibold)
                 }
             }
             .onAppear { refreshProviderLabel() }
@@ -56,6 +55,16 @@ struct TextAIView: View {
 
     private var languageSection: some View {
         Section {
+            Picker("Cloud Provider", selection: $cloudProviderKey) {
+                Text("OpenAI").tag("openAI")
+                Text("Gemini").tag("gemini")
+            }
+            .pickerStyle(.segmented)
+            .disabled(isProcessing)
+            .onChange(of: cloudProviderKey) { key in
+                CloudAPIConfiguration.provider = key == "gemini" ? .gemini : .openAI
+            }
+
             Picker("Language", selection: $selectedLanguage) {
                 ForEach(SupportedLanguage.allCases, id: \.self) {
                     Text($0.displayName).tag($0)
@@ -70,7 +79,7 @@ struct TextAIView: View {
         Section {
             ZStack(alignment: .topLeading) {
                 if inputText.isEmpty {
-                    Text("Paste or type text to process…")
+                    Text("Paste or type any text…")
                         .foregroundStyle(.tertiary)
                         .font(.body)
                         .padding(.top, 8)
@@ -78,6 +87,7 @@ struct TextAIView: View {
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: $inputText)
+                    .focused($isInputFocused)
                     .frame(minHeight: 120, maxHeight: 300)
                     .scrollContentBackground(.hidden)
             }
@@ -119,6 +129,7 @@ struct TextAIView: View {
                 .pickerStyle(.segmented)
                 .disabled(isProcessing)
             }
+
         } header: {
             HStack {
                 Text("Operation")

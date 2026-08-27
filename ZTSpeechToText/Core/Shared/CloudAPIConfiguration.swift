@@ -23,7 +23,7 @@ enum CloudAPIConfiguration {
 
     static var openAIAPIKey: String? = nil
     static var openAIModel: String = "whisper-1"
-    static var openAITextModel: String = "gpt-5-mini"
+    static var openAITextModel: String = "gpt-4o-mini"
     static var openAITextTimeout: TimeInterval = 60.0
     static var openAITextMaxRetries: Int = 2
 

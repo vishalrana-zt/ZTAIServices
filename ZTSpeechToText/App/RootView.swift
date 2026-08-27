@@ -45,6 +45,7 @@ struct RootView: View {
     @State private var applePinnedPrefixText = ""
     @State private var selectedLanguage: SupportedLanguage = RootView.defaultSupportedLanguage()
     @State private var selectedMode: CaptureMode = .liveStreaming
+    @AppStorage("CloudAPIConfiguration.provider") private var cloudProviderKey: String = "openAI"
     @State private var isNoteEditorFocused = false
     @State private var isLogActionsPresented = false
     @State private var isLogSharePresented = false
@@ -64,6 +65,16 @@ struct RootView: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 10) {
+                    Picker("Cloud Provider", selection: $cloudProviderKey) {
+                        Text("OpenAI").tag("openAI")
+                        Text("Gemini").tag("gemini")
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(isSpeechToTextSheetPresented)
+                    .onChange(of: cloudProviderKey) { key in
+                        CloudAPIConfiguration.provider = key == "gemini" ? .gemini : .openAI
+                    }
+
                     Picker("Language", selection: $selectedLanguage) {
                         ForEach(SupportedLanguage.allCases, id: \.self) { language in
                             Text(language.displayName).tag(language)
@@ -172,8 +183,11 @@ struct RootView: View {
                             message: "ui action=note_mic_tap mode=\(selectedMode.rawValue) lang=\(selectedLanguage.rawValue)"
                         )
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        manager.prewarmRecordingPathIfNeeded()
-                        isSpeechToTextSheetPresented = true
+                        Task {
+                            _ = await manager.gateFeatureUsage()
+                            manager.prewarmRecordingPathIfNeeded()
+                            isSpeechToTextSheetPresented = true
+                        }
                     } label: {
                         Image(systemName: "waveform.badge.mic")
                     }

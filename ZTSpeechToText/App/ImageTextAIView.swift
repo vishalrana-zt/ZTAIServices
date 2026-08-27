@@ -35,6 +35,7 @@ struct ImageTextAIView: View {
 
     @State private var isStructuredExtractionEnabled = true
     @State private var selectedDocumentType: StructuredDocumentType?
+    @AppStorage("CloudAPIConfiguration.provider") private var cloudProviderKey: String = "openAI"
 
     private var isBusy: Bool {
         phase == .extracting || phase == .structuring
@@ -62,6 +63,7 @@ struct ImageTextAIView: View {
     var body: some View {
         NavigationStack {
             Form {
+                providerSection
                 imageSection
                 if selectedImage != nil {
                     actionSection
@@ -164,6 +166,20 @@ struct ImageTextAIView: View {
         }
     }
 
+    private var providerSection: some View {
+        Section {
+            Picker("Cloud Provider", selection: $cloudProviderKey) {
+                Text("OpenAI").tag("openAI")
+                Text("Gemini").tag("gemini")
+            }
+            .pickerStyle(.segmented)
+            .disabled(isBusy)
+            .onChange(of: cloudProviderKey) { key in
+                CloudAPIConfiguration.provider = key == "gemini" ? .gemini : .openAI
+            }
+        }
+    }
+
     private var actionSection: some View {
         Section {
             HStack {
@@ -199,10 +215,13 @@ struct ImageTextAIView: View {
                     .foregroundStyle(.orange)
             }
 
-            if isBusy {
+            if activeTask != nil {
                 HStack {
-                    ProgressView(loadingMessage.isEmpty ? "Processing…" : loadingMessage)
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.regular)
                         .tint(.accentColor)
+                    Text(loadingMessage.isEmpty ? "Processing…" : loadingMessage)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Cancel", role: .destructive) {
@@ -365,13 +384,41 @@ struct ImageTextAIView: View {
     private func normalizeStructuredJSONString(_ raw: String) -> String? {
         guard let candidate = extractedJSONObjectString(from: raw) else { return nil }
         guard let data = candidate.data(using: .utf8) else { return nil }
-        guard var doc = try? JSONDecoder().decode(StructuredExtractionDocument.self, from: data) else { return nil }
+        let topLevelObject = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let legacyTopLevelKeys: Set<String> = [
+            "documentType",
+            "inspectionContext",
+            "site",
+            "contactInfo",
+            "dates",
+            "amounts",
+            "deficiencies",
+            "totals",
+            "nextActions"
+        ]
+        let hasNonLegacyTopLevelKeys = topLevelObject.map { !Set($0.keys).isSubset(of: legacyTopLevelKeys) } ?? true
 
-        doc.normalizeInPlace()
+        if !hasNonLegacyTopLevelKeys,
+           var doc = try? JSONDecoder().decode(StructuredExtractionDocument.self, from: data) {
+            doc.normalizeInPlace()
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        guard let normalizedData = try? encoder.encode(doc) else { return nil }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+            guard let normalizedData = try? encoder.encode(doc) else { return nil }
+            return String(data: normalizedData, encoding: .utf8)
+        }
+
+        // Fallback: accept any valid JSON object even if it doesn't match the
+        // legacy preview model shape used by StructuredExtractionDocument.
+        guard let jsonObject = try? JSONSerialization.jsonObject(with: data),
+              JSONSerialization.isValidJSONObject(jsonObject),
+              let normalizedData = try? JSONSerialization.data(
+                  withJSONObject: jsonObject,
+                  options: [.prettyPrinted, .sortedKeys]
+              )
+        else {
+            return nil
+        }
         return String(data: normalizedData, encoding: .utf8)
     }
 
@@ -443,6 +490,11 @@ struct ImageTextAIView: View {
 
         activeTask?.cancel()
         activeTask = Task {
+            defer {
+                Task { @MainActor in
+                    activeTask = nil
+                }
+            }
             // Let SwiftUI render the busy state before OCR/model work starts.
             await Task.yield()
             do {

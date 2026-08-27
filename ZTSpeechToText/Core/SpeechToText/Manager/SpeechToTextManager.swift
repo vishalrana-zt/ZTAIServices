@@ -327,18 +327,6 @@ final class SpeechToTextManager: NSObject {
         appleLiveStateLock.unlock()
     }
     
-    private var isDeviceEligibleForAdvancedAppleSpeech: Bool {
-        var systemInfo = utsname()
-        uname(&systemInfo)
-        let identifier = withUnsafeMutablePointer(to: &systemInfo.machine) { ptr -> String in
-            ptr.withMemoryRebound(to: CChar.self, capacity: 1) { String(cString: $0) }
-        }
-        // Exclude devices with A13 Bionic or older (e.g. iPad 9th Gen = iPad12,1 / iPad12,2)
-        // from the on-device SpeechAnalyzer/DictationTranscriber path.
-        let excludedPrefixes = ["iPad11,", "iPad12,", "iPad7,", "iPhone11,", "iPhone10,", "iPhone9,", "iPhone8,"]
-        return !excludedPrefixes.contains { identifier.hasPrefix($0) }
-    }
-
     private var useAdvancedAppleLiveTranscribers: Bool {
         guard #available(iOS 26.0, *) else {
             logAppleGateFailure("ios_version")
@@ -351,10 +339,6 @@ final class SpeechToTextManager: NSObject {
         }
         guard operationMode == .liveStreaming else {
             logAppleGateFailure("operation_mode")
-            return false
-        }
-        guard isAdvancedApplePathExplicitlyEnabled else {
-            logAppleGateFailure("explicit_opt_in")
             return false
         }
         guard !hasDisabledAdvancedLiveStreamForSession else {
@@ -420,11 +404,6 @@ final class SpeechToTextManager: NSObject {
             }
         }
     #if DEBUG
-        // Enable advanced Apple path testing by default on debug builds only.
-        if defaults.object(forKey: Self.appleAdvancedExplicitOptInKey) == nil {
-            defaults.set(true, forKey: Self.appleAdvancedExplicitOptInKey)
-        }
-
         if defaults.bool(forKey: Self.appleAdvancedQuarantinedKey) {
             defaults.set(false, forKey: Self.appleAdvancedQuarantinedKey)
             defaults.set(false, forKey: Self.appleAdvancedArmedKey)
@@ -434,11 +413,6 @@ final class SpeechToTextManager: NSObject {
 
     private func isAppleAdvancedPathQuarantined() -> Bool {
         UserDefaults.standard.bool(forKey: Self.appleAdvancedQuarantinedKey)
-    }
-
-    // Safe default: advanced Apple live transcriber path must be explicit opt-in.
-    private var isAdvancedApplePathExplicitlyEnabled: Bool {
-        UserDefaults.standard.bool(forKey: Self.appleAdvancedExplicitOptInKey)
     }
 
     private func armAppleAdvancedPath() {
@@ -496,12 +470,20 @@ final class SpeechToTextManager: NSObject {
 
         let dictationCapable = dictationSupportedLocale != nil
         let speechCapable = speechSupportedLocale != nil
-        let enabled = (dictationCapable || speechCapable) && isAdvancedApplePathExplicitlyEnabled
+        let enabled = dictationCapable || speechCapable
         debugTrace(
             "apple_runtime_capability preferred=\(preferredLocale.identifier) dictation=\(dictationCapable) speech=\(speechCapable) enabled=\(enabled)"
         )
         setAdvancedAppleTranscriberCapability(dictation: dictationCapable, speech: speechCapable, checked: true)
         publishBackendStatus()
+
+        if let speechLocale = speechSupportedLocale {
+            Task(priority: .utility) { [weak self] in
+                guard self != nil else { return }
+                let engine = SpeechAnalyzerTranscriptionEngine()
+                try? await engine.prepare(localeHint: speechLocale, preset: .transcription)
+            }
+        }
     }
 
     var onSilenceAutoStopTriggered: (() -> Void)?
@@ -513,13 +495,11 @@ final class SpeechToTextManager: NSObject {
         set { setModelProvider(.appleModels) }
     }
 
-    private static let modelReadyKey = "SpeechToTextManager.modelReadyV2"
     private static let optedInKey = "SpeechToTextManager.optedIn"
     private static let liveTranscriptionEnabledKey = "SpeechToTextManager.liveTranscriptionEnabled"
     private static let modelProviderKey = "SpeechToTextManager.modelProvider"
     private static let appleAdvancedArmedKey = "SpeechToTextManager.appleAdvancedArmed"
     private static let appleAdvancedQuarantinedKey = "SpeechToTextManager.appleAdvancedQuarantined"
-    private static let appleAdvancedExplicitOptInKey = "SpeechToTextManager.appleAdvancedExplicitOptIn"
     
     /// True once the model is downloaded AND loaded into memory — the only
     /// state in which recording/transcription is actually usable.
@@ -647,7 +627,6 @@ final class SpeechToTextManager: NSObject {
     // the underlying downloader resumes partial files rather than restarting.
     func prepareOnOptIn() async {
         UserDefaults.standard.set(true, forKey: Self.optedInKey)
-        UserDefaults.standard.set(true, forKey: Self.modelReadyKey)
         modelState = .ready
     }
 
@@ -1076,9 +1055,19 @@ final class SpeechToTextManager: NSObject {
             try await coordinator.stop(finalize: true)
             disarmAppleAdvancedPath()
             let language = liveLockedLanguage ?? lastLiveResolvedLanguage ?? preferredDeviceSupportedLanguage() ?? .english
-            if let finalPartial = coordinator.latestLivePartial(language: language) {
-                setAppleLiveFinalText(finalPartial.text)
+            let finalFromCoordinator = coordinator.latestLivePartial(language: language)?.text
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let finalFromHistory = getLastNonEmptyLiveTranscriptText()?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolvedFinalText: String?
+            if let finalFromCoordinator, !finalFromCoordinator.isEmpty {
+                resolvedFinalText = finalFromCoordinator
+            } else if let finalFromHistory, !finalFromHistory.isEmpty {
+                resolvedFinalText = finalFromHistory
+            } else {
+                resolvedFinalText = nil
             }
+            setAppleLiveFinalText(resolvedFinalText)
         } catch {
         }
     }
@@ -1605,9 +1594,13 @@ final class SpeechToTextManager: NSObject {
         }
         switch operationMode {
         case .liveStreaming:
-            // iOS 26+: prefer DictationTranscriber when the device supports it;
-            // fall back to cloud API otherwise.
-            return useAdvancedAppleLiveTranscribers ? .ios26LiveDictation : .cloudAPI
+            // iOS 26+: final live transcription should be based on runtime dictation
+            // capability, independent from whether live streaming was disabled mid-session.
+            // This keeps final decode on-device even when stream partials fallback.
+            appleCapabilityLock.lock()
+            let dictationCapable = advancedDictationTranscriberCapable
+            appleCapabilityLock.unlock()
+            return (canUseSpeechAnalyzer && dictationCapable) ? .ios26LiveDictation : .cloudAPI
         case .postRecording:
             // iOS 26+: prefer SpeechTranscriber when the device supports it;
             // fall back to cloud API otherwise.
@@ -1648,7 +1641,6 @@ final class SpeechToTextManager: NSObject {
         if hasDisabledSpeechAnalyzerForSession { return "disabled_for_session" }
         if #unavailable(iOS 26.0) { return "ios_below_26" }
         if isAppleAdvancedPathQuarantined() { return "advanced_path_quarantined" }
-        if !isDeviceEligibleForAdvancedAppleSpeech { return "device_hardware_ineligible_soft" }
         return "available"
     }
 
@@ -1813,9 +1805,19 @@ final class SpeechToTextManager: NSObject {
             return try await transcribeWithCloudAPI(preferredLanguage: preferredLanguage)
         }
 
-        if let finalText = getAppleLiveFinalText()?.trimmingCharacters(in: .whitespacesAndNewlines), !finalText.isEmpty {
-            let language = preferredLanguage ?? liveLockedLanguage ?? lastLiveResolvedLanguage ?? preferredDeviceSupportedLanguage() ?? .english
-            return (finalText, language)
+        let streamFinalLanguage = preferredLanguage ?? liveLockedLanguage ?? lastLiveResolvedLanguage ?? preferredDeviceSupportedLanguage() ?? .english
+        let streamFinalText: String? = {
+            guard operationMode == .liveStreaming else { return nil }
+            if let liveFinal = getAppleLiveFinalText()?.trimmingCharacters(in: .whitespacesAndNewlines), !liveFinal.isEmpty {
+                return liveFinal
+            }
+            if let lastNonEmpty = getLastNonEmptyLiveTranscriptText()?.trimmingCharacters(in: .whitespacesAndNewlines), !lastNonEmpty.isEmpty {
+                return lastNonEmpty
+            }
+            return nil
+        }()
+        if let streamFinalText {
+            return (streamFinalText, streamFinalLanguage)
         }
 
         if isListening { stopListening() }
@@ -1836,9 +1838,18 @@ final class SpeechToTextManager: NSObject {
                 timeoutInterval: nil
             )
         )
+        let decodedText = output.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if operationMode == .liveStreaming,
+           let lateStreamFinalText = getAppleLiveFinalText()?.trimmingCharacters(in: .whitespacesAndNewlines)
+                ?? getLastNonEmptyLiveTranscriptText()?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !lateStreamFinalText.isEmpty,
+           !decodedText.isEmpty,
+           Double(decodedText.count) < (Double(lateStreamFinalText.count) * 0.70) {
+            return (lateStreamFinalText, streamFinalLanguage)
+        }
         let resolvedLanguage = supportedLanguage(from: output.locale, fallback: languageHint)
         lastLiveResolvedLanguage = resolvedLanguage
-        return (output.text, resolvedLanguage)
+        return (decodedText, resolvedLanguage)
     }
 
     private func transcribePartialCurrentBufferWithSpeechAnalyzer(

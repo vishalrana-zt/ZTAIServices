@@ -235,7 +235,6 @@ struct RecordScreen: View {
                     }
             }
 
-
             if isListening || isTranscribing {
                 VStack(alignment: .leading, spacing: 6) {
                     ListeningWaveformView(

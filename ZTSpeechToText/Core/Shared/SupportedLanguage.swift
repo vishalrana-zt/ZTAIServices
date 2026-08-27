@@ -4,7 +4,7 @@ enum SupportedLanguage: String, CaseIterable, Sendable {
     case spanish = "es"
     case french  = "fr"
 
-    var displayName: String {
+    nonisolated var displayName: String {
         switch self {
         case .english: return "English"
         case .spanish: return "Spanish"
@@ -13,10 +13,10 @@ enum SupportedLanguage: String, CaseIterable, Sendable {
     }
 
     // ISO 639-1 code — used as locale identifier and AI prompt language hint.
-    var localeIdentifier: String { rawValue }
+    nonisolated var localeIdentifier: String { rawValue }
 
     // Full language name for AI prompt instructions.
-    var responseLanguageInstruction: String {
+    nonisolated var responseLanguageInstruction: String {
         switch self {
         case .english: return "English"
         case .spanish: return "Spanish"

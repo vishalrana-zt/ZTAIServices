@@ -21,14 +21,33 @@ private func offlineError(from error: Error) -> TranscriptionEngineError? {
         NSURLErrorCannotConnectToHost,
         NSURLErrorCannotFindHost
     ]
-    guard offlineCodes.contains(nsError.code) else { return nil }
-    return .transcriptionFailed(
-        underlying: NSError(
-            domain: "CloudTranscriptionEngine",
-            code: nsError.code,
-            userInfo: [NSLocalizedDescriptionKey: "No internet connection. Check your network and try again."]
+    if offlineCodes.contains(nsError.code) {
+        return .transcriptionFailed(
+            underlying: NSError(
+                domain: "CloudTranscriptionEngine",
+                code: nsError.code,
+                userInfo: [NSLocalizedDescriptionKey: "No internet connection. Check your network and try again."]
+            )
         )
-    )
+    }
+    let tlsCodes: Set<Int> = [
+        NSURLErrorSecureConnectionFailed,
+        NSURLErrorServerCertificateHasBadDate,
+        NSURLErrorServerCertificateUntrusted,
+        NSURLErrorServerCertificateHasUnknownRoot,
+        NSURLErrorServerCertificateNotYetValid,
+        NSURLErrorClientCertificateRejected
+    ]
+    if tlsCodes.contains(nsError.code) {
+        return .transcriptionFailed(
+            underlying: NSError(
+                domain: "CloudTranscriptionEngine",
+                code: nsError.code,
+                userInfo: [NSLocalizedDescriptionKey: "Secure connection failed. Check your device date/time, VPN, or network settings and try again."]
+            )
+        )
+    }
+    return nil
 }
 
 final class CloudTranscriptionEngine: FinalTranscriptionEngine {
@@ -291,15 +310,20 @@ final class CloudTranscriptionEngine: FinalTranscriptionEngine {
         if error is CancellationError { return false }
         let nsError = error as NSError
         if nsError.domain == NSURLErrorDomain {
-            // Do NOT retry when the device is offline — fail fast and surface the error.
-            let offlineCodes: Set<Int> = [
+            let nonRetryableCodes: Set<Int> = [
                 NSURLErrorNotConnectedToInternet,
                 NSURLErrorNetworkConnectionLost,
                 NSURLErrorCannotConnectToHost,
-                NSURLErrorCannotFindHost
+                NSURLErrorCannotFindHost,
+                NSURLErrorSecureConnectionFailed,
+                NSURLErrorServerCertificateHasBadDate,
+                NSURLErrorServerCertificateUntrusted,
+                NSURLErrorServerCertificateHasUnknownRoot,
+                NSURLErrorServerCertificateNotYetValid,
+                NSURLErrorClientCertificateRejected
             ]
-            if offlineCodes.contains(nsError.code) { return false }
-            return true  // retry other transient network errors (timeout, etc.)
+            if nonRetryableCodes.contains(nsError.code) { return false }
+            return true
         }
         if nsError.code >= 500 && nsError.code < 600 { return true }
         return false
