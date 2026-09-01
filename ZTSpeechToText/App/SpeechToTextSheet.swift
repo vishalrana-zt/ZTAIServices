@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import UserNotifications
 import ZTAIServiceEngine
 
 struct SpeechToTextSheetConfiguration {
@@ -23,16 +22,7 @@ private struct SpeechToTextFlowSheet: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
-    @State private var modelState: SpeechToTextManager.ModelState = .notDownloaded
-    @State private var didStartDownloadInThisSession = false
-    @State private var isPreparingBundledModel = false
-    @State private var wantsSetupCompletionNotification = false
-    @State private var hasCollapsedToCompactDownloadingBar = false
-    @State private var showNotifyInfoAlert = false
-    @State private var notifyInfoTitle = ""
-    @State private var notifyInfoMessage = ""
     @State private var shouldAutoStartRecording = true
-    @State private var selectedModelProvider: SpeechToTextManager.ModelProvider = .appleModels
 
     private let manager = SpeechToTextManager.shared
     let configuration: SpeechToTextSheetConfiguration
@@ -47,19 +37,12 @@ private struct SpeechToTextFlowSheet: View {
             .padding(.bottom, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .onAppear {
-                manager.onModelStateChange = { state in
-                    DispatchQueue.main.async { modelState = state }
-                }
-                selectedModelProvider = .appleModels
-                manager.setModelProvider(selectedModelProvider)
+                manager.setModelProvider(.appleModels)
                 applyModeSelection(
                     configuration.operationMode,
                     shouldKickoffSetup: true,
                     allowAutoStartWhenReady: true
                 )
-            }
-            .onDisappear {
-                manager.onModelStateChange = nil
             }
             .onChange(of: configuration.operationMode) { newMode in
                 applyModeSelection(
@@ -67,31 +50,6 @@ private struct SpeechToTextFlowSheet: View {
                     shouldKickoffSetup: true,
                     allowAutoStartWhenReady: false
                 )
-            }
-            .onChange(of: modelState) { newState in
-                if case .downloading = newState {
-                    didStartDownloadInThisSession = true
-                }
-                if case .loadingModel = newState {
-                    didStartDownloadInThisSession = true
-                }
-
-                guard didStartDownloadInThisSession else { return }
-                if case .ready = newState {
-                    UserDefaults.standard.set(false, forKey: compactDownloadBarPreferenceKey)
-                    hasCollapsedToCompactDownloadingBar = false
-
-                    if wantsSetupCompletionNotification {
-                        scheduleSetupReadyNotification()
-                        wantsSetupCompletionNotification = false
-                    }
-                    onSetupReady()
-                }
-            }
-            .alert(notifyInfoTitle, isPresented: $showNotifyInfoAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(notifyInfoMessage)
             }
     }
 
@@ -119,37 +77,18 @@ private struct SpeechToTextFlowSheet: View {
         }
     }
 
-    private var compactDownloadBarPreferenceKey: String {
-        "SpeechToTextFlowSheet.prefersCompactDownloadBar.\(configuration.operationMode.rawValue)"
-    }
-
     private func applyModeSelection(
         _ mode: SpeechToTextManager.OperationMode,
         shouldKickoffSetup: Bool,
         allowAutoStartWhenReady: Bool
     ) {
         manager.setOperationMode(mode)
-        hasCollapsedToCompactDownloadingBar = UserDefaults.standard.bool(forKey: compactDownloadBarPreferenceKey)
-        // Apple-only provider path.
-        modelState = .ready
-        didStartDownloadInThisSession = false
-        isPreparingBundledModel = false
+        onSetupReady()
         if allowAutoStartWhenReady {
             shouldAutoStartRecording = true
         }
         guard shouldKickoffSetup else { return }
         return
-    }
-
-    private func scheduleSetupReadyNotification() {
-        let content = UNMutableNotificationContent()
-        content.title = "Model Setup Ready"
-        content.body = "One-time model setup is complete. Speech-to-text is now available offline."
-        content.sound = .default
-
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1.0, repeats: false)
-        let request = UNNotificationRequest(identifier: "stt.setup.ready", content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request)
     }
 
     private var panelFillColor: Color {
