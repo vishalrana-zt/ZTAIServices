@@ -3,18 +3,18 @@ import Foundation
 import FoundationModels
 #endif
 
-enum TextAIOperation: String, Sendable {
+public enum TextAIOperation: String, Sendable {
     case cleanup
     case summarize
     case structuredExtraction
 }
 
-enum TextAISummaryStyle: String, CaseIterable, Sendable {
+public enum TextAISummaryStyle: String, CaseIterable, Sendable {
     case short
     case standard
     case detailed
 
-    nonisolated var displayName: String {
+    nonisolated public var displayName: String {
         switch self {
         case .short: return "Short"
         case .standard: return "Standard"
@@ -23,7 +23,7 @@ enum TextAISummaryStyle: String, CaseIterable, Sendable {
     }
 }
 
-enum StructuredDocumentType: String, CaseIterable, Identifiable, Sendable {
+public enum StructuredDocumentType: String, CaseIterable, Identifiable, Sendable {
     case invoice
     case estimate
     case bill
@@ -33,9 +33,9 @@ enum StructuredDocumentType: String, CaseIterable, Identifiable, Sendable {
     case fireEquipmentManualSticker
     case other
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    nonisolated var displayName: String {
+    nonisolated public var displayName: String {
         switch self {
         case .invoice: return "Invoice"
         case .estimate: return "Estimate"
@@ -51,7 +51,7 @@ enum StructuredDocumentType: String, CaseIterable, Identifiable, Sendable {
     // Fire-inspection-industry-optimized: this app's domain is fire protection
     // system inspection/testing/maintenance, so hints steer the model toward
     // NFPA/AHJ terminology and fire-specific systems rather than generic trades.
-    nonisolated var extractionHint: String {
+    nonisolated public var extractionHint: String {
         switch self {
         case .invoice, .estimate:
             return "Prioritize the site/property being serviced, billing party, systems inspected or quoted (sprinkler, fire alarm, extinguisher, kitchen hood/ansul suppression, backflow, fire pump, standpipe, fire door, emergency/exit lighting), line items tied to specific fire protection services (inspection, testing, maintenance, deficiency correction, monitoring), NFPA code references, inspection frequency/contract terms, totals, and due/validity dates."
@@ -77,11 +77,11 @@ struct TextAIRequest: Sendable {
     let documentType: StructuredDocumentType?
 }
 
-enum TextAIProviderID: String, Sendable {
+public enum TextAIProviderID: String, Sendable {
     case appleFoundationModels
     case cloudAPI
 
-    nonisolated var displayName: String {
+    nonisolated public var displayName: String {
         switch self {
         case .appleFoundationModels: return "Apple Foundation Models"
         case .cloudAPI: return "Cloud API"
@@ -89,7 +89,7 @@ enum TextAIProviderID: String, Sendable {
     }
 
     @MainActor
-    var resolvedDisplayName: String {
+    public var resolvedDisplayName: String {
         switch self {
         case .appleFoundationModels: return "Apple Foundation Models"
         case .cloudAPI:
@@ -101,12 +101,17 @@ enum TextAIProviderID: String, Sendable {
     }
 }
 
-struct TextAIExecutionResult: Sendable {
-    let provider: TextAIProviderID
-    let outputText: String
+public struct TextAIExecutionResult: Sendable {
+    public let provider: TextAIProviderID
+    public let outputText: String
+
+    public init(provider: TextAIProviderID, outputText: String) {
+        self.provider = provider
+        self.outputText = outputText
+    }
 }
 
-enum TextAIError: LocalizedError, Sendable {
+public enum TextAIError: LocalizedError, Sendable {
     case emptyInput
     case missingDocumentType
     case providerUnavailable(reason: String)
@@ -117,7 +122,7 @@ enum TextAIError: LocalizedError, Sendable {
     case unsupportedLanguage
     case cancelled
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .emptyInput:
             return "Please enter text before running AI processing."
@@ -190,15 +195,19 @@ actor TextAIProviderResolver {
     }
 }
 
-actor TextAIService {
+public actor TextAIService {
     private let resolver: TextAIProviderResolver
     private let appleProviderTimeoutSeconds: Double = 20
 
-    init(resolver: TextAIProviderResolver = TextAIProviderResolver()) {
+    public init() {
+        self.resolver = TextAIProviderResolver()
+    }
+
+    init(resolver: TextAIProviderResolver) {
         self.resolver = resolver
     }
 
-    func cleanup(text: String, preferredLanguage: SupportedLanguage) async throws -> TextAIExecutionResult {
+    public func cleanup(text: String, preferredLanguage: SupportedLanguage) async throws -> TextAIExecutionResult {
         let request = TextAIRequest(
             operation: .cleanup,
             text: text,
@@ -209,7 +218,7 @@ actor TextAIService {
         return try await process(request)
     }
 
-    func summarize(
+    public func summarize(
         text: String,
         preferredLanguage: SupportedLanguage,
         style: TextAISummaryStyle
@@ -224,7 +233,7 @@ actor TextAIService {
         return try await process(request)
     }
 
-    func structuredExtract(
+    public func structuredExtract(
         text: String,
         preferredLanguage: SupportedLanguage,
         documentType: StructuredDocumentType
@@ -239,7 +248,7 @@ actor TextAIService {
         return try await process(request)
     }
 
-    func preferredProviderDisplayName(for language: SupportedLanguage) async -> String {
+    public func preferredProviderDisplayName(for language: SupportedLanguage) async -> String {
         await resolver.preferredProviderDisplayName(for: language)
     }
 
