@@ -2,17 +2,7 @@ import Foundation
 
 // MARK: - Configuration
 
-// Set provider + key once at app startup before any transcription occurs.
-// Production: read keys from iOS Keychain.
-//
-// OpenAI (recommended):
-//   CloudAPIConfiguration.provider      = .openAI
-//   CloudAPIConfiguration.openAIAPIKey  = "sk-..."   // platform.openai.com
-//
-// Gemini:
-//   CloudAPIConfiguration.provider      = .gemini
-//   CloudAPIConfiguration.geminiAPIKey  = "AIza..."  // aistudio.google.com/apikey
-//
+
 public enum CloudAPIConfiguration {
     public enum Provider {
         case openAI
