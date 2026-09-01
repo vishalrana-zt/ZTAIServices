@@ -3,12 +3,12 @@ import UIKit
 
 // MARK: - Errors
 
-enum ImageOCRError: LocalizedError {
+public enum ImageOCRError: LocalizedError {
     case invalidImage
     case noTextFound
     case recognitionFailed(underlying: Error)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .invalidImage:
             return "The image could not be read."
@@ -25,7 +25,8 @@ enum ImageOCRError: LocalizedError {
 // Local, on-device text extraction using Apple Vision.
 // The image is never sent to the network — only the resulting text string
 // is passed to AI providers for further processing.
-struct ImageOCREngine {
+public struct ImageOCREngine {
+    public init() {}
     private final class OCRContinuation {
         private let lock = NSLock()
         private var continuation: CheckedContinuation<String, Error>?
@@ -65,7 +66,7 @@ struct ImageOCREngine {
     // Recognizes all readable text in the given image.
     // languageHints: BCP-47 codes (e.g. "en-US") improve accuracy but are optional.
     // Returns the full extracted text with lines joined by newlines.
-    func recognizeText(in image: UIImage, languageHints: [String] = []) async throws -> String {
+    public func recognizeText(in image: UIImage, languageHints: [String] = []) async throws -> String {
         let source: VisionImageSource
         if let cgImage = image.cgImage {
             source = .cgImage(cgImage)
