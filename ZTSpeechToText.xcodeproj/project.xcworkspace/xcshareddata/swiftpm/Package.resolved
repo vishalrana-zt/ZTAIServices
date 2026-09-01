@@ -1,0 +1,15 @@
+{
+  "originHash" : "61b007ebe7a5f430b85ce8bbe570a1e88a2e71143699af1e3838289a0ffad170",
+  "pins" : [
+    {
+      "identity" : "speechtextdemo",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/vishalrana-zt/SpeechTextDemo",
+      "state" : {
+        "branch" : "spm-package",
+        "revision" : "adf45d8dbf3aceca6f94942c56789068d05d6af5"
+      }
+    }
+  ],
+  "version" : 3
+}
