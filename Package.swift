@@ -2,19 +2,19 @@
 import PackageDescription
 
 let package = Package(
-    name: "ZTAIServiceEngine",
+    name: "ZTAIServices",
     platforms: [
         .iOS(.v16)
     ],
     products: [
         .library(
-            name: "ZTAIServiceEngine",
-            targets: ["ZTAIServiceEngine"]
+            name: "ZTAIServices",
+            targets: ["ZTAIServices"]
         )
     ],
     targets: [
         .target(
-            name: "ZTAIServiceEngine",
+            name: "ZTAIServices",
             path: "ZTSpeechToText/Core",
             resources: [
                 .process("Resources")

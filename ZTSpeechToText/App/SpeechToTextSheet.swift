@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import ZTAIServiceEngine
+import ZTAIServices
 
 struct SpeechToTextSheetConfiguration {
     var preferredLanguage: SupportedLanguage? = nil

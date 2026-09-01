@@ -1,4 +1,4 @@
-# ZTAIServiceEngine
+# ZTAIServices
 
 Swift Package for the reusable Core engines from `ZTSpeechToText`.
 
@@ -11,7 +11,7 @@ Swift Package for the reusable Core engines from `ZTSpeechToText`.
 
 This repository now exposes one library product:
 
-- `ZTAIServiceEngine`
+- `ZTAIServices`
 
 It maps to:
 
@@ -23,8 +23,8 @@ In another project `Package.swift`:
 
 ```swift
 .package(
-    name: "ZTAIServiceEngine",
-    url: "https://github.com/vishalrana-zt/ZTAIServiceEngine.git",
+    name: "ZTAIServices",
+    url: "https://github.com/vishalrana-zt/ZTAIServices.git",
     branch: "spm-package"
 )
 ```
@@ -32,7 +32,7 @@ In another project `Package.swift`:
 Then add the product to your target dependencies:
 
 ```swift
-.product(name: "ZTAIServiceEngine", package: "ZTAIServiceEngine")
+.product(name: "ZTAIServices", package: "ZTAIServices")
 ```
 
 For local development:

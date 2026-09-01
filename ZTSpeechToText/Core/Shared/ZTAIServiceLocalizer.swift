@@ -1,7 +1,7 @@
 import Foundation
 
 public enum ZTAIServiceLocalizer {
-    private static let languageKey = "ZTAIServiceEngine.currentLanguage"
+    private static let languageKey = "ZTAIServices.currentLanguage"
 
     public static var currentLanguageCode: String? {
         get { UserDefaults.standard.string(forKey: languageKey) }
@@ -23,11 +23,11 @@ public enum ZTAIServiceLocalizer {
         #if SWIFT_PACKAGE
         return Bundle.module
         #else
-        if let url = Bundle.main.url(forResource: "ZTAIServiceEngine_ZTAIServiceEngine", withExtension: "bundle"),
+        if let url = Bundle.main.url(forResource: "ZTAIServices_ZTAIServices", withExtension: "bundle"),
            let bundle = Bundle(url: url) {
             return bundle
         }
-        if let url = Bundle.main.url(forResource: "ZTAIServiceEngine", withExtension: "bundle"),
+        if let url = Bundle.main.url(forResource: "ZTAIServices", withExtension: "bundle"),
            let bundle = Bundle(url: url) {
             return bundle
         }
