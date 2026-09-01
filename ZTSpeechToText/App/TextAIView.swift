@@ -16,6 +16,7 @@ struct TextAIView: View {
     @State private var errorMessage: String?
     @State private var activeTask: Task<Void, Never>?
     @State private var didCopyResult = false
+    @State private var canUndo = false
     @FocusState private var isInputFocused: Bool
 
     private var canRun: Bool {
@@ -202,6 +203,14 @@ struct TextAIView: View {
                 .foregroundStyle(didCopyResult ? .green : .accentColor)
                 .animation(.default, value: didCopyResult)
             }
+
+            if canUndo {
+                Button(role: .destructive) {
+                    performUndo()
+                } label: {
+                    Label("Undo", systemImage: "arrow.uturn.backward")
+                }
+            }
         } header: {
             Text(AppLocalizer.localized("lbl_result"))
         }
@@ -251,9 +260,11 @@ struct TextAIView: View {
                         style: summaryStyle
                     )
                 }
+                let undoAvailable = await service.canUndo
                 await MainActor.run {
                     providerLabel = response.provider.resolvedDisplayName
                     resultText = response.outputText
+                    canUndo = undoAvailable
                     isProcessing = false
                 }
             } catch {
@@ -262,6 +273,19 @@ struct TextAIView: View {
                     isProcessing = false
                     errorMessage = message
                 }
+            }
+        }
+    }
+
+    private func performUndo() {
+        Task {
+            guard let original = await service.undo() else { return }
+            let stillCanUndo = await service.canUndo
+            await MainActor.run {
+                inputText = original
+                resultText = ""
+                canUndo = stillCanUndo
+                didCopyResult = false
             }
         }
     }

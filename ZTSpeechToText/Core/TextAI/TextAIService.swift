@@ -198,6 +198,8 @@ actor TextAIProviderResolver {
 public actor TextAIService {
     private let resolver: TextAIProviderResolver
     private let appleProviderTimeoutSeconds: Double = 20
+    private var undoStack: [String] = []
+    private let maxUndoHistory = 10
 
     public init() {
         self.resolver = TextAIProviderResolver()
@@ -205,6 +207,19 @@ public actor TextAIService {
 
     init(resolver: TextAIProviderResolver) {
         self.resolver = resolver
+    }
+
+    /// Whether a previous cleanup or summarize input can be restored.
+    public var canUndo: Bool {
+        !undoStack.isEmpty
+    }
+
+    /// Returns the original input text from the most recent successful cleanup or summarize,
+    /// removing it from the undo stack. Returns nil if there is nothing to undo.
+    @discardableResult
+    public func undo() -> String? {
+        guard !undoStack.isEmpty else { return nil }
+        return undoStack.removeLast()
     }
 
     public func cleanup(text: String, preferredLanguage: SupportedLanguage) async throws -> TextAIExecutionResult {
@@ -215,7 +230,9 @@ public actor TextAIService {
             summaryStyle: nil,
             documentType: nil
         )
-        return try await process(request)
+        let result = try await process(request)
+        recordUndo(originalText: text)
+        return result
     }
 
     public func summarize(
@@ -230,7 +247,9 @@ public actor TextAIService {
             summaryStyle: style,
             documentType: nil
         )
-        return try await process(request)
+        let result = try await process(request)
+        recordUndo(originalText: text)
+        return result
     }
 
     public func structuredExtract(
@@ -246,6 +265,13 @@ public actor TextAIService {
             documentType: documentType
         )
         return try await process(request)
+    }
+
+    private func recordUndo(originalText: String) {
+        undoStack.append(originalText)
+        if undoStack.count > maxUndoHistory {
+            undoStack.removeFirst()
+        }
     }
 
     public func preferredProviderDisplayName(for language: SupportedLanguage) async -> String {
