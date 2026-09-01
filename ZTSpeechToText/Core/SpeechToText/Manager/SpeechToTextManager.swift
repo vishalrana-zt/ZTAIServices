@@ -88,22 +88,28 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
         return capable
     }
 
-    struct DownloadStatus: Equatable {
-        let progress: Double
-        let downloadedBytes: Int64
-        let totalBytes: Int64
+    public struct DownloadStatus: Equatable {
+        public let progress: Double
+        public let downloadedBytes: Int64
+        public let totalBytes: Int64
+
+        public init(progress: Double, downloadedBytes: Int64, totalBytes: Int64) {
+            self.progress = progress
+            self.downloadedBytes = downloadedBytes
+            self.totalBytes = totalBytes
+        }
     }
 
-    struct LivePartialResult: Sendable {
-        let text: String
-        let language: SupportedLanguage
-        let windowStartTime: TimeInterval
-        let windowEndTime: TimeInterval
-        let segments: [LiveTranscriptSegment]
-        let committedText: String?
-        let volatileText: String?
+    public struct LivePartialResult: Sendable {
+        public let text: String
+        public let language: SupportedLanguage
+        public let windowStartTime: TimeInterval
+        public let windowEndTime: TimeInterval
+        public let segments: [LiveTranscriptSegment]
+        public let committedText: String?
+        public let volatileText: String?
 
-        init(
+        public init(
             text: String,
             language: SupportedLanguage,
             windowStartTime: TimeInterval,
