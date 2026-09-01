@@ -18,8 +18,10 @@ struct RootView: View {
 
         var title: String {
             switch self {
-            case .liveStreaming: return "Live dictation"
-            case .postRecording: return "After recording"
+            case .liveStreaming:
+                return AppLocalizer.localized("mode_live_dictation")
+            case .postRecording:
+                return AppLocalizer.localized("mode_after_recording")
             }
         }
 
@@ -66,7 +68,7 @@ struct RootView: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Picker("Cloud Provider", selection: $cloudProviderKey) {
+                    Picker(AppLocalizer.localized("lbl_cloud_provider"), selection: $cloudProviderKey) {
                         Text("OpenAI").tag("openAI")
                         Text("Gemini").tag("gemini")
                     }
@@ -76,7 +78,7 @@ struct RootView: View {
                         CloudAPIConfiguration.provider = key == "gemini" ? .gemini : .openAI
                     }
 
-                    Picker("Language", selection: $selectedLanguage) {
+                    Picker(AppLocalizer.localized("lbl_language"), selection: $selectedLanguage) {
                         ForEach(SupportedLanguage.allCases, id: \.self) { language in
                             Text(language.displayName).tag(language)
                         }
@@ -85,7 +87,7 @@ struct RootView: View {
                     .disabled(isSpeechToTextSheetPresented)
 
                     if isOnDeviceLiveStreamingAvailable {
-                        Picker("Mode", selection: $selectedMode) {
+                        Picker(AppLocalizer.localized("lbl_mode"), selection: $selectedMode) {
                             ForEach(CaptureMode.allCases) { mode in
                                 Text(mode.title).tag(mode)
                             }
@@ -118,7 +120,7 @@ struct RootView: View {
                         )
 
                     if shouldShowNotePlaceholder {
-                        Text("Tap the AI mic in the top-right to start dictation.")
+                        Text(AppLocalizer.localized("msg_tap_ai_mic_top_right"))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .padding(.top, 16)
@@ -137,7 +139,7 @@ struct RootView: View {
             }
             .padding()
             .padding(.bottom, isSpeechToTextSheetPresented ? bottomPanelReservedHeight : 0)
-            .navigationTitle("Notes")
+            .navigationTitle(AppLocalizer.localized("title_notes"))
             .disabled(isSpeechToTextSheetPresented)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -150,7 +152,7 @@ struct RootView: View {
                     .buttonStyle(.plain)
                     .background(.thinMaterial, in: Capsule())
                     .padding(.trailing, 8)
-                    .accessibilityLabel("Log Actions")
+                    .accessibilityLabel(AppLocalizer.localized("a11y_log_actions"))
                 }
 
                 ToolbarItem(placement: .topBarLeading) {
@@ -163,7 +165,7 @@ struct RootView: View {
                         }
                         .buttonStyle(.plain)
                         .background(.thinMaterial, in: Capsule())
-                        .accessibilityLabel("Open text AI")
+                        .accessibilityLabel(AppLocalizer.localized("a11y_open_text_ai"))
 
                         Button {
                             isImageAISheetPresented = true
@@ -173,7 +175,7 @@ struct RootView: View {
                         }
                         .buttonStyle(.plain)
                         .background(.thinMaterial, in: Capsule())
-                        .accessibilityLabel("Extract text from image")
+                        .accessibilityLabel(AppLocalizer.localized("a11y_extract_text_from_image"))
                     }
                 }
 
@@ -192,7 +194,7 @@ struct RootView: View {
                     } label: {
                         Image(systemName: "waveform.badge.mic")
                     }
-                    .accessibilityLabel("Add note with voice")
+                    .accessibilityLabel(AppLocalizer.localized("a11y_add_note_with_voice"))
                 }
             }
         }
@@ -247,18 +249,18 @@ struct RootView: View {
                 ActivityView(activityItems: [logShareText])
             }
         }
-        .confirmationDialog("Log Actions", isPresented: $isLogActionsPresented, titleVisibility: .visible) {
-            Button("Clear All Logs") {
+        .confirmationDialog(AppLocalizer.localized("a11y_log_actions"), isPresented: $isLogActionsPresented, titleVisibility: .visible) {
+            Button(AppLocalizer.localized("btn_clear_all_logs")) {
                 STTSessionLogger.shared.clearAllLogs()
                 STTSessionLogger.shared.log(source: "RootView", message: "ui action=clear_all_logs")
             }
-            Button("Share Logs") {
+            Button(AppLocalizer.localized("btn_share_logs")) {
                 let text = STTSessionLogger.shared.shareableLogText()
                 logShareText = text
                 isLogSharePresented = true
                 STTSessionLogger.shared.log(source: "RootView", message: "ui action=share_logs text_chars=\(text.count)")
             }
-            Button("Cancel", role: .cancel) {}
+            Button(AppLocalizer.localized("btn_cancel"), role: .cancel) {}
         }
         .fullScreenCover(isPresented: $isTextAISheetPresented) {
             TextAIView()

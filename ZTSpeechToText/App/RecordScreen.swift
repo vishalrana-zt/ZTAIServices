@@ -136,7 +136,7 @@ struct RecordScreen: View {
                                 .font(.title2.monospacedDigit().weight(.bold))
                                 .foregroundStyle(.red)
                             if !hasLoggedFirstLiveText {
-                                Text("Listening…")
+                                Text(AppLocalizer.localized("lbl_listening"))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
                             }
@@ -186,12 +186,16 @@ struct RecordScreen: View {
                                 .tint(Color.accentColor)
                                 .scaleEffect(1.2)
                                 .frame(width: 20, height: 20)
-                            Text(isTranscribing ? "Processing…" : (isStoppingRecording ? "Stopping…" : "Starting…"))
+                            Text(
+                                isTranscribing
+                                ? AppLocalizer.localized("lbl_processing")
+                                : (isStoppingRecording ? AppLocalizer.localized("lbl_stopping") : AppLocalizer.localized("lbl_starting"))
+                            )
                                 .font(.subheadline.weight(.semibold))
                         } else {
                             Image(systemName: isListening ? "pause.fill" : "play.fill")
                                 .font(.system(size: 13, weight: .semibold))
-                            Text(isListening ? "Stop" : "Speak now")
+                            Text(isListening ? AppLocalizer.localized("btn_stop") : AppLocalizer.localized("btn_speak_now"))
                                 .font(.subheadline.weight(.semibold))
                         }
                     }
@@ -223,7 +227,7 @@ struct RecordScreen: View {
             .padding(.horizontal, 2)
 
             if showsLiveTranscriptionToggle && isOnDeviceLiveStreamingAvailable {
-                Toggle("Live transcription", isOn: $isLiveTranscriptionEnabled)
+                Toggle(AppLocalizer.localized("lbl_live_transcription"), isOn: $isLiveTranscriptionEnabled)
                     .font(.caption.weight(.semibold))
                     .tint(.accentColor)
                     .onChange(of: isLiveTranscriptionEnabled) { isEnabled in
@@ -368,14 +372,14 @@ struct RecordScreen: View {
     }
 
     private var statusText: String {
-        if isAutoStartingRecording { return "Getting ready..." }
-        if isStoppingRecording { return "Wrapping up..." }
-        if isTranscribing { return "Finalizing text..." }
-        return "Tap Speak now to start dictation"
+        if isAutoStartingRecording { return AppLocalizer.localized("lbl_getting_ready") }
+        if isStoppingRecording { return AppLocalizer.localized("lbl_wrapping_up") }
+        if isTranscribing { return AppLocalizer.localized("lbl_finalizing_text") }
+        return AppLocalizer.localized("msg_tap_speak_now_start_dictation")
     }
 
     private var idlePromptText: Text {
-        return Text("Tap Speak now to start dictation")
+        return Text(AppLocalizer.localized("msg_tap_speak_now_start_dictation"))
     }
 
     private var formattedRecordingDuration: String {
@@ -442,7 +446,7 @@ struct RecordScreen: View {
         defer { isRecordingTransitionInFlight = false }
 
         guard await manager.gateFeatureUsage() else {
-            errorMessage = "Model is not ready yet."
+            errorMessage = AppLocalizer.localized("err_model_not_ready")
             if isAutoStartingRecording {
                 uiPhase = .idle
             }
@@ -452,7 +456,7 @@ struct RecordScreen: View {
         uiPhase = .starting
         let granted = await manager.requestMicPermission()
         guard granted else {
-            errorMessage = "Microphone access is off. Enable it in Settings."
+            errorMessage = AppLocalizer.localized("err_mic_access_off")
             uiPhase = .idle
             return
         }
@@ -514,7 +518,7 @@ struct RecordScreen: View {
         uiPhase = .finishing
         finalizeRecordingSessionMetadata()
         guard lastRecordingDuration >= minimumRecordingDuration else {
-            errorMessage = "Recording is too short. Speak a bit longer, then tap Stop."
+            errorMessage = AppLocalizer.localized("err_recording_too_short")
             uiPhase = .idle
             return
         }
@@ -594,9 +598,9 @@ struct RecordScreen: View {
             let cleaned = cleanedTranscript(result.text)
             guard !cleaned.isEmpty else {
                 if maxMicLevelDuringSession < 0.04 {
-                    errorMessage = "No speech detected. Try speaking louder or moving closer to the mic."
+                    errorMessage = AppLocalizer.localized("err_no_speech_detected")
                 } else {
-                    errorMessage = "No clear speech was detected in this recording."
+                    errorMessage = AppLocalizer.localized("err_no_clear_speech")
                 }
                 return
             }

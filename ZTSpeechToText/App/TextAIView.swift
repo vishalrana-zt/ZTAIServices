@@ -32,11 +32,11 @@ struct TextAIView: View {
                 if let errorMessage { errorSection(errorMessage) }
                 if !resultText.isEmpty { resultSection }
             }
-            .navigationTitle("Text AI")
+            .navigationTitle(AppLocalizer.localized("title_text_ai"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
+                    Button(AppLocalizer.localized("btn_done")) {
                         if isInputFocused {
                             isInputFocused = false
                         } else {
@@ -56,7 +56,7 @@ struct TextAIView: View {
 
     private var languageSection: some View {
         Section {
-            Picker("Cloud Provider", selection: $cloudProviderKey) {
+            Picker(AppLocalizer.localized("lbl_cloud_provider"), selection: $cloudProviderKey) {
                 Text("OpenAI").tag("openAI")
                 Text("Gemini").tag("gemini")
             }
@@ -66,7 +66,7 @@ struct TextAIView: View {
                 CloudAPIConfiguration.provider = key == "gemini" ? .gemini : .openAI
             }
 
-            Picker("Language", selection: $selectedLanguage) {
+            Picker(AppLocalizer.localized("lbl_language"), selection: $selectedLanguage) {
                 ForEach(SupportedLanguage.allCases, id: \.self) {
                     Text($0.displayName).tag($0)
                 }
@@ -80,7 +80,7 @@ struct TextAIView: View {
         Section {
             ZStack(alignment: .topLeading) {
                 if inputText.isEmpty {
-                    Text("Paste or type any text…")
+                    Text(AppLocalizer.localized("ph_paste_or_type_text"))
                         .foregroundStyle(.tertiary)
                         .font(.body)
                         .padding(.top, 8)
@@ -94,10 +94,10 @@ struct TextAIView: View {
             }
         } header: {
             HStack {
-                Text("Input")
+                Text(AppLocalizer.localized("lbl_input"))
                 Spacer()
                 if !inputText.isEmpty {
-                    Button("Clear", role: .destructive) {
+                    Button(AppLocalizer.localized("btn_clear"), role: .destructive) {
                         withAnimation { inputText = "" }
                     }
                     .font(.caption)
@@ -106,7 +106,7 @@ struct TextAIView: View {
             }
         } footer: {
             if !inputText.isEmpty {
-                Text("\(inputText.count) characters")
+                Text("\(inputText.count) \(AppLocalizer.localized("lbl_characters"))")
                     .font(.caption2)
             }
         }
@@ -114,15 +114,15 @@ struct TextAIView: View {
 
     private var operationSection: some View {
         Section {
-            Picker("Type", selection: $selectedOperation) {
-                Text("Clean Up").tag(TextAIOperation.cleanup)
-                Text("Summarize").tag(TextAIOperation.summarize)
+            Picker(AppLocalizer.localized("lbl_type"), selection: $selectedOperation) {
+                Text(AppLocalizer.localized("opt_clean_up")).tag(TextAIOperation.cleanup)
+                Text(AppLocalizer.localized("opt_summarize")).tag(TextAIOperation.summarize)
             }
             .pickerStyle(.segmented)
             .disabled(isProcessing)
 
             if selectedOperation == .summarize {
-                Picker("Length", selection: $summaryStyle) {
+                Picker(AppLocalizer.localized("lbl_length"), selection: $summaryStyle) {
                     ForEach(TextAISummaryStyle.allCases, id: \.self) {
                         Text($0.displayName).tag($0)
                     }
@@ -133,7 +133,7 @@ struct TextAIView: View {
 
         } header: {
             HStack {
-                Text("Operation")
+                Text(AppLocalizer.localized("lbl_operation"))
                 Spacer()
                 providerBadge
             }
@@ -145,10 +145,10 @@ struct TextAIView: View {
             if isProcessing {
                 HStack {
                     ProgressView()
-                    Text("Processing…")
+                    Text(AppLocalizer.localized("lbl_processing"))
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Cancel", role: .destructive) {
+                    Button(AppLocalizer.localized("btn_cancel"), role: .destructive) {
                         activeTask?.cancel()
                     }
                 }
@@ -159,7 +159,9 @@ struct TextAIView: View {
                     HStack {
                         Spacer()
                         Image(systemName: selectedOperation == .cleanup ? "sparkles" : "text.quote")
-                        Text(selectedOperation == .cleanup ? "Clean Up Text" : "Summarize Text")
+                        Text(selectedOperation == .cleanup
+                             ? AppLocalizer.localized("btn_clean_up_text")
+                             : AppLocalizer.localized("btn_summarize_text"))
                             .fontWeight(.semibold)
                         Spacer()
                     }
@@ -192,14 +194,16 @@ struct TextAIView: View {
                 }
             } label: {
                 Label(
-                    didCopyResult ? "Copied!" : "Copy to Clipboard",
+                    didCopyResult
+                    ? AppLocalizer.localized("msg_copied")
+                    : AppLocalizer.localized("btn_copy_to_clipboard"),
                     systemImage: didCopyResult ? "checkmark.circle.fill" : "doc.on.doc"
                 )
                 .foregroundStyle(didCopyResult ? .green : .accentColor)
                 .animation(.default, value: didCopyResult)
             }
         } header: {
-            Text("Result")
+            Text(AppLocalizer.localized("lbl_result"))
         }
     }
 
@@ -207,7 +211,7 @@ struct TextAIView: View {
         HStack(spacing: 4) {
             Image(systemName: "cpu")
                 .font(.caption2)
-            Text(compactProviderLabel.isEmpty ? "Detecting…" : compactProviderLabel)
+            Text(compactProviderLabel.isEmpty ? AppLocalizer.localized("lbl_detecting") : compactProviderLabel)
                 .font(.caption)
                 .lineLimit(1)
         }

@@ -85,11 +85,11 @@ struct ImageTextAIView: View {
                     structuredResultSection
                 }
             }
-            .navigationTitle("Image Text AI")
+            .navigationTitle(AppLocalizer.localized("title_image_text_ai"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button(AppLocalizer.localized("btn_done")) { dismiss() }
                         .fontWeight(.semibold)
                 }
             }
@@ -114,7 +114,7 @@ struct ImageTextAIView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Image selected")
+                        Text(AppLocalizer.localized("lbl_image_selected"))
                             .font(.subheadline.weight(.medium))
                         Text("\(Int(image.size.width)) × \(Int(image.size.height)) px")
                             .font(.caption)
@@ -140,7 +140,7 @@ struct ImageTextAIView: View {
             } else {
                 HStack(spacing: 12) {
                     PhotosPicker(selection: $selectedItem, matching: .images) {
-                        Label("Photo Library", systemImage: "photo.on.rectangle")
+                        Label(AppLocalizer.localized("btn_photo_library"), systemImage: "photo.on.rectangle")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -149,7 +149,7 @@ struct ImageTextAIView: View {
                         Button {
                             showCameraPicker = true
                         } label: {
-                            Label("Camera", systemImage: "camera")
+                            Label(AppLocalizer.localized("btn_camera"), systemImage: "camera")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
@@ -158,10 +158,10 @@ struct ImageTextAIView: View {
                 .padding(.vertical, 4)
             }
         } header: {
-            Text("Image")
+            Text(AppLocalizer.localized("lbl_image"))
         } footer: {
             if selectedImage == nil {
-                Text("OCR is fully local. Structured extraction uses Apple Intelligence or cloud when available.")
+                Text(AppLocalizer.localized("msg_ocr_local_footer"))
                     .font(.caption2)
             }
         }
@@ -169,7 +169,7 @@ struct ImageTextAIView: View {
 
     private var providerSection: some View {
         Section {
-            Picker("Cloud Provider", selection: $cloudProviderKey) {
+            Picker(AppLocalizer.localized("lbl_cloud_provider"), selection: $cloudProviderKey) {
                 Text("OpenAI").tag("openAI")
                 Text("Gemini").tag("gemini")
             }
@@ -184,7 +184,7 @@ struct ImageTextAIView: View {
     private var actionSection: some View {
         Section {
             HStack {
-                Text("Structured extraction")
+                Text(AppLocalizer.localized("lbl_structured_extraction"))
                 Spacer()
                 if !providerLabel.isEmpty {
                     HStack(spacing: 4) {
@@ -201,7 +201,7 @@ struct ImageTextAIView: View {
             .disabled(isBusy)
 
             if isStructuredExtractionEnabled {
-                Picker("Document type", selection: $selectedDocumentType) {
+                Picker(AppLocalizer.localized("lbl_document_type"), selection: $selectedDocumentType) {
                     Text("").tag(StructuredDocumentType?.none)
                     ForEach(StructuredDocumentType.allCases) { type in
                         Text(type.displayName).tag(Optional(type))
@@ -211,7 +211,7 @@ struct ImageTextAIView: View {
             }
 
             if isStructuredExtractionEnabled && selectedDocumentType == nil && !isBusy {
-                Text("Select document type to continue.")
+                Text(AppLocalizer.localized("msg_select_document_type"))
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
@@ -222,10 +222,10 @@ struct ImageTextAIView: View {
                         .progressViewStyle(.circular)
                         .controlSize(.regular)
                         .tint(.accentColor)
-                    Text(loadingMessage.isEmpty ? "Processing…" : loadingMessage)
+                    Text(loadingMessage.isEmpty ? AppLocalizer.localized("lbl_processing") : loadingMessage)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Cancel", role: .destructive) {
+                    Button(AppLocalizer.localized("btn_cancel"), role: .destructive) {
                         activeTask?.cancel()
                         phase = .idle
                         loadingMessage = ""
@@ -238,7 +238,9 @@ struct ImageTextAIView: View {
                     HStack {
                         Spacer()
                         Image(systemName: isStructuredExtractionEnabled ? "sparkles.rectangle.stack" : "text.viewfinder")
-                        Text(isStructuredExtractionEnabled ? "Extract + Structure" : "Extract Text")
+                        Text(isStructuredExtractionEnabled
+                             ? AppLocalizer.localized("btn_extract_and_structure")
+                             : AppLocalizer.localized("btn_extract_text"))
                             .fontWeight(.semibold)
                         Spacer()
                     }
@@ -279,19 +281,21 @@ struct ImageTextAIView: View {
                 }
             } label: {
                 Label(
-                    didCopyOCR ? "Copied!" : "Copy OCR Text",
+                    didCopyOCR
+                    ? AppLocalizer.localized("msg_copied")
+                    : AppLocalizer.localized("btn_copy_ocr_text"),
                     systemImage: didCopyOCR ? "checkmark.circle.fill" : "doc.on.doc"
                 )
                 .foregroundStyle(didCopyOCR ? .green : .accentColor)
                 .animation(.default, value: didCopyOCR)
             }
         } header: {
-            Text("Extracted Text (Vision)")
+            Text(AppLocalizer.localized("hdr_extracted_text_vision"))
         }
     }
 
     private func structuredPreviewSection(_ doc: StructuredExtractionDocument) -> some View {
-        Section("Technician Summary") {
+        Section(AppLocalizer.localized("hdr_technician_summary")) {
             if let value = doc.documentType, !value.isEmpty {
                 summaryRow("Document", value: value)
             }
@@ -340,7 +344,9 @@ struct ImageTextAIView: View {
                 }
             } label: {
                 Label(
-                    didCopyStructured ? "Copied!" : "Copy Structured Output",
+                    didCopyStructured
+                    ? AppLocalizer.localized("msg_copied")
+                    : AppLocalizer.localized("btn_copy_structured_output"),
                     systemImage: didCopyStructured ? "checkmark.circle.fill" : "doc.on.doc"
                 )
                 .foregroundStyle(didCopyStructured ? .green : .accentColor)
@@ -348,7 +354,7 @@ struct ImageTextAIView: View {
             }
         } header: {
             HStack {
-                Text("Structured Extraction (JSON)")
+                Text(AppLocalizer.localized("hdr_structured_extraction_json"))
                 Spacer()
                 if !structuredProviderLabel.isEmpty {
                     Text(structuredProviderLabel)

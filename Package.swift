@@ -15,7 +15,10 @@ let package = Package(
     targets: [
         .target(
             name: "ZTAIServiceEngine",
-            path: "ZTSpeechToText/Core"
+            path: "ZTSpeechToText/Core",
+            resources: [
+                .process("Resources")
+            ]
         )
     ]
 )
