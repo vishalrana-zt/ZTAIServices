@@ -1,10 +1,10 @@
 // Single language enum shared across speech-to-text, text AI, and image OCR.
-enum SupportedLanguage: String, CaseIterable, Sendable {
+public enum SupportedLanguage: String, CaseIterable, Sendable {
     case english = "en"
     case spanish = "es"
     case french  = "fr"
 
-    nonisolated var displayName: String {
+    nonisolated public var displayName: String {
         switch self {
         case .english: return "English"
         case .spanish: return "Spanish"
@@ -13,10 +13,10 @@ enum SupportedLanguage: String, CaseIterable, Sendable {
     }
 
     // ISO 639-1 code — used as locale identifier and AI prompt language hint.
-    nonisolated var localeIdentifier: String { rawValue }
+    nonisolated public var localeIdentifier: String { rawValue }
 
     // Full language name for AI prompt instructions.
-    nonisolated var responseLanguageInstruction: String {
+    nonisolated public var responseLanguageInstruction: String {
         switch self {
         case .english: return "English"
         case .spanish: return "Spanish"

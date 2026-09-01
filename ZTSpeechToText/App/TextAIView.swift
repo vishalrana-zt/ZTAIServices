@@ -1,4 +1,5 @@
 import SwiftUI
+import ZTAIServiceEngine
 
 struct TextAIView: View {
     @Environment(\.dismiss) private var dismiss

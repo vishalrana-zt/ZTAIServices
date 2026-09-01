@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import ZTAIServiceEngine
 
 struct RecordScreen: View {
     private enum RecordingUIPhase: Equatable {

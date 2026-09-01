@@ -7,11 +7,11 @@ import AVFoundation
 import CoreML
 import Speech
 
-final class SpeechToTextManager: NSObject, @unchecked Sendable {
+public final class SpeechToTextManager: NSObject, @unchecked Sendable {
 
     // MARK: - Singleton
 
-    static let shared = SpeechToTextManager()
+    public static let shared = SpeechToTextManager()
     private override init() {
         super.init()
         bootstrapAppleAdvancedPathSafetyState()
@@ -45,7 +45,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
         }
     }
 
-    enum OperationMode: String, CaseIterable {
+    public enum OperationMode: String, CaseIterable {
         case liveStreaming
         case postRecording
     }
@@ -56,10 +56,10 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
         case cloudAPI
     }
 
-    enum ModelProvider: String, CaseIterable {
+    public enum ModelProvider: String, CaseIterable {
         case appleModels
 
-        var displayName: String {
+        public var displayName: String {
             "Apple Models"
         }
     }
@@ -80,7 +80,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
     /// True only when the device is confirmed capable of on-device live streaming
     /// via DictationTranscriber (iOS 26+, capability check completed, capable).
     /// Use this to show or hide the "Live transcription" toggle in the UI.
-    var isOnDeviceLiveStreamingAvailable: Bool {
+    public var isOnDeviceLiveStreamingAvailable: Bool {
         guard #available(iOS 26.0, *) else { return false }
         appleCapabilityLock.lock()
         let capable = didCheckAdvancedAppleTranscriberCapability && advancedDictationTranscriberCapable
@@ -122,7 +122,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
         }
     }
 
-    enum ModelState: Equatable {
+    public enum ModelState: Equatable {
         case notDownloaded
         case downloading(DownloadStatus)
         case loadingModel(loaded: Int, total: Int)
@@ -138,8 +138,8 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
     private(set) var isListening = false
 
     /// Hook this up to a progress bar / label in your opt-in UI.
-    var onModelStateChange: ((ModelState) -> Void)?
-    var onBackendStatusChange: ((String) -> Void)?
+    public var onModelStateChange: ((ModelState) -> Void)?
+    public var onBackendStatusChange: ((String) -> Void)?
 
     // MARK: - Private
 
@@ -482,8 +482,8 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
         }
     }
 
-    var onSilenceAutoStopTriggered: (() -> Void)?
-    var onAudioLevelChange: ((Float) -> Void)?
+    public var onSilenceAutoStopTriggered: (() -> Void)?
+    public var onAudioLevelChange: ((Float) -> Void)?
     
     /// Compatibility bridge used by existing logic; now driven by model provider selection.
     var useSpeechAnalyzerWhenAvailable: Bool {
@@ -511,7 +511,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
         UserDefaults.standard.bool(forKey: Self.optedInKey)
     }
 
-    var isLiveTranscriptionEnabled: Bool {
+    public var isLiveTranscriptionEnabled: Bool {
         get {
             if UserDefaults.standard.object(forKey: Self.liveTranscriptionEnabledKey) == nil {
                 return false
@@ -538,7 +538,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
         }
     }
 
-    func setModelProvider(_ provider: ModelProvider) {
+    public func setModelProvider(_ provider: ModelProvider) {
         let provider: ModelProvider = .appleModels
         let previous = selectedModelProvider
         guard previous != provider else { return }
@@ -567,7 +567,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
         return .ready
     }
 
-    func setOperationMode(_ mode: OperationMode) {
+    public func setOperationMode(_ mode: OperationMode) {
         guard operationMode != mode else { return }
         operationMode = mode
         // Mode switch should start with a fresh analyzer session gate.
@@ -587,7 +587,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
         debugLogRuntimeConfiguration(reason: "operation_mode_changed")
     }
 
-    func resetSessionStateForLanguageChange(_ language: SupportedLanguage) {
+    public func resetSessionStateForLanguageChange(_ language: SupportedLanguage) {
         hasDisabledSpeechAnalyzerForSession = false
         hasDisabledAdvancedLiveStreamForSession = false
         hasValidatedSpeechAnalyzerForSession = false
@@ -638,14 +638,14 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
     /// (tap mic, open a voice-note screen, etc). Returns true if usable now;
     /// if false, the caller should navigate to / show the download-progress UI
     /// instead of proceeding, and resume the download if it isn't already running.
-    func gateFeatureUsage() async -> Bool {
+    public func gateFeatureUsage() async -> Bool {
         await refreshAdvancedAppleTranscriberCapabilityIfNeeded(force: true)
         return true
     }
 
     // MARK: - Step 2: Mic capture
 
-    func requestMicPermission() async -> Bool {
+    public func requestMicPermission() async -> Bool {
         if #available(iOS 17.0, *) {
             switch AVAudioApplication.shared.recordPermission {
             case .granted:
@@ -678,7 +678,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
 
     /// Prepares the audio route/session once so the first user tap doesn't pay
     /// the full activation cost on the main interaction path.
-    func prewarmRecordingPathIfNeeded() {
+    public func prewarmRecordingPathIfNeeded() {
         guard !didPrewarmRecordingPath else { return }
         guard case .ready = modelState else { return }
         if #available(iOS 17.0, *) {
@@ -706,7 +706,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
         }
     }
 
-    func startListening(
+    public func startListening(
         preferredLanguage: SupportedLanguage? = nil,
         autoStopOnSilence: Bool = false,
         silenceDuration: TimeInterval = 1.0,
@@ -896,7 +896,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
         }
     }
 
-    func stopListening() {
+    public func stopListening() {
         if hasInputTapInstalled {
             audioEngine.inputNode.removeTap(onBus: 0)
             hasInputTapInstalled = false
@@ -1085,7 +1085,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
     /// Stops listening (if active) and returns transcript text plus language used.
     /// In live-streaming mode, this final decode is performed with the Small model
     /// for higher post-recording accuracy.
-    func transcribe(preferredLanguage: SupportedLanguage? = nil) async throws -> (text: String, language: SupportedLanguage) {
+    public func transcribe(preferredLanguage: SupportedLanguage? = nil) async throws -> (text: String, language: SupportedLanguage) {
         let transcribeModeSnapshot = operationMode
         if let activeCaptureSessionID,
            let cache = lastSessionTranscribeCache,
@@ -1212,7 +1212,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
 
     /// Lightweight partial transcription for live preview while recording.
     /// Uses a short rolling audio window to keep decoding fast.
-    func transcribePartialCurrentBuffer(
+    public func transcribePartialCurrentBuffer(
         preferredLanguage: SupportedLanguage? = nil,
         maxAudioSeconds: Double = 8.0,
         minimumAudioSeconds: Double = 0.8
@@ -1542,7 +1542,7 @@ final class SpeechToTextManager: NSObject, @unchecked Sendable {
 
     /// Current captured audio duration while recording.
     /// Used by live UI scheduler to avoid ultra-early partial decode churn.
-    func currentBufferedAudioSeconds() -> Double {
+    public func currentBufferedAudioSeconds() -> Double {
         let samples = bufferLock.withLock { sampleBuffer.count }
         return Double(samples) / targetSampleRate
     }

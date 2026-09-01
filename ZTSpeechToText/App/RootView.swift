@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UIKit
+import ZTAIServiceEngine
 
 struct RootView: View {
     private let manager = SpeechToTextManager.shared

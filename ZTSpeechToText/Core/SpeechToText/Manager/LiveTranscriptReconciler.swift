@@ -1,20 +1,20 @@
 import Foundation
 
-struct LiveTranscriptSegment: Equatable, Sendable {
-    let startTime: TimeInterval
-    let endTime: TimeInterval
-    let text: String
+public struct LiveTranscriptSegment: Equatable, Sendable {
+    public let startTime: TimeInterval
+    public let endTime: TimeInterval
+    public let text: String
 }
 
-struct LiveTranscriptPartial: Sendable {
-    let sessionID: UUID
-    let windowStartTime: TimeInterval
-    let windowEndTime: TimeInterval
-    let segments: [LiveTranscriptSegment]
-    let committedText: String?
-    let volatileText: String?
+public struct LiveTranscriptPartial: Sendable {
+    public let sessionID: UUID
+    public let windowStartTime: TimeInterval
+    public let windowEndTime: TimeInterval
+    public let segments: [LiveTranscriptSegment]
+    public let committedText: String?
+    public let volatileText: String?
 
-    init(
+    public init(
         sessionID: UUID,
         windowStartTime: TimeInterval,
         windowEndTime: TimeInterval,
@@ -31,13 +31,13 @@ struct LiveTranscriptPartial: Sendable {
     }
 }
 
-struct LiveTranscriptRenderState: Equatable {
-    let committedText: String
-    let provisionalText: String
-    let renderedText: String
+public struct LiveTranscriptRenderState: Equatable {
+    public let committedText: String
+    public let provisionalText: String
+    public let renderedText: String
 }
 
-struct LiveTranscriptReconciler {
+public struct LiveTranscriptReconciler {
     private(set) var sessionID: UUID?
     private var committedText: String = ""
     private var provisionalSegments: [LiveTranscriptSegment] = []
@@ -65,7 +65,9 @@ struct LiveTranscriptReconciler {
     private let maximumProvisionalWords = 18
     private let earlyCommitFreezeSeconds: TimeInterval = 3.0
 
-    mutating func beginSession(_ sessionID: UUID) {
+    public init() {}
+
+    public mutating func beginSession(_ sessionID: UUID) {
         self.sessionID = sessionID
         committedText = ""
         provisionalSegments = []
@@ -78,7 +80,7 @@ struct LiveTranscriptReconciler {
         pendingStableCommitHits = 0
     }
 
-    mutating func reset() {
+    public mutating func reset() {
         sessionID = nil
         committedText = ""
         provisionalSegments = []
@@ -91,7 +93,7 @@ struct LiveTranscriptReconciler {
         pendingStableCommitHits = 0
     }
 
-    mutating func apply(_ partial: LiveTranscriptPartial) -> LiveTranscriptRenderState? {
+    public mutating func apply(_ partial: LiveTranscriptPartial) -> LiveTranscriptRenderState? {
         guard partial.sessionID == sessionID else { return nil }
 
         updateCounter += 1
@@ -188,7 +190,7 @@ struct LiveTranscriptReconciler {
         )
     }
 
-    mutating func finalize(sessionID: UUID, finalText: String) -> String? {
+    public mutating func finalize(sessionID: UUID, finalText: String) -> String? {
         guard sessionID == self.sessionID else { return nil }
         let normalizedFinal = sanitize(finalText)
         debugLog(

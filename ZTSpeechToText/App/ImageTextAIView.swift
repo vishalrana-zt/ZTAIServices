@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import ZTAIServiceEngine
 
 // Image -> OCR (local) -> optional structured extraction (AI provider fallback).
 struct ImageTextAIView: View {
