@@ -3,7 +3,7 @@ import Foundation
 import UIKit
 #endif
 
-final class STTSessionLogger {
+final class STTSessionLogger: @unchecked Sendable {
     static let shared = STTSessionLogger()
 
     private let queue = DispatchQueue(label: "STTSessionLogger.queue", qos: .utility)

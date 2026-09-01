@@ -19,24 +19,24 @@ enum CloudAPIConfiguration {
         case gemini
     }
 
-    static var provider: Provider = .openAI
+    nonisolated(unsafe) static var provider: Provider = .openAI
 
-    static var openAIAPIKey: String? = nil
-    static var openAIModel: String = "whisper-1"
-    static var openAITextModel: String = "gpt-4o-mini"
-    static var openAITextTimeout: TimeInterval = 60.0
-    static var openAITextMaxRetries: Int = 2
+    nonisolated(unsafe) static var openAIAPIKey: String? = nil
+    nonisolated(unsafe) static var openAIModel: String = "whisper-1"
+    nonisolated(unsafe) static var openAITextModel: String = "gpt-4o-mini"
+    nonisolated(unsafe) static var openAITextTimeout: TimeInterval = 60.0
+    nonisolated(unsafe) static var openAITextMaxRetries: Int = 2
 
-    static var geminiAPIKey: String? = nil
-    static var geminiModel: String = "gemini-3.6-flash"
+    nonisolated(unsafe) static var geminiAPIKey: String? = nil
+    nonisolated(unsafe) static var geminiModel: String = "gemini-3.6-flash"
 
-    static var defaultTimeout: TimeInterval = 60.0
-    static var timeoutPerAudioSecond: TimeInterval = 0.5
-    static var maxAudioDurationSeconds: Double = 120.0
+    nonisolated(unsafe) static var defaultTimeout: TimeInterval = 60.0
+    nonisolated(unsafe) static var timeoutPerAudioSecond: TimeInterval = 0.5
+    nonisolated(unsafe) static var maxAudioDurationSeconds: Double = 120.0
     // Gemini-specific: separate upload timeout (scales with file size) vs generation timeout.
-    static var geminiUploadTimeoutBase: TimeInterval = 30.0
-    static var geminiUploadTimeoutPerMB: TimeInterval = 10.0
-    static var geminiUploadMaxRetries: Int = 2
+    nonisolated(unsafe) static var geminiUploadTimeoutBase: TimeInterval = 30.0
+    nonisolated(unsafe) static var geminiUploadTimeoutPerMB: TimeInterval = 10.0
+    nonisolated(unsafe) static var geminiUploadMaxRetries: Int = 2
 
     static var activeAPIKey: String? {
         switch provider {
