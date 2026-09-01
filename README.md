@@ -22,13 +22,17 @@ It maps to:
 In another project `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/<your-org>/ZTSpeechToText.git", branch: "spm-package")
+.package(
+    name: "ZTAIServiceEngine",
+    url: "https://github.com/vishalrana-zt/ZTAIServiceEngine.git",
+    branch: "spm-package"
+)
 ```
 
 Then add the product to your target dependencies:
 
 ```swift
-.product(name: "ZTAIServiceEngine", package: "ZTSpeechToText")
+.product(name: "ZTAIServiceEngine", package: "ZTAIServiceEngine")
 ```
 
 For local development:

@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		18F4E1243046CF7500357B8F /* ZTAIServiceEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 18F4E1233046CF7500357B8F /* ZTAIServiceEngine */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		18C9A695302B11B000205C88 /* ZTSpeechToText.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZTSpeechToText.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -52,7 +48,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				18F4E1243046CF7500357B8F /* ZTAIServiceEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -95,7 +90,6 @@
 			);
 			name = ZTSpeechToText;
 			packageProductDependencies = (
-				18F4E1233046CF7500357B8F /* ZTAIServiceEngine */,
 			);
 			productName = ZTSpeechToText;
 			productReference = 18C9A695302B11B000205C88 /* ZTSpeechToText.app */;
@@ -128,7 +122,6 @@
 			mainGroup = 18C9A68C302B11B000205C88;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				18F4E1223046CF7500357B8F /* XCRemoteSwiftPackageReference "SpeechTextDemo" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 18C9A696302B11B000205C88 /* Products */;
@@ -376,25 +369,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		18F4E1223046CF7500357B8F /* XCRemoteSwiftPackageReference "SpeechTextDemo" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/vishalrana-zt/SpeechTextDemo";
-			requirement = {
-				branch = "spm-package";
-				kind = branch;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		18F4E1233046CF7500357B8F /* ZTAIServiceEngine */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 18F4E1223046CF7500357B8F /* XCRemoteSwiftPackageReference "SpeechTextDemo" */;
-			productName = ZTAIServiceEngine;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 18C9A68D302B11B000205C88 /* Project object */;
 }
