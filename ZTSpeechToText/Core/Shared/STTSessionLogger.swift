@@ -3,8 +3,8 @@ import Foundation
 import UIKit
 #endif
 
-final class STTSessionLogger: @unchecked Sendable {
-    static let shared = STTSessionLogger()
+public final class STTSessionLogger: @unchecked Sendable {
+    public static let shared = STTSessionLogger()
 
     private let queue = DispatchQueue(label: "STTSessionLogger.queue", qos: .utility)
     private let isoFormatter: ISO8601DateFormatter = {
@@ -34,7 +34,7 @@ final class STTSessionLogger: @unchecked Sendable {
         }
     }
 
-    func log(source: String, message: String) {
+    public func log(source: String, message: String) {
         queue.async {
             self.writeLine("[\(source)] \(message)")
         }
@@ -64,7 +64,7 @@ final class STTSessionLogger: @unchecked Sendable {
         }
     }
 
-    func shareableLogText() -> String {
+    public func shareableLogText() -> String {
         queue.sync {
             guard let data = try? Data(contentsOf: currentLogFileURL),
                   let text = String(data: data, encoding: .utf8) else {
@@ -91,7 +91,7 @@ final class STTSessionLogger: @unchecked Sendable {
         }
     }
 
-    func clearAllLogs() {
+    public func clearAllLogs() {
         queue.sync {
             let files = (try? FileManager.default.contentsOfDirectory(at: logsDirectoryURL, includingPropertiesForKeys: nil)) ?? []
             for fileURL in files {
