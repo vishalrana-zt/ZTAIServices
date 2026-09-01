@@ -1,6 +1,6 @@
 import Foundation
 import AVFoundation
-import Speech
+@preconcurrency import Speech
 
 @available(iOS 26.0, *)
 struct SpeechAnalyzerTranscriptionOutput {

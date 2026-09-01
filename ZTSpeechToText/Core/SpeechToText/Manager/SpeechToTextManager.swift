@@ -7,7 +7,7 @@ import AVFoundation
 import CoreML
 import Speech
 
-final class SpeechToTextManager: NSObject {
+final class SpeechToTextManager: NSObject, @unchecked Sendable {
 
     // MARK: - Singleton
 
