@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "ZTAIServices",
+    defaultLocalization: "en",
     platforms: [
         .iOS(.v16)
     ],
