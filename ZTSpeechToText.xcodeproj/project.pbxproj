@@ -14,9 +14,11 @@
 		18AE136C3046D39800AD70A6 /* Exceptions for "ZTSpeechToText" folder in "ZTSpeechToText" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Core/ImageOCR/ImageOCREngine.swift,
 				Core/Shared/CloudAPIConfiguration.swift,
 				Core/Shared/STTSessionLogger.swift,
 				Core/Shared/SupportedLanguage.swift,
+				Core/Shared/ZTAIServiceLocalizer.swift,
 				Core/SpeechToText/Engines/CloudTranscriptionEngine.swift,
 				Core/SpeechToText/Engines/DictationTranscriberEngine.swift,
 				Core/SpeechToText/Engines/SpeechAnalyzerTranscriptionEngine.swift,
