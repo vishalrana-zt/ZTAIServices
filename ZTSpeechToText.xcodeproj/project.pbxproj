@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		18AE141D3046E9FD00AD70A6 /* ZTAIServices in Frameworks */ = {isa = PBXBuildFile; productRef = 18AE141C3046E9FD00AD70A6 /* ZTAIServices */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		18C9A695302B11B000205C88 /* ZTSpeechToText.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZTSpeechToText.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -50,6 +54,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				18AE141D3046E9FD00AD70A6 /* ZTAIServices in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -92,6 +97,7 @@
 			);
 			name = ZTSpeechToText;
 			packageProductDependencies = (
+				18AE141C3046E9FD00AD70A6 /* ZTAIServices */,
 			);
 			productName = ZTSpeechToText;
 			productReference = 18C9A695302B11B000205C88 /* ZTSpeechToText.app */;
@@ -124,6 +130,7 @@
 			mainGroup = 18C9A68C302B11B000205C88;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				18AE141B3046E9FD00AD70A6 /* XCRemoteSwiftPackageReference "ZTAIServices" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 18C9A696302B11B000205C88 /* Products */;
@@ -371,6 +378,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		18AE141B3046E9FD00AD70A6 /* XCRemoteSwiftPackageReference "ZTAIServices" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/vishalrana-zt/ZTAIServices.git";
+			requirement = {
+				branch = "spm-package";
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		18AE141C3046E9FD00AD70A6 /* ZTAIServices */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 18AE141B3046E9FD00AD70A6 /* XCRemoteSwiftPackageReference "ZTAIServices" */;
+			productName = ZTAIServices;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 18C9A68D302B11B000205C88 /* Project object */;
 }

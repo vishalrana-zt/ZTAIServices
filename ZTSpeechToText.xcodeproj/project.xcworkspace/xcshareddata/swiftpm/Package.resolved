@@ -1,0 +1,15 @@
+{
+  "originHash" : "1a237edb3644b1371e2207c0e213a5e1fa9f2f307f19d4a0e2c314ed286715ba",
+  "pins" : [
+    {
+      "identity" : "ztaiservices",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/vishalrana-zt/ZTAIServices.git",
+      "state" : {
+        "branch" : "spm-package",
+        "revision" : "868f4833ea0b599aedefe409f88687c3764944a0"
+      }
+    }
+  ],
+  "version" : 3
+}
