@@ -4,18 +4,42 @@
 //
 
 import SwiftUI
+#if canImport(ZTAIServices)
 import ZTAIServices
+#endif
 
-struct SpeechToTextSheetConfiguration {
-    var preferredLanguage: SupportedLanguage? = nil
-    var operationMode: SpeechToTextManager.OperationMode = .liveStreaming
-    var modelProvider: SpeechToTextManager.ModelProvider? = nil
-    var showsModelProviderSelector: Bool = true
-    var initialLiveTranscriptionEnabled: Bool? = nil
-    var showsLiveTranscriptionToggle: Bool = false
-    var livePartialMaxAudioSeconds: Double = 12.0
-    var livePartialMinimumAudioSeconds: Double = 0.8
-    var livePollingIntervalNanoseconds: UInt64 = 1_200_000_000
+public struct SpeechToTextSheetConfiguration {
+    public var preferredLanguage: SupportedLanguage? = nil
+    public var operationMode: SpeechToTextManager.OperationMode = .liveStreaming
+    public var modelProvider: SpeechToTextManager.ModelProvider? = nil
+    public var showsModelProviderSelector: Bool = true
+    public var initialLiveTranscriptionEnabled: Bool? = nil
+    public var showsLiveTranscriptionToggle: Bool = false
+    public var livePartialMaxAudioSeconds: Double = 12.0
+    public var livePartialMinimumAudioSeconds: Double = 0.8
+    public var livePollingIntervalNanoseconds: UInt64 = 1_200_000_000
+
+    public init(
+        preferredLanguage: SupportedLanguage? = nil,
+        operationMode: SpeechToTextManager.OperationMode = .liveStreaming,
+        modelProvider: SpeechToTextManager.ModelProvider? = nil,
+        showsModelProviderSelector: Bool = true,
+        initialLiveTranscriptionEnabled: Bool? = nil,
+        showsLiveTranscriptionToggle: Bool = false,
+        livePartialMaxAudioSeconds: Double = 12.0,
+        livePartialMinimumAudioSeconds: Double = 0.8,
+        livePollingIntervalNanoseconds: UInt64 = 1_200_000_000
+    ) {
+        self.preferredLanguage = preferredLanguage
+        self.operationMode = operationMode
+        self.modelProvider = modelProvider
+        self.showsModelProviderSelector = showsModelProviderSelector
+        self.initialLiveTranscriptionEnabled = initialLiveTranscriptionEnabled
+        self.showsLiveTranscriptionToggle = showsLiveTranscriptionToggle
+        self.livePartialMaxAudioSeconds = livePartialMaxAudioSeconds
+        self.livePartialMinimumAudioSeconds = livePartialMinimumAudioSeconds
+        self.livePollingIntervalNanoseconds = livePollingIntervalNanoseconds
+    }
 }
 
 private struct SpeechToTextFlowSheet: View {
@@ -147,7 +171,7 @@ private struct SpeechToTextSheetModifier: ViewModifier {
     }
 }
 
-extension View {
+public extension View {
     func speechToTextSheet(
         isPresented: Binding<Bool>,
         configuration: SpeechToTextSheetConfiguration = SpeechToTextSheetConfiguration(),

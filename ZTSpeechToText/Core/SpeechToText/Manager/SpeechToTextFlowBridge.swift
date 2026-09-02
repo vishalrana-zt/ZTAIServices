@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(ZTAIServices)
 import ZTAIServices
+#endif
 
 @MainActor
 public final class SpeechToTextFlowBridge {

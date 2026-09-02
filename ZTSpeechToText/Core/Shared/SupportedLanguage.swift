@@ -1,5 +1,7 @@
 import Foundation
 
+import Foundation
+
 // Single language enum shared across speech-to-text, text AI, and image OCR.
 public enum SupportedLanguage: String, CaseIterable, Sendable {
     case english = "en"
