@@ -30,6 +30,7 @@ struct RecordScreen: View {
     private let onLiveTranscriptChanged: ((LiveTranscriptPartial) -> Void)?
     private let onTranscriptReady: ((UUID, String) -> Void)?
     private let onProcessingCompleted: (() -> Void)?
+    private let onCloseRequested: (() -> Void)?
     private let minimumRecordingDuration: TimeInterval = 0.45
     private let blankAudioRegex = try! NSRegularExpression(
         pattern: #"\[\s*blank_audio\s*\]"#,
@@ -98,6 +99,15 @@ struct RecordScreen: View {
     @State private var displayedRecordingSeconds: Int = 0
     @State private var stopTapCoolingDown = false
 
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+    private var panelCornerRadius: CGFloat { isPad ? 20 : 16 }
+    private var panelContentPadding: CGFloat { isPad ? 10 : 8 }
+    private var headerSpacing: CGFloat { isPad ? 8 : 6 }
+    private var actionButtonHorizontalPadding: CGFloat { isPad ? 10 : 8 }
+    private var actionButtonVerticalPadding: CGFloat { isPad ? 9 : 7 }
+    private var statusFont: Font { isPad ? .subheadline.weight(.semibold) : .footnote.weight(.semibold) }
+    private var timeFont: Font { isPad ? .subheadline.monospacedDigit().weight(.semibold) : .footnote.monospacedDigit().weight(.semibold) }
+
     init(
         autoStartOnAppear: Bool = false,
         preferredLanguage: SupportedLanguage? = nil,
@@ -108,7 +118,8 @@ struct RecordScreen: View {
         livePollingIntervalNanoseconds: UInt64 = 1_200_000_000,
         onLiveTranscriptChanged: ((LiveTranscriptPartial) -> Void)? = nil,
         onTranscriptReady: ((UUID, String) -> Void)? = nil,
-        onProcessingCompleted: (() -> Void)? = nil
+        onProcessingCompleted: (() -> Void)? = nil,
+        onCloseRequested: (() -> Void)? = nil
     ) {
         self.autoStartOnAppear = autoStartOnAppear
         self.preferredLanguage = preferredLanguage
@@ -120,11 +131,12 @@ struct RecordScreen: View {
         self.onLiveTranscriptChanged = onLiveTranscriptChanged
         self.onTranscriptReady = onTranscriptReady
         self.onProcessingCompleted = onProcessingCompleted
+        self.onCloseRequested = onCloseRequested
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: isPad ? 12 : 10) {
+            HStack(spacing: headerSpacing) {
                 MicStatusOrb(
                     isListening: isListening,
                     isTranscribing: isTranscribing,
@@ -146,20 +158,23 @@ struct RecordScreen: View {
                     } else if isTranscribing || ((isAutoStartingRecording || isStoppingRecording) && showDeferredTransitionStatus) {
                         HStack(spacing: 8) {
                             Text(statusText)
-                                .font(.subheadline.weight(.semibold))
+                                .font(statusFont)
                                 .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                             if isTranscribing || isStoppingRecording {
                                 Text(formattedRecordingDuration)
-                                    .font(.subheadline.monospacedDigit().weight(.semibold))
+                                    .font(timeFont)
                                     .foregroundStyle(.secondary)
+                                    .lineLimit(1)
                             }
                         }
                     } else if isAutoStartingRecording || isStoppingRecording {
                         Text(" ")
-                            .font(.subheadline.weight(.semibold))
+                            .font(statusFont)
                     } else {
                         idlePromptText
-                            .font(.subheadline.weight(.semibold))
+                            .font(statusFont)
                             .foregroundStyle(.secondary)
                             .lineLimit(nil)
                             .fixedSize(horizontal: false, vertical: true)
@@ -170,9 +185,9 @@ struct RecordScreen: View {
                 // never appear simultaneously during the recording→processing transition.
                 .transaction { $0.animation = nil }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(minHeight: 32, alignment: .leading)
+                .frame(minHeight: isPad ? 32 : 28, alignment: .leading)
 
-                Spacer(minLength: 8)
+                Spacer(minLength: isPad ? 8 : 4)
 
                 Button(action: {
                     if isListening {
@@ -193,17 +208,19 @@ struct RecordScreen: View {
                                 ? ZTAIServiceLocalizer.localized("lbl_processing")
                                 : (isStoppingRecording ? ZTAIServiceLocalizer.localized("lbl_stopping") : ZTAIServiceLocalizer.localized("lbl_starting"))
                             )
-                                .font(.subheadline.weight(.semibold))
+                                .font(statusFont)
+                                .lineLimit(1)
                         } else {
                             Image(systemName: isListening ? "pause.fill" : "play.fill")
                                 .font(.system(size: 13, weight: .semibold))
                             Text(isListening ? ZTAIServiceLocalizer.localized("btn_stop") : ZTAIServiceLocalizer.localized("btn_speak_now"))
-                                .font(.subheadline.weight(.semibold))
+                                .font(statusFont)
+                                .lineLimit(1)
                         }
                     }
                     .foregroundColor((isTranscribing || isAutoStartingRecording || isStoppingRecording) ? .secondary : .white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 9)
+                    .padding(.horizontal, actionButtonHorizontalPadding)
+                    .padding(.vertical, actionButtonVerticalPadding)
                     .background(
                         (isTranscribing || isAutoStartingRecording || isStoppingRecording)
                             ? Color.accentColor.opacity(0.18)
@@ -226,7 +243,7 @@ struct RecordScreen: View {
                 .animation(phaseAnimation, value: uiPhase)
                 .animation(phaseAnimation, value: showDeferredTransitionStatus)
             }
-            .padding(.horizontal, 2)
+            .padding(.horizontal, isPad ? 2 : 0)
 
             if showsLiveTranscriptionToggle && isOnDeviceLiveStreamingAvailable {
                 Toggle(ZTAIServiceLocalizer.localized("lbl_live_transcription"), isOn: $isLiveTranscriptionEnabled)
@@ -260,13 +277,13 @@ struct RecordScreen: View {
                     .foregroundStyle(.red)
             }
         }
-        .padding(10)
+        .padding(panelContentPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
                 .fill(panelFillColor)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: isTranscribing
@@ -289,6 +306,16 @@ struct RecordScreen: View {
                 )
         )
         .shadow(color: panelShadowColor, radius: 14, y: 4)
+        .overlay(alignment: .topTrailing) {
+            Button(action: requestClose) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(Color.secondary.opacity(0.85))
+                    .padding(6)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(ZTAIServiceLocalizer.localized("btn_cancel")))
+        }
         .animation(phaseAnimation, value: uiPhase)
         .onAppear {
             manager.onAudioLevelChange = { rmsLevel in
@@ -386,6 +413,16 @@ struct RecordScreen: View {
 
     private var formattedRecordingDuration: String {
         formatDuration(seconds: Int(lastRecordingDuration))
+    }
+
+    @MainActor
+    private func requestClose() {
+        stopLiveTranscription()
+        manager.stopListening()
+        uiPhase = .idle
+        isRecordingTransitionInFlight = false
+        showDeferredTransitionStatus = false
+        onCloseRequested?()
     }
 
     private var panelFillColor: Color {

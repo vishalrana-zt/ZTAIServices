@@ -45,7 +45,7 @@ enum TranscriptionEngineError: LocalizedError {
         case .emptyAudio:
             return "No audio available for transcription."
         case .noFinalText:
-            return "Speech engine produced no final text."
+            return "No speech detected."
         case .timeout:
             return "Speech transcription timed out."
         case .cancelled:

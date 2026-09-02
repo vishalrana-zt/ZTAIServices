@@ -96,6 +96,9 @@ private struct SpeechToTextFlowSheet: View {
                 },
                 onProcessingCompleted: {
                     onCloseRequested()
+                },
+                onCloseRequested: {
+                    onCloseRequested()
                 }
             )
         }

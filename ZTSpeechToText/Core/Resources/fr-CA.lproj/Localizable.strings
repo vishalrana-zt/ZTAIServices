@@ -55,7 +55,7 @@
 "lbl_getting_ready" = "Préparation...";
 "lbl_wrapping_up" = "Finalisation...";
 "lbl_finalizing_text" = "Finalisation du texte...";
-"msg_tap_speak_now_start_dictation" = "Touchez Parlez maintenant pour commencer la dictée";
+"msg_tap_speak_now_start_dictation" = "Touchez Parlez maintenant";
 "err_model_not_ready" = "Le modèle n’est pas encore prêt.";
 "err_mic_access_off" = "L’accès au micro est désactivé. Activez-le dans Réglages.";
 "err_recording_too_short" = "L’enregistrement est trop court. Parlez un peu plus longtemps, puis touchez Arrêter.";

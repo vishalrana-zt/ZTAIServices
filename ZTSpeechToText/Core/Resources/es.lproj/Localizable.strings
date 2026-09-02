@@ -55,7 +55,7 @@
 "lbl_getting_ready" = "Preparando...";
 "lbl_wrapping_up" = "Finalizando...";
 "lbl_finalizing_text" = "Finalizando texto...";
-"msg_tap_speak_now_start_dictation" = "Toca Habla ahora para iniciar el dictado";
+"msg_tap_speak_now_start_dictation" = "Toca Habla ahora";
 "err_model_not_ready" = "El modelo aún no está listo.";
 "err_mic_access_off" = "El acceso al micrófono está desactivado. Actívalo en Configuración.";
 "err_recording_too_short" = "La grabación es demasiado corta. Habla un poco más y luego toca Detener.";
