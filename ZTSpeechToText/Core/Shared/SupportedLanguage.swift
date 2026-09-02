@@ -26,3 +26,17 @@ public enum SupportedLanguage: String, CaseIterable, Sendable {
 
 
 }
+
+public extension SupportedLanguage {
+    static func from(languageCode: String?) -> SupportedLanguage {
+        guard let languageCode else { return .english }
+        let code = languageCode.lowercased()
+        if code.hasPrefix("es") { return .spanish }
+        if code.hasPrefix("fr") { return .french }
+        return .english
+    }
+
+    static func defaultFromPreferredLocale() -> SupportedLanguage {
+        from(languageCode: Locale.preferredLanguages.first)
+    }
+}
