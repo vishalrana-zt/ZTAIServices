@@ -242,6 +242,17 @@ struct RecordScreen: View {
                 )
                 .animation(phaseAnimation, value: uiPhase)
                 .animation(phaseAnimation, value: showDeferredTransitionStatus)
+
+                if shouldShowInlineCloseButton {
+                    Button(action: requestClose) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(Color.secondary.opacity(0.85))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text(ZTAIServiceLocalizer.localized("btn_cancel")))
+                    .padding(.leading, 2)
+                }
             }
             .padding(.horizontal, isPad ? 2 : 0)
 
@@ -306,16 +317,6 @@ struct RecordScreen: View {
                 )
         )
         .shadow(color: panelShadowColor, radius: 14, y: 4)
-        .overlay(alignment: .topTrailing) {
-            Button(action: requestClose) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(Color.secondary.opacity(0.85))
-                    .padding(6)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text(ZTAIServiceLocalizer.localized("btn_cancel")))
-        }
         .animation(phaseAnimation, value: uiPhase)
         .onAppear {
             manager.onAudioLevelChange = { rmsLevel in
@@ -405,6 +406,14 @@ struct RecordScreen: View {
         if isStoppingRecording { return ZTAIServiceLocalizer.localized("lbl_wrapping_up") }
         if isTranscribing { return ZTAIServiceLocalizer.localized("lbl_finalizing_text") }
         return ZTAIServiceLocalizer.localized("msg_tap_speak_now_start_dictation")
+    }
+
+    private var isSpeakNowState: Bool {
+        !isListening && !isTranscribing && !isAutoStartingRecording && !isStoppingRecording
+    }
+
+    private var shouldShowInlineCloseButton: Bool {
+        errorMessage != nil && isSpeakNowState
     }
 
     private var idlePromptText: Text {
