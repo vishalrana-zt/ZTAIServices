@@ -20,7 +20,11 @@ struct TextAIView: View {
     @FocusState private var isInputFocused: Bool
 
     private var canRun: Bool {
-        !isProcessing && !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !isProcessing && !normalizedInput.isEmpty
+    }
+
+    private var normalizedInput: String {
+        inputText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var body: some View {
@@ -237,6 +241,14 @@ struct TextAIView: View {
     // MARK: - Actions
 
     private func run() {
+        let textToValidate = normalizedInput
+        if let validationMessage = validationMessage(for: textToValidate) {
+            errorMessage = validationMessage
+            resultText = ""
+            didCopyResult = false
+            return
+        }
+
         UIApplication.shared.sendAction(
             #selector(UIResponder.resignFirstResponder),
             to: nil, from: nil, for: nil
@@ -275,6 +287,21 @@ struct TextAIView: View {
                 }
             }
         }
+    }
+
+    private func validationMessage(for text: String) -> String? {
+        if text.isEmpty {
+            return AppLocalizer.localized("err_input_text_required")
+        }
+
+        let minimumCharacters = 12
+        let minimumWords = 3
+        let wordCount = text.split(whereSeparator: \.isWhitespace).count
+        if text.count < minimumCharacters || wordCount < minimumWords {
+            return AppLocalizer.localized("err_input_text_too_short")
+        }
+
+        return nil
     }
 
     private func performUndo() {

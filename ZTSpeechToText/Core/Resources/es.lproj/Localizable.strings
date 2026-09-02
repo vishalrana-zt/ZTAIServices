@@ -61,3 +61,5 @@
 "err_recording_too_short" = "La grabación es demasiado corta. Habla un poco más y luego toca Detener.";
 "err_no_speech_detected" = "No se detectó voz. Intenta hablar más fuerte o acercarte al micrófono.";
 "err_no_clear_speech" = "No se detectó voz clara en esta grabación.";
+"err_input_text_required" = "Ingresa texto antes de continuar.";
+"err_input_text_too_short" = "Ingresa al menos 3 palabras para que el texto se procese con precisión.";

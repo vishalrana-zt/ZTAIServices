@@ -61,3 +61,5 @@
 "err_recording_too_short" = "L’enregistrement est trop court. Parlez un peu plus longtemps, puis touchez Arrêter.";
 "err_no_speech_detected" = "Aucune parole détectée. Parlez plus fort ou rapprochez-vous du micro.";
 "err_no_clear_speech" = "Aucune parole claire détectée dans cet enregistrement.";
+"err_input_text_required" = "Saisissez du texte avant de continuer.";
+"err_input_text_too_short" = "Saisissez au moins 3 mots pour que le texte soit traité correctement.";

@@ -61,3 +61,5 @@
 "err_recording_too_short" = "Recording is too short. Speak a bit longer, then tap Stop.";
 "err_no_speech_detected" = "No speech detected. Try speaking louder or moving closer to the mic.";
 "err_no_clear_speech" = "No clear speech was detected in this recording.";
+"err_input_text_required" = "Please enter text before continuing.";
+"err_input_text_too_short" = "Please enter at least 3 words so the text can be processed accurately.";
