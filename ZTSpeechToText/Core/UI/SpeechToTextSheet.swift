@@ -54,6 +54,7 @@ private struct SpeechToTextFlowSheet: View {
     let onTextReady: (UUID, String) -> Void
     let onSetupReady: () -> Void
     let onCloseRequested: () -> Void
+    let onRecordingStateChanged: (Bool) -> Void
 
     var body: some View {
         panelView
@@ -99,6 +100,9 @@ private struct SpeechToTextFlowSheet: View {
                 },
                 onCloseRequested: {
                     onCloseRequested()
+                },
+                onRecordingStateChanged: { isRecording in
+                    onRecordingStateChanged(isRecording)
                 }
             )
         }
@@ -147,6 +151,7 @@ private struct SpeechToTextSheetModifier: ViewModifier {
     let onLiveTranscriptChanged: (LiveTranscriptPartial) -> Void
     let onTextReady: (UUID, String) -> Void
     let onSetupReady: () -> Void
+    let onRecordingStateChanged: (Bool) -> Void
 
     func body(content: Content) -> some View {
         content
@@ -165,6 +170,9 @@ private struct SpeechToTextSheetModifier: ViewModifier {
                         },
                         onCloseRequested: {
                             isPresented = false
+                        },
+                        onRecordingStateChanged: { isRecording in
+                            onRecordingStateChanged(isRecording)
                         }
                     )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -180,7 +188,8 @@ public extension View {
         configuration: SpeechToTextSheetConfiguration = SpeechToTextSheetConfiguration(),
         onLiveTranscriptChanged: @escaping (LiveTranscriptPartial) -> Void = { _ in },
         onTextReady: @escaping (UUID, String) -> Void,
-        onSetupReady: @escaping () -> Void = {}
+        onSetupReady: @escaping () -> Void = {},
+        onRecordingStateChanged: @escaping (Bool) -> Void = { _ in }
     ) -> some View {
         modifier(
             SpeechToTextSheetModifier(
@@ -188,7 +197,8 @@ public extension View {
                 configuration: configuration,
                 onLiveTranscriptChanged: onLiveTranscriptChanged,
                 onTextReady: onTextReady,
-                onSetupReady: onSetupReady
+                onSetupReady: onSetupReady,
+                onRecordingStateChanged: onRecordingStateChanged
             )
         )
     }
@@ -198,7 +208,8 @@ public extension View {
         preferredLanguage: SupportedLanguage? = nil,
         onLiveTranscriptChanged: @escaping (LiveTranscriptPartial) -> Void = { _ in },
         onTextReady: @escaping (UUID, String) -> Void,
-        onSetupReady: @escaping () -> Void = {}
+        onSetupReady: @escaping () -> Void = {},
+        onRecordingStateChanged: @escaping (Bool) -> Void = { _ in }
     ) -> some View {
         var configuration = SpeechToTextSheetConfiguration()
         configuration.preferredLanguage = preferredLanguage
@@ -207,7 +218,8 @@ public extension View {
             configuration: configuration,
             onLiveTranscriptChanged: onLiveTranscriptChanged,
             onTextReady: onTextReady,
-            onSetupReady: onSetupReady
+            onSetupReady: onSetupReady,
+            onRecordingStateChanged: onRecordingStateChanged
         )
     }
 }

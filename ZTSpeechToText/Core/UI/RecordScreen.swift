@@ -31,6 +31,7 @@ struct RecordScreen: View {
     private let onTranscriptReady: ((UUID, String) -> Void)?
     private let onProcessingCompleted: (() -> Void)?
     private let onCloseRequested: (() -> Void)?
+    private let onRecordingStateChanged: ((Bool) -> Void)?
     private let minimumRecordingDuration: TimeInterval = 0.45
     private let blankAudioRegex = try! NSRegularExpression(
         pattern: #"\[\s*blank_audio\s*\]"#,
@@ -119,7 +120,8 @@ struct RecordScreen: View {
         onLiveTranscriptChanged: ((LiveTranscriptPartial) -> Void)? = nil,
         onTranscriptReady: ((UUID, String) -> Void)? = nil,
         onProcessingCompleted: (() -> Void)? = nil,
-        onCloseRequested: (() -> Void)? = nil
+        onCloseRequested: (() -> Void)? = nil,
+        onRecordingStateChanged: ((Bool) -> Void)? = nil
     ) {
         self.autoStartOnAppear = autoStartOnAppear
         self.preferredLanguage = preferredLanguage
@@ -132,6 +134,7 @@ struct RecordScreen: View {
         self.onTranscriptReady = onTranscriptReady
         self.onProcessingCompleted = onProcessingCompleted
         self.onCloseRequested = onCloseRequested
+        self.onRecordingStateChanged = onRecordingStateChanged
     }
 
     var body: some View {
@@ -375,6 +378,8 @@ struct RecordScreen: View {
         }
         .onChange(of: uiPhase) { newPhase in
             syncDeferredTransitionStatus(for: newPhase)
+            let isActivelyRecording = newPhase == .recording || newPhase == .starting
+            onRecordingStateChanged?(isActivelyRecording)
         }
         .onDisappear {
             stopLiveTranscription()
