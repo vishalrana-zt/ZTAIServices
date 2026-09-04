@@ -26,7 +26,7 @@ public struct LiveAwareTextView: UIViewRepresentable {
     public func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
         textView.delegate = context.coordinator
-        textView.font = .preferredFont(forTextStyle: .body)
+        textView.font = .preferredFont(forTextStyle: .callout)
         textView.backgroundColor = .clear
         textView.textColor = .label
         textView.tintColor = .systemBlue
