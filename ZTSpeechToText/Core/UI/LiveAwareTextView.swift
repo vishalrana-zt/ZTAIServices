@@ -47,7 +47,8 @@ public struct LiveAwareTextView: UIViewRepresentable {
         context.coordinator.updateBaseText(text)
 
         let displayText = context.coordinator.currentDisplayText()
-        if uiView.text != displayText {
+        if uiView.text != displayText,
+           context.coordinator.shouldApplyExternalTextUpdate(on: uiView) {
             context.coordinator.applyProgrammaticText(displayText, on: uiView)
         }
         uiView.font = .preferredFont(forTextStyle: .body)
@@ -65,6 +66,7 @@ public struct LiveAwareTextView: UIViewRepresentable {
         private var caretTimer: Timer?
         private var liveCaretVisible = false
         private var isProgrammaticTextChange = false
+        private var isUserEditing = false
         private var baseText = ""
         private var isLiveMode = false
         private var shouldShowLiveCaret = false
@@ -134,7 +136,15 @@ public struct LiveAwareTextView: UIViewRepresentable {
             return liveCaretVisible ? baseText + liveCaretCharacter : baseText
         }
 
+        func shouldApplyExternalTextUpdate(on textView: UITextView) -> Bool {
+            if isLiveMode {
+                return true
+            }
+            return !isUserEditing || !textView.isFirstResponder
+        }
+
         func applyProgrammaticText(_ value: String, on textView: UITextView) {
+            let previousSelectedRange = textView.selectedRange
             isProgrammaticTextChange = true
             if isLiveMode, shouldShowLiveCaret, value.hasSuffix(liveCaretCharacter) {
                 let bodyText = String(value.dropLast(liveCaretCharacter.count))
@@ -153,6 +163,11 @@ public struct LiveAwareTextView: UIViewRepresentable {
                 textView.attributedText = nil
                 textView.text = value
                 textView.textColor = .label
+            }
+            if !isLiveMode, textView.isFirstResponder {
+                let maxLocation = (textView.text as NSString).length
+                let clampedLocation = min(max(0, previousSelectedRange.location), maxLocation)
+                textView.selectedRange = NSRange(location: clampedLocation, length: 0)
             }
             isProgrammaticTextChange = false
         }
@@ -196,10 +211,12 @@ public struct LiveAwareTextView: UIViewRepresentable {
         }
 
         public func textViewDidBeginEditing(_ textView: UITextView) {
+            isUserEditing = true
             parent.onEditingChanged(true)
         }
 
         public func textViewDidEndEditing(_ textView: UITextView) {
+            isUserEditing = false
             parent.onEditingChanged(false)
         }
     }
