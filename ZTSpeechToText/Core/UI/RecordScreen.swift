@@ -214,7 +214,7 @@ struct RecordScreen: View {
                                 .font(statusFont)
                                 .lineLimit(1)
                         } else {
-                            Image(systemName: isListening ? "pause.fill" : "play.fill")
+                            Image(systemName: isListening ? "stop.fill" : "play.fill")
                                 .font(.system(size: 13, weight: .semibold))
                             Text(isListening ? ZTAIServiceLocalizer.localized("btn_stop") : ZTAIServiceLocalizer.localized("btn_speak_now"))
                                 .font(statusFont)
