@@ -28,6 +28,8 @@ public enum CloudAPIConfiguration {
     nonisolated(unsafe) public static var geminiUploadTimeoutPerMB: TimeInterval = 10.0
     nonisolated(unsafe) public static var geminiUploadMaxRetries: Int = 2
 
+    nonisolated(unsafe) public static var isLoggingEnabled: Bool = false
+
     public static var activeAPIKey: String? {
         switch provider {
         case .openAI: return openAIAPIKey

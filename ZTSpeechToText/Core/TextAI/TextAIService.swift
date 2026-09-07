@@ -151,7 +151,22 @@ public enum TextAIError: LocalizedError, Sendable {
 
 protocol TextModelProvider: Sendable {
     nonisolated var id: TextAIProviderID { get }
-    func process(_ request: TextAIRequest) async throws -> String
+    func process(_ request: TextAIRequest) async throws -> ProviderTextResult
+}
+
+struct ProviderTextResult: Sendable {
+    enum Status: Sendable {
+        case success
+        case refused
+    }
+
+    let text: String
+    let status: Status
+
+    init(text: String, status: Status) {
+        self.text = text
+        self.status = status
+    }
 }
 
 actor TextAIProviderResolver {
@@ -309,17 +324,20 @@ public actor TextAIService {
         let resolution = await resolver.resolveProvider(for: normalizedRequest)
 
         do {
-            let output: String
+            let providerResult: ProviderTextResult
             if resolution.provider.id == .appleFoundationModels {
-                output = try await withTimeout(seconds: appleProviderTimeoutSeconds) {
+                providerResult = try await withTimeout(seconds: appleProviderTimeoutSeconds) {
                     try await resolution.provider.process(normalizedRequest)
                 }
             } else {
-                output = try await resolution.provider.process(normalizedRequest)
+                providerResult = try await resolution.provider.process(normalizedRequest)
             }
 
-            let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard isUsableModelOutput(trimmedOutput, for: normalizedRequest) else {
+            guard providerResult.status == .success else {
+                throw TextAIError.unusableModelOutput
+            }
+            let trimmedOutput = providerResult.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedOutput.isEmpty else {
                 throw TextAIError.unusableModelOutput
             }
             return TextAIExecutionResult(provider: resolution.provider.id, outputText: trimmedOutput)
@@ -328,9 +346,12 @@ public actor TextAIService {
                 // Apple failed → cloud API
                 let cloud = await resolver.cloudFallbackProvider(reason: "appleInferenceFailed")
                 do {
-                    let output = try await cloud.process(normalizedRequest)
-                    let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard isUsableModelOutput(trimmedOutput, for: normalizedRequest) else {
+                    let providerResult = try await cloud.process(normalizedRequest)
+                    guard providerResult.status == .success else {
+                        throw TextAIError.unusableModelOutput
+                    }
+                    let trimmedOutput = providerResult.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmedOutput.isEmpty else {
                         throw TextAIError.unusableModelOutput
                     }
                     return TextAIExecutionResult(provider: cloud.id, outputText: trimmedOutput)
@@ -354,84 +375,6 @@ public actor TextAIService {
         return .inferenceFailed(reason: nsError.localizedDescription)
     }
 
-    private func isUsableModelOutput(_ output: String, for request: TextAIRequest) -> Bool {
-        guard !output.isEmpty else { return false }
-
-        switch request.operation {
-        case .cleanup, .summarize:
-            let normalized = normalizeForRefusalDetection(output)
-            let explicitRefusalMarkers = [
-                "im sorry but i cannot provide",
-                "i am sorry but i cannot provide",
-                "sorry i cannot provide",
-                "cannot provide the requested",
-                "unable to provide the requested",
-                "the text you provided is not clear or readable",
-                "the text provided is not clear or readable",
-                "text is not clear or readable",
-                "please provide a clear and readable text",
-                "please provide clear readable text",
-                "please provide readable text",
-                "input text is not clear",
-                "input is unreadable",
-                "cannot provide a summary",
-                "cannot provide summary",
-                "cannot summarize",
-                "unable to summarize",
-                "does not contain any text to summarize",
-                "no text to summarize",
-                "nothing to summarize",
-                "no entry found",
-                "cannot clean up",
-                "unable to clean up",
-                "cannot process this text",
-                "unable to process this text"
-            ]
-            if explicitRefusalMarkers.contains(where: { normalized.contains($0) }) {
-                return false
-            }
-
-            let hasApology = normalized.contains("im sorry") || normalized.contains("i am sorry") || normalized.contains("sorry")
-            let hasRefusal = normalized.contains("cannot")
-                || normalized.contains("can't")
-                || normalized.contains("unable")
-                || normalized.contains("do not have enough")
-            let hasTaskContext = normalized.contains("summar")
-                || normalized.contains("clean up")
-                || normalized.contains("cleanup")
-                || normalized.contains("text you provided")
-                || normalized.contains("text provided")
-                || normalized.contains("input text")
-                || normalized.contains("provided text")
-                || normalized.contains("no entry")
-
-            return !(hasApology && hasRefusal && hasTaskContext)
-
-        case .structuredExtraction:
-            return true
-        }
-    }
-}
-
-private func normalizeForRefusalDetection(_ text: String) -> String {
-    var normalized = text.lowercased()
-    normalized = normalized
-        .replacingOccurrences(of: "’", with: "'")
-        .replacingOccurrences(of: "‘", with: "'")
-        .replacingOccurrences(of: "“", with: "\"")
-        .replacingOccurrences(of: "”", with: "\"")
-        .replacingOccurrences(of: ".", with: " ")
-        .replacingOccurrences(of: ",", with: " ")
-        .replacingOccurrences(of: "!", with: " ")
-        .replacingOccurrences(of: "?", with: " ")
-        .replacingOccurrences(of: "\n", with: " ")
-        .replacingOccurrences(of: "\t", with: " ")
-        .replacingOccurrences(of: "'", with: "")
-
-    return normalized
-        .components(separatedBy: .whitespacesAndNewlines)
-        .filter { !$0.isEmpty }
-        .joined(separator: " ")
 }
 
 private func withTimeout<T: Sendable>(
@@ -769,7 +712,7 @@ enum StructuredExtractionUIMapper {
 actor CloudTextProvider: TextModelProvider {
     nonisolated let id: TextAIProviderID = .cloudAPI
 
-    func process(_ request: TextAIRequest) async throws -> String {
+    func process(_ request: TextAIRequest) async throws -> ProviderTextResult {
         try Task.checkCancellation()
         let (provider, apiKey): (CloudAPIConfiguration.Provider, String?) = await MainActor.run {
             (CloudAPIConfiguration.provider, CloudAPIConfiguration.activeAPIKey)
@@ -779,7 +722,7 @@ actor CloudTextProvider: TextModelProvider {
         }
         let parts = await buildPromptParts(for: request)
         do {
-            let raw: String
+            let rawResult: ProviderTextResult
             switch provider {
             case .openAI:
                 let model: String = await MainActor.run { CloudAPIConfiguration.openAITextModel }
@@ -794,7 +737,7 @@ actor CloudTextProvider: TextModelProvider {
                     timeout = baseTimeout
                     maxRetries = baseRetries
                 }
-                raw = try await callOpenAIWithRetry(
+                rawResult = try await callOpenAIWithRetry(
                     system: parts.system,
                     user: parts.user,
                     apiKey: apiKey,
@@ -811,7 +754,7 @@ actor CloudTextProvider: TextModelProvider {
                     )
                 }
                 let model: String = await MainActor.run { CloudAPIConfiguration.geminiModel }
-                raw = try await callGemini(
+                rawResult = try await callGemini(
                     system: parts.system,
                     user: parts.user,
                     apiKey: trimmedKey,
@@ -819,7 +762,10 @@ actor CloudTextProvider: TextModelProvider {
                     operation: request.operation
                 )
             }
-            let result = stripOutputArtifacts(raw, operation: request.operation)
+            guard rawResult.status == .success else {
+                return rawResult
+            }
+            let result = stripOutputArtifacts(rawResult.text, operation: request.operation)
 
             // If structured extraction of a fire equipment tag came back malformed or near-empty,
             // retry with a simpler directive prompt that bypasses the complex schema and just
@@ -836,15 +782,17 @@ actor CloudTextProvider: TextModelProvider {
                     apiKey: apiKey
                 )
                 let candidate = fallbackResult ?? result
-                return ensuredFireStickerMinimumStructuredOutput(candidate, originalOCRText: request.text)
+                let normalized = ensuredFireStickerMinimumStructuredOutput(candidate, originalOCRText: request.text)
+                return ProviderTextResult(text: normalized, status: .success)
             }
 
             if request.operation == .structuredExtraction,
                request.documentType == .fireEquipmentManualSticker {
-                return ensuredFireStickerMinimumStructuredOutput(result, originalOCRText: request.text)
+                let normalized = ensuredFireStickerMinimumStructuredOutput(result, originalOCRText: request.text)
+                return ProviderTextResult(text: normalized, status: .success)
             }
 
-            return result
+            return ProviderTextResult(text: result, status: .success)
         } catch {
             throw await offlineTextError(from: error) ?? error
         }
@@ -1087,11 +1035,15 @@ actor CloudTextProvider: TextModelProvider {
         switch provider {
         case .openAI:
             let model: String = await MainActor.run { CloudAPIConfiguration.openAITextModel }
-            return try await callOpenAIWithRetry(
+            let result = try await callOpenAIWithRetry(
                 system: system, user: user, apiKey: apiKey,
                 model: model, operation: .structuredExtraction,
                 timeout: 30, maxRetries: 0
             )
+            guard result.status == .success else {
+                throw TextAIError.unusableModelOutput
+            }
+            return result.text
         case .gemini:
             let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
             guard trimmedKey.hasPrefix("AIza") else {
@@ -1100,10 +1052,14 @@ actor CloudTextProvider: TextModelProvider {
                 )
             }
             let model: String = await MainActor.run { CloudAPIConfiguration.geminiModel }
-            return try await callGemini(
+            let result = try await callGemini(
                 system: system, user: user, apiKey: trimmedKey,
                 model: model, operation: .structuredExtraction
             )
+            guard result.status == .success else {
+                throw TextAIError.unusableModelOutput
+            }
+            return result.text
         }
     }
 
@@ -1215,7 +1171,7 @@ actor CloudTextProvider: TextModelProvider {
         operation: TextAIOperation,
         timeout: TimeInterval,
         maxRetries: Int
-    ) async throws -> String {
+    ) async throws -> ProviderTextResult {
         var lastError: Error = TextAIError.inferenceFailed(reason: "OpenAI request failed")
         let maxAttempts = max(1, maxRetries + 1)
 
@@ -1249,7 +1205,7 @@ actor CloudTextProvider: TextModelProvider {
         model: String,
         operation: TextAIOperation,
         timeout: TimeInterval
-    ) async throws -> String {
+    ) async throws -> ProviderTextResult {
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         var body: [String: Any] = [
             "model": model,
@@ -1290,18 +1246,33 @@ actor CloudTextProvider: TextModelProvider {
             let choices: [Choice]
             struct Choice: Decodable {
                 let message: Message
+                let finishReason: String?
+                enum CodingKeys: String, CodingKey {
+                    case message
+                    case finishReason = "finish_reason"
+                }
                 struct Message: Decodable {
                     let content: String?
+                    let refusal: String?
                 }
             }
         }
 
         let decoded = try JSONDecoder().decode(Response.self, from: data)
-        guard let text = decoded.choices.first?.message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
+        let firstChoice = decoded.choices.first
+        let refusalText = firstChoice?.message.refusal?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let finishReason = firstChoice?.finishReason?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        if !finishReason.isEmpty {
+            TextAILogger.log("openAI_finish_reason=\(finishReason)")
+        }
+        if !refusalText.isEmpty || finishReason == "content_filter" {
+            return ProviderTextResult(text: refusalText, status: .refused)
+        }
+        guard let text = firstChoice?.message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty else {
             throw TextAIError.inferenceFailed(reason: "Empty OpenAI response")
         }
-        return text
+        return ProviderTextResult(text: text, status: .success)
     }
 
     private func isRetryableOpenAIError(_ error: Error) -> Bool {
@@ -1379,7 +1350,7 @@ actor CloudTextProvider: TextModelProvider {
         apiKey: String,
         model: String,
         operation: TextAIOperation
-    ) async throws -> String {
+    ) async throws -> ProviderTextResult {
         let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)")!
         var body: [String: Any] = [
             "systemInstruction": ["parts": [["text": system]]],
@@ -1411,9 +1382,14 @@ actor CloudTextProvider: TextModelProvider {
         }
 
         struct Resp: Decodable {
-            let candidates: [Cand]
+            let promptFeedback: PromptFeedback?
+            let candidates: [Cand]?
+            struct PromptFeedback: Decodable {
+                let blockReason: String?
+            }
             struct Cand: Decodable {
-                let content: Cont
+                let content: Cont?
+                let finishReason: String?
                 struct Cont: Decodable {
                     let parts: [Part]
                     struct Part: Decodable {
@@ -1424,11 +1400,27 @@ actor CloudTextProvider: TextModelProvider {
         }
 
         let decoded = try JSONDecoder().decode(Resp.self, from: data)
-        guard let text = decoded.candidates.first?.content.parts.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+        if let blockReason = decoded.promptFeedback?.blockReason,
+           !blockReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            TextAILogger.log("gemini_prompt_blocked=\(blockReason)")
+            return ProviderTextResult(text: blockReason, status: .refused)
+        }
+
+        let firstCandidate = decoded.candidates?.first
+        let finishReason = firstCandidate?.finishReason?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() ?? ""
+        if !finishReason.isEmpty {
+            TextAILogger.log("gemini_finish_reason=\(finishReason)")
+        }
+        let refusalReasons: Set<String> = ["SAFETY", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "RECITATION"]
+        if refusalReasons.contains(finishReason) {
+            return ProviderTextResult(text: finishReason, status: .refused)
+        }
+
+        guard let text = firstCandidate?.content?.parts.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty else {
             throw TextAIError.inferenceFailed(reason: "Empty Gemini response")
         }
-        return text
+        return ProviderTextResult(text: text, status: .success)
     }
 
     private func mapGeminiHTTPError(statusCode: Int, data: Data) -> TextAIError {
@@ -1587,7 +1579,7 @@ actor AppleFoundationModelProvider: TextModelProvider {
         return .available
     }
 
-    func process(_ request: TextAIRequest) async throws -> String {
+    func process(_ request: TextAIRequest) async throws -> ProviderTextResult {
         try Task.checkCancellation()
 
         let capabilityResult = capability(for: request.preferredLanguage)
@@ -1608,7 +1600,7 @@ actor AppleFoundationModelProvider: TextModelProvider {
                 throw TextAIError.inferenceFailed(reason: "emptyResponse")
             }
             TextAILogger.logPayload("appleModel output", text: content)
-            return content
+            return ProviderTextResult(text: content, status: .success)
         } catch is CancellationError {
             throw TextAIError.cancelled
         } catch let generationError as LanguageModelSession.GenerationError {
@@ -1700,12 +1692,14 @@ actor AppleFoundationModelProvider: TextModelProvider {
 
 private enum TextAILogger {
     nonisolated static func log(_ message: String) {
+        guard CloudAPIConfiguration.isLoggingEnabled else { return }
         #if DEBUG
         print("[TEXT_AI] \(message)")
         #endif
     }
 
     nonisolated static func logPayload(_ label: String, text: String, maxChars: Int = 400) {
+        guard CloudAPIConfiguration.isLoggingEnabled else { return }
         #if DEBUG
         let normalized = text.replacingOccurrences(of: "\n", with: "\\n")
         let clipped: String
