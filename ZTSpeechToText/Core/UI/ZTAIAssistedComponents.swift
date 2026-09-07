@@ -53,10 +53,6 @@ public enum ZTAIAssistedLocalization {
 }
 
 public extension UIViewController {
-    func dismissAnyOpenZTAIAssistantMenu() {
-        ZTAIAssistantController.requestCloseOpenMenus()
-    }
-
     func presentStopRecordingBeforeLeavingAlert(onStop: @escaping () -> Void) {
         let alert = UIAlertController(
             title: ZTAIAssistedLocalization.stopRecordingAlertTitle,
@@ -116,16 +112,6 @@ public protocol RecordingGuardExecuting: AnyObject {
 public extension RecordingGuardExecuting where Self: UIViewController {
     func guardRecordingAndRun(_ action: @escaping () -> Void) {
         withRecordingExitGuard(coordinator: recordingGuardCoordinator, proceed: action)
-    }
-}
-
-public extension View {
-    func dismissOpenZTAIAssistantMenuOnTap() -> some View {
-        simultaneousGesture(
-            TapGesture().onEnded {
-                ZTAIAssistantController.requestCloseOpenMenus()
-            }
-        )
     }
 }
 
@@ -255,12 +241,6 @@ public final class ZTSpeechDictationServiceAdapter: ZTAIDictationServiceProtocol
 
 @MainActor
 public final class ZTAIAssistantController: ObservableObject {
-    private static let closeMenusNotification = Notification.Name("ZTAIAssistantController.closeMenus")
-
-    public static func requestCloseOpenMenus() {
-        NotificationCenter.default.post(name: closeMenusNotification, object: nil)
-    }
-
     @Published public private(set) var isRecording = false
     @Published public private(set) var isRunningAI = false
     @Published public private(set) var status: ZTAIStatus = .idle
@@ -279,7 +259,6 @@ public final class ZTAIAssistantController: ObservableObject {
     private var aiTask: Task<Void, Never>?
     private var aiCancelTimerTask: Task<Void, Never>?
     private var cancelApplyText: ((String) -> Void)?
-    private var closeMenusObserver: NSObjectProtocol?
 
     public init(
         aiService: ZTAITextProcessingServiceProtocol = ZTAITextProcessingServiceAdapter(),
@@ -287,19 +266,6 @@ public final class ZTAIAssistantController: ObservableObject {
     ) {
         self.aiService = aiService
         self.dictationService = dictationService ?? ZTSpeechDictationServiceAdapter()
-        closeMenusObserver = NotificationCenter.default.addObserver(
-            forName: Self.closeMenusNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.closeMenu()
-        }
-    }
-
-    deinit {
-        if let closeMenusObserver {
-            NotificationCenter.default.removeObserver(closeMenusObserver)
-        }
     }
 
     public var isBusy: Bool {
