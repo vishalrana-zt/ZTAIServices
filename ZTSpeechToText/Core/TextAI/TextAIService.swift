@@ -329,7 +329,11 @@ public actor TextAIService {
                 let cloud = await resolver.cloudFallbackProvider(reason: "appleInferenceFailed")
                 do {
                     let output = try await cloud.process(normalizedRequest)
-                    return TextAIExecutionResult(provider: cloud.id, outputText: output)
+                    let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard isUsableModelOutput(trimmedOutput, for: normalizedRequest) else {
+                        throw TextAIError.unusableModelOutput
+                    }
+                    return TextAIExecutionResult(provider: cloud.id, outputText: trimmedOutput)
                 } catch {
                     throw mapProviderError(error)
                 }
@@ -355,30 +359,51 @@ public actor TextAIService {
 
         switch request.operation {
         case .cleanup, .summarize:
-            let normalized = output.lowercased()
+            let normalized = normalizeForRefusalDetection(output)
             let explicitRefusalMarkers = [
-                "i'm sorry, but i cannot provide",
-                "i am sorry, but i cannot provide",
+                "im sorry but i cannot provide",
+                "i am sorry but i cannot provide",
+                "sorry i cannot provide",
+                "cannot provide the requested",
+                "unable to provide the requested",
                 "the text you provided is not clear or readable",
+                "the text provided is not clear or readable",
+                "text is not clear or readable",
                 "please provide a clear and readable text",
+                "please provide clear readable text",
+                "please provide readable text",
+                "input text is not clear",
+                "input is unreadable",
                 "cannot provide a summary",
                 "cannot provide summary",
+                "cannot summarize",
+                "unable to summarize",
                 "does not contain any text to summarize",
                 "no text to summarize",
-                "nothing to summarize"
+                "nothing to summarize",
+                "no entry found",
+                "cannot clean up",
+                "unable to clean up",
+                "cannot process this text",
+                "unable to process this text"
             ]
             if explicitRefusalMarkers.contains(where: { normalized.contains($0) }) {
                 return false
             }
 
-            let hasApology = normalized.contains("i'm sorry") || normalized.contains("i am sorry")
+            let hasApology = normalized.contains("im sorry") || normalized.contains("i am sorry") || normalized.contains("sorry")
             let hasRefusal = normalized.contains("cannot")
                 || normalized.contains("can't")
                 || normalized.contains("unable")
+                || normalized.contains("do not have enough")
             let hasTaskContext = normalized.contains("summar")
                 || normalized.contains("clean up")
                 || normalized.contains("cleanup")
                 || normalized.contains("text you provided")
+                || normalized.contains("text provided")
+                || normalized.contains("input text")
+                || normalized.contains("provided text")
+                || normalized.contains("no entry")
 
             return !(hasApology && hasRefusal && hasTaskContext)
 
@@ -386,6 +411,27 @@ public actor TextAIService {
             return true
         }
     }
+}
+
+private func normalizeForRefusalDetection(_ text: String) -> String {
+    var normalized = text.lowercased()
+    normalized = normalized
+        .replacingOccurrences(of: "’", with: "'")
+        .replacingOccurrences(of: "‘", with: "'")
+        .replacingOccurrences(of: "“", with: "\"")
+        .replacingOccurrences(of: "”", with: "\"")
+        .replacingOccurrences(of: ".", with: " ")
+        .replacingOccurrences(of: ",", with: " ")
+        .replacingOccurrences(of: "!", with: " ")
+        .replacingOccurrences(of: "?", with: " ")
+        .replacingOccurrences(of: "\n", with: " ")
+        .replacingOccurrences(of: "\t", with: " ")
+        .replacingOccurrences(of: "'", with: "")
+
+    return normalized
+        .components(separatedBy: .whitespacesAndNewlines)
+        .filter { !$0.isEmpty }
+        .joined(separator: " ")
 }
 
 private func withTimeout<T: Sendable>(

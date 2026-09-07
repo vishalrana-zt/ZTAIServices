@@ -18,6 +18,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
     public var showBorder: Bool = true
     public var cardBackground: Color = Color(.systemBackground)
     public var showEditorBorder: Bool = true
+    public var editorBorderColor: Color = Color(hex: "#AFAFAF")
+    public var editorBorderWidth: CGFloat = 0.5
     public var showShadow: Bool = false
     public var editorBackground: Color = Color(.secondarySystemBackground)
     public var showButtonsInHeader: Bool = true
@@ -48,6 +50,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
         showBorder: Bool = true,
         cardBackground: Color = Color(.systemBackground),
         showEditorBorder: Bool = true,
+        editorBorderColor: Color = Color(hex: "#AFAFAF"),
+        editorBorderWidth: CGFloat = 0.5,
         showShadow: Bool = false,
         editorBackground: Color = Color(.secondarySystemBackground),
         showButtonsInHeader: Bool = true,
@@ -77,6 +81,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
         self.showBorder = showBorder
         self.cardBackground = cardBackground
         self.showEditorBorder = showEditorBorder
+        self.editorBorderColor = editorBorderColor
+        self.editorBorderWidth = editorBorderWidth
         self.showShadow = showShadow
         self.editorBackground = editorBackground
         self.showButtonsInHeader = showButtonsInHeader
@@ -108,6 +114,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
             showBorder: showBorder,
             cardBackground: cardBackground,
             showEditorBorder: showEditorBorder,
+            editorBorderColor: editorBorderColor,
+            editorBorderWidth: editorBorderWidth,
             showShadow: showShadow,
             editorBackground: editorBackground,
             showButtonsInHeader: showButtonsInHeader,
@@ -202,6 +210,8 @@ public struct ZTAIAssistedTextSectionCard: View {
     public var showBorder: Bool = true
     public var cardBackground: Color = Color(.systemBackground)
     public var showEditorBorder: Bool = true
+    public var editorBorderColor: Color = Color(hex: "#AFAFAF")
+    public var editorBorderWidth: CGFloat = 0.5
     public var showShadow: Bool = false
     public var editorBackground: Color = Color(.secondarySystemBackground)
     public var showButtonsInHeader: Bool = true
@@ -285,6 +295,8 @@ public struct ZTAIAssistedTextSectionCard: View {
         showBorder: Bool = true,
         cardBackground: Color = Color(.systemBackground),
         showEditorBorder: Bool = true,
+        editorBorderColor: Color = Color(hex: "#AFAFAF"),
+        editorBorderWidth: CGFloat = 0.5,
         showShadow: Bool = false,
         editorBackground: Color = Color(.secondarySystemBackground),
         showButtonsInHeader: Bool = true,
@@ -316,6 +328,8 @@ public struct ZTAIAssistedTextSectionCard: View {
         self.showBorder = showBorder
         self.cardBackground = cardBackground
         self.showEditorBorder = showEditorBorder
+        self.editorBorderColor = editorBorderColor
+        self.editorBorderWidth = editorBorderWidth
         self.showShadow = showShadow
         self.editorBackground = editorBackground
         self.showButtonsInHeader = showButtonsInHeader
@@ -422,7 +436,7 @@ public struct ZTAIAssistedTextSectionCard: View {
             .background(editorBackground, in: RoundedRectangle(cornerRadius: editorCornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: editorCornerRadius, style: .continuous)
-                    .stroke(!showBorder && showEditorBorder ? Color(hex: "#AFAFAF") : Color.clear, lineWidth: 0.5)
+                    .stroke(!showBorder && showEditorBorder ? editorBorderColor : Color.clear, lineWidth: editorBorderWidth)
             )
 
             if !isReadOnly, showCharacterCount {
