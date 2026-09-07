@@ -121,9 +121,12 @@ public struct LiveAwareTextView: UIViewRepresentable {
         }
 
         func updateShouldShowLiveCaret(_ enabled: Bool) {
+            guard shouldShowLiveCaret != enabled else { return }
             shouldShowLiveCaret = enabled
             if let textView {
-                applyProgrammaticText(currentDisplayText(), on: textView)
+                if shouldApplyExternalTextUpdate(on: textView) {
+                    applyProgrammaticText(currentDisplayText(), on: textView)
+                }
                 if isLiveMode {
                     scrollToEnd(textView)
                 }
