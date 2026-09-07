@@ -360,7 +360,12 @@ public actor TextAIService {
                 "i'm sorry, but i cannot provide",
                 "i am sorry, but i cannot provide",
                 "the text you provided is not clear or readable",
-                "please provide a clear and readable text"
+                "please provide a clear and readable text",
+                "cannot provide a summary",
+                "cannot provide summary",
+                "does not contain any text to summarize",
+                "no text to summarize",
+                "nothing to summarize"
             ]
             if explicitRefusalMarkers.contains(where: { normalized.contains($0) }) {
                 return false
