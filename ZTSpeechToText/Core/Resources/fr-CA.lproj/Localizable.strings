@@ -63,3 +63,29 @@
 "err_no_clear_speech" = "Aucune parole claire détectée dans cet enregistrement.";
 "err_input_text_required" = "Saisissez du texte avant de continuer.";
 "err_input_text_too_short" = "Saisissez au moins 3 mots pour que le texte soit traité correctement.";
+
+// MARK: - AI Assisted Notes Card
+"OK" = "OK";
+"Cancel" = "Annuler";
+"Undo" = "Annuler";
+"lbl_Error" = "Erreur";
+"lbl_Write_note_here" = "Écrivez votre note ici...";
+"lbl_Write_note_or_tap_mic" = "Écrivez votre note ou touchez le micro pour dicter...";
+"lbl_ai_summary_short_title" = "Court";
+"lbl_ai_summary_standard_title" = "Standard";
+"lbl_ai_summary_detailed_title" = "Détaillé";
+"lbl_ai_summary_short_subtitle" = "1-2 lignes";
+"lbl_ai_summary_standard_subtitle" = "3-5 lignes";
+"lbl_ai_summary_detailed_subtitle" = "Complet";
+"lbl_ai_status_cleaning" = "Amélioration du texte...";
+"lbl_ai_status_summarizing_format" = "Résumé - %@...";
+"lbl_ai_cleanup_title" = "Nettoyer";
+"lbl_ai_cleanup_subtitle" = "Corrige la formulation, garde tous les détails";
+"lbl_ai_summarize_title" = "Résumer";
+"lbl_ai_summarize_subtitle" = "Raccourcir, garder les points clés";
+"lbl_ai_toast_cleaned_up" = "Texte nettoyé";
+"lbl_ai_toast_summarized" = "Résumé";
+"lbl_ai_toast_no_text" = "Aucun texte trouvé";
+"lbl_ai_stop_recording_alert_title" = "Arrêter l'enregistrement?";
+"lbl_ai_stop_recording_alert_action" = "Arrêter l'enregistrement";
+"lbl_ai_stop_recording_alert_message" = "Un enregistrement est en cours. Voulez-vous l'arrêter et quitter cet écran?";

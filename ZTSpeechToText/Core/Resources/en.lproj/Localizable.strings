@@ -63,3 +63,29 @@
 "err_no_clear_speech" = "No clear speech was detected in this recording.";
 "err_input_text_required" = "Please enter text before continuing.";
 "err_input_text_too_short" = "Please enter at least 3 words so the text can be processed accurately.";
+
+// MARK: - AI Assisted Notes Card
+"OK" = "OK";
+"Cancel" = "Cancel";
+"Undo" = "Undo";
+"lbl_Error" = "Error";
+"lbl_Write_note_here" = "Write your note here...";
+"lbl_Write_note_or_tap_mic" = "Write your note or tap mic to dictate...";
+"lbl_ai_summary_short_title" = "Short";
+"lbl_ai_summary_standard_title" = "Standard";
+"lbl_ai_summary_detailed_title" = "Detailed";
+"lbl_ai_summary_short_subtitle" = "1-2 line";
+"lbl_ai_summary_standard_subtitle" = "3-5 lines";
+"lbl_ai_summary_detailed_subtitle" = "Full";
+"lbl_ai_status_cleaning" = "Cleaning up...";
+"lbl_ai_status_summarizing_format" = "Summarizing - %@...";
+"lbl_ai_cleanup_title" = "Clean Up";
+"lbl_ai_cleanup_subtitle" = "Fix wording, keep every detail";
+"lbl_ai_summarize_title" = "Summarize";
+"lbl_ai_summarize_subtitle" = "Make it shorter, keep key points";
+"lbl_ai_toast_cleaned_up" = "Cleaned up";
+"lbl_ai_toast_summarized" = "Summarized";
+"lbl_ai_toast_no_text" = "No text found";
+"lbl_ai_stop_recording_alert_title" = "Stop Recording?";
+"lbl_ai_stop_recording_alert_action" = "Stop Recording";
+"lbl_ai_stop_recording_alert_message" = "Recording is in progress. Do you want to stop recording and leave this screen?";
