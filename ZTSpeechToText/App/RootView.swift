@@ -10,6 +10,7 @@ import ZTAIServices
 struct RootView: View {
     private let manager = SpeechToTextManager.shared
     private let isSessionLoggingEnabled: Bool
+    private let noteEditorTextStyle: UIFont.TextStyle
 
     private enum CaptureMode: String, CaseIterable, Identifiable {
         case liveStreaming
@@ -65,8 +66,12 @@ struct RootView: View {
         "AnyTextStorage("
     ]
 
-    init(isSessionLoggingEnabled: Bool = false) {
+    init(
+        isSessionLoggingEnabled: Bool = false,
+        noteEditorTextStyle: UIFont.TextStyle = .callout
+    ) {
         self.isSessionLoggingEnabled = isSessionLoggingEnabled
+        self.noteEditorTextStyle = noteEditorTextStyle
     }
 
     var body: some View {
@@ -110,6 +115,7 @@ struct RootView: View {
                         shouldShowLiveCaret: selectedMode == .liveStreaming
                             && isSpeechToTextSheetPresented
                             && !livePreviewText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                        textStyle: noteEditorTextStyle,
                         onEditingChanged: { isFocused in
                             isNoteEditorFocused = isFocused
                         }

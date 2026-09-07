@@ -5,17 +5,20 @@ public struct LiveAwareTextView: UIViewRepresentable {
     @Binding public var text: String
     public let shouldAutoScrollLiveInsertion: Bool
     public let shouldShowLiveCaret: Bool
+    public let textStyle: UIFont.TextStyle
     public let onEditingChanged: (Bool) -> Void
 
     public init(
         text: Binding<String>,
         shouldAutoScrollLiveInsertion: Bool,
         shouldShowLiveCaret: Bool,
+        textStyle: UIFont.TextStyle = .callout,
         onEditingChanged: @escaping (Bool) -> Void = { _ in }
     ) {
         self._text = text
         self.shouldAutoScrollLiveInsertion = shouldAutoScrollLiveInsertion
         self.shouldShowLiveCaret = shouldShowLiveCaret
+        self.textStyle = textStyle
         self.onEditingChanged = onEditingChanged
     }
 
@@ -26,7 +29,7 @@ public struct LiveAwareTextView: UIViewRepresentable {
     public func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
         textView.delegate = context.coordinator
-        textView.font = .preferredFont(forTextStyle: .callout)
+        textView.font = .preferredFont(forTextStyle: textStyle)
         textView.backgroundColor = .clear
         textView.textColor = .label
         textView.tintColor = .systemBlue
@@ -51,7 +54,7 @@ public struct LiveAwareTextView: UIViewRepresentable {
            context.coordinator.shouldApplyExternalTextUpdate(on: uiView) {
             context.coordinator.applyProgrammaticText(displayText, on: uiView)
         }
-        uiView.font = .preferredFont(forTextStyle: .body)
+        uiView.font = .preferredFont(forTextStyle: textStyle)
         uiView.textColor = .label
         uiView.tintColor = .systemBlue
 

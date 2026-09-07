@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 public struct ZTAIAssistedTextSectionHostView: View {
     @ObservedObject public var coordinator: ZTAIAssistedTextSectionCoordinator
@@ -21,6 +22,9 @@ public struct ZTAIAssistedTextSectionHostView: View {
     public var showTitle: Bool = true
     public var titleFont: Font = .callout.weight(.semibold)
     public var titleColor: Color = .primary
+    public var editorTextStyle: UIFont.TextStyle = .callout
+    public var editorHorizontalPadding: CGFloat = 8
+    public var placeholderHorizontalPadding: CGFloat = 14
     public var aiMenuOffset: CGSize? = nil
     public var topPadding: CGFloat? = nil
     public var bottomPadding: CGFloat? = nil
@@ -48,6 +52,9 @@ public struct ZTAIAssistedTextSectionHostView: View {
         showTitle: Bool = true,
         titleFont: Font = .callout.weight(.semibold),
         titleColor: Color = .primary,
+        editorTextStyle: UIFont.TextStyle = .callout,
+        editorHorizontalPadding: CGFloat = 8,
+        placeholderHorizontalPadding: CGFloat = 14,
         aiMenuOffset: CGSize? = nil,
         topPadding: CGFloat? = nil,
         bottomPadding: CGFloat? = nil,
@@ -74,6 +81,9 @@ public struct ZTAIAssistedTextSectionHostView: View {
         self.showTitle = showTitle
         self.titleFont = titleFont
         self.titleColor = titleColor
+        self.editorTextStyle = editorTextStyle
+        self.editorHorizontalPadding = editorHorizontalPadding
+        self.placeholderHorizontalPadding = placeholderHorizontalPadding
         self.aiMenuOffset = aiMenuOffset
         self.topPadding = topPadding
         self.bottomPadding = bottomPadding
@@ -102,6 +112,9 @@ public struct ZTAIAssistedTextSectionHostView: View {
             showTitle: showTitle,
             titleFont: titleFont,
             titleColor: titleColor,
+            editorTextStyle: editorTextStyle,
+            editorHorizontalPadding: editorHorizontalPadding,
+            placeholderHorizontalPadding: placeholderHorizontalPadding,
             aiMenuOffset: aiMenuOffset,
             topPadding: topPadding,
             bottomPadding: bottomPadding,
@@ -193,6 +206,9 @@ public struct ZTAIAssistedTextSectionCard: View {
     public var showTitle: Bool = true
     public var titleFont: Font = .headline
     public var titleColor: Color = .primary
+    public var editorTextStyle: UIFont.TextStyle = .callout
+    public var editorHorizontalPadding: CGFloat = 8
+    public var placeholderHorizontalPadding: CGFloat = 14
     public var aiMenuOffset: CGSize? = nil
     public var topPadding: CGFloat? = nil
     public var bottomPadding: CGFloat? = nil
@@ -273,6 +289,9 @@ public struct ZTAIAssistedTextSectionCard: View {
         showTitle: Bool = true,
         titleFont: Font = .headline,
         titleColor: Color = .primary,
+        editorTextStyle: UIFont.TextStyle = .callout,
+        editorHorizontalPadding: CGFloat = 8,
+        placeholderHorizontalPadding: CGFloat = 14,
         aiMenuOffset: CGSize? = nil,
         topPadding: CGFloat? = nil,
         bottomPadding: CGFloat? = nil,
@@ -301,6 +320,9 @@ public struct ZTAIAssistedTextSectionCard: View {
         self.showTitle = showTitle
         self.titleFont = titleFont
         self.titleColor = titleColor
+        self.editorTextStyle = editorTextStyle
+        self.editorHorizontalPadding = editorHorizontalPadding
+        self.placeholderHorizontalPadding = placeholderHorizontalPadding
         self.aiMenuOffset = aiMenuOffset
         self.topPadding = topPadding
         self.bottomPadding = bottomPadding
@@ -353,10 +375,11 @@ public struct ZTAIAssistedTextSectionCard: View {
                         LiveAwareTextView(
                             text: $editorText,
                             shouldAutoScrollLiveInsertion: isSpeechToTextSheetPresented,
-                            shouldShowLiveCaret: shouldShowLiveCaret
+                            shouldShowLiveCaret: shouldShowLiveCaret,
+                            textStyle: editorTextStyle
                         )
                         .frame(minHeight: editorMinHeight, maxHeight: editorMaxHeight)
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, editorHorizontalPadding)
                         .padding(.top, 8)
                         .padding(.bottom, canUseAIFeatures && !showButtonsInHeader ? 56 : 8)
                         .disabled(isEditorDisabled)
@@ -365,7 +388,7 @@ public struct ZTAIAssistedTextSectionCard: View {
                             SwiftUI.Text(resolvedPlaceholder)
                                 .font(.body)
                                 .foregroundStyle(.secondary.opacity(0.55))
-                                .padding(.horizontal, 14)
+                                .padding(.horizontal, placeholderHorizontalPadding)
                                 .padding(.vertical, 14)
                                 .allowsHitTesting(false)
                         }
