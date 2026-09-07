@@ -1600,6 +1600,10 @@ actor AppleFoundationModelProvider: TextModelProvider {
                 throw TextAIError.inferenceFailed(reason: "emptyResponse")
             }
             TextAILogger.logPayload("appleModel output", text: content)
+            if isAppleModelOutputRefused(content, for: request.operation) {
+                TextAILogger.log("appleModel_refused operation=\(request.operation.rawValue)")
+                return ProviderTextResult(text: content, status: .refused)
+            }
             return ProviderTextResult(text: content, status: .success)
         } catch is CancellationError {
             throw TextAIError.cancelled
@@ -1613,6 +1617,21 @@ actor AppleFoundationModelProvider: TextModelProvider {
         } catch {
             throw TextAIError.inferenceFailed(reason: error.localizedDescription)
         }
+    }
+
+    // Detects Apple on-device model failure modes that have no API-level signal:
+    // • Meta-response: model asks for input ("please provide…") instead of processing it
+    // • Trivial echo: model just restates very short input ("The text is simply 'Okay.'")
+    // Returning .refused triggers automatic cloud fallback in TextAIService.
+    private func isAppleModelOutputRefused(_ output: String, for operation: TextAIOperation) -> Bool {
+        guard operation == .cleanup || operation == .summarize else { return false }
+        let lower = output.lowercased()
+        if lower.contains("please provide") { return true }
+        if lower.contains("simply") &&
+            (lower.hasPrefix("the text") || lower.contains("text is simply") || lower.contains("text provided is simply")) {
+            return true
+        }
+        return false
     }
 
     /// `structuredExtractionFieldFocus`, `structuredExtractionSchemaTemplate`, and
