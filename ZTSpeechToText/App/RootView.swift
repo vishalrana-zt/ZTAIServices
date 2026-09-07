@@ -209,6 +209,7 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.22), value: isSpeechToTextSheetPresented)
+        .dismissOpenZTAIAssistantMenuOnTap()
         .speechToTextSheet(
             isPresented: $isSpeechToTextSheetPresented,
             configuration: sheetConfiguration,
