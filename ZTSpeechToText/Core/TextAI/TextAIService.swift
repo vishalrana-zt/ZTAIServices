@@ -121,6 +121,7 @@ public enum TextAIError: LocalizedError, Sendable {
     case unsupportedOperation
     case unsupportedLanguage
     case cancelled
+    case unusableModelOutput
 
     public var errorDescription: String? {
         switch self {
@@ -142,6 +143,8 @@ public enum TextAIError: LocalizedError, Sendable {
             return "Unsupported language for this model."
         case .cancelled:
             return "The operation was cancelled."
+        case .unusableModelOutput:
+            return "AI could not produce a usable result for this text. Please review the input and try again."
         }
     }
 }
@@ -314,7 +317,12 @@ public actor TextAIService {
             } else {
                 output = try await resolution.provider.process(normalizedRequest)
             }
-            return TextAIExecutionResult(provider: resolution.provider.id, outputText: output)
+
+            let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard isUsableModelOutput(trimmedOutput, for: normalizedRequest) else {
+                throw TextAIError.unusableModelOutput
+            }
+            return TextAIExecutionResult(provider: resolution.provider.id, outputText: trimmedOutput)
         } catch {
             if resolution.provider.id == .appleFoundationModels {
                 // Apple failed → cloud API
@@ -340,6 +348,38 @@ public actor TextAIService {
 
         let nsError = error as NSError
         return .inferenceFailed(reason: nsError.localizedDescription)
+    }
+
+    private func isUsableModelOutput(_ output: String, for request: TextAIRequest) -> Bool {
+        guard !output.isEmpty else { return false }
+
+        switch request.operation {
+        case .cleanup, .summarize:
+            let normalized = output.lowercased()
+            let explicitRefusalMarkers = [
+                "i'm sorry, but i cannot provide",
+                "i am sorry, but i cannot provide",
+                "the text you provided is not clear or readable",
+                "please provide a clear and readable text"
+            ]
+            if explicitRefusalMarkers.contains(where: { normalized.contains($0) }) {
+                return false
+            }
+
+            let hasApology = normalized.contains("i'm sorry") || normalized.contains("i am sorry")
+            let hasRefusal = normalized.contains("cannot")
+                || normalized.contains("can't")
+                || normalized.contains("unable")
+            let hasTaskContext = normalized.contains("summar")
+                || normalized.contains("clean up")
+                || normalized.contains("cleanup")
+                || normalized.contains("text you provided")
+
+            return !(hasApology && hasRefusal && hasTaskContext)
+
+        case .structuredExtraction:
+            return true
+        }
     }
 }
 
@@ -1218,7 +1258,7 @@ actor CloudTextProvider: TextModelProvider {
 
         if let textAIError = error as? TextAIError {
             switch textAIError {
-            case .providerUnavailable, .unsupportedOperation, .unsupportedLanguage, .emptyInput, .missingDocumentType, .cancelled:
+            case .providerUnavailable, .unsupportedOperation, .unsupportedLanguage, .emptyInput, .missingDocumentType, .cancelled, .unusableModelOutput:
                 return false
             case .modelUnavailable, .modelLoadingFailed:
                 return false

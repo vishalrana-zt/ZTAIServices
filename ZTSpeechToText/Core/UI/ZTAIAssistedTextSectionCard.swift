@@ -1,5 +1,7 @@
 import SwiftUI
 import UIKit
+import Combine
+import ZTAIServices
 
 public struct ZTAIAssistedTextSectionHostView: View {
     @ObservedObject public var coordinator: ZTAIAssistedTextSectionCoordinator

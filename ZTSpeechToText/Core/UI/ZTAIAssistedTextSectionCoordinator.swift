@@ -1,4 +1,7 @@
 import Foundation
+import SwiftUI
+import Combine
+import ZTAIServices
 
 @MainActor
 public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
