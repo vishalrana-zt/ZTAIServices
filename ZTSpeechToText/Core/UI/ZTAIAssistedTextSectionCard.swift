@@ -20,6 +20,7 @@ public struct ZTAIAssistedTextSectionHostView: View {
     public var showButtonsInHeader: Bool = true
     public var showTitle: Bool = true
     public var titleFont: Font = .callout.weight(.semibold)
+    public var titleColor: Color = .primary
     public var aiMenuOffset: CGSize? = nil
     public var topPadding: CGFloat? = nil
     public var bottomPadding: CGFloat? = nil
@@ -46,6 +47,7 @@ public struct ZTAIAssistedTextSectionHostView: View {
         showButtonsInHeader: Bool = true,
         showTitle: Bool = true,
         titleFont: Font = .callout.weight(.semibold),
+        titleColor: Color = .primary,
         aiMenuOffset: CGSize? = nil,
         topPadding: CGFloat? = nil,
         bottomPadding: CGFloat? = nil,
@@ -71,6 +73,7 @@ public struct ZTAIAssistedTextSectionHostView: View {
         self.showButtonsInHeader = showButtonsInHeader
         self.showTitle = showTitle
         self.titleFont = titleFont
+        self.titleColor = titleColor
         self.aiMenuOffset = aiMenuOffset
         self.topPadding = topPadding
         self.bottomPadding = bottomPadding
