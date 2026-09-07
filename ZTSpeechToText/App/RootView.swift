@@ -9,6 +9,7 @@ import ZTAIServices
 
 struct RootView: View {
     private let manager = SpeechToTextManager.shared
+    private let isSessionLoggingEnabled: Bool
 
     private enum CaptureMode: String, CaseIterable, Identifiable {
         case liveStreaming
@@ -63,6 +64,10 @@ struct RootView: View {
         "AccentColorProvider",
         "AnyTextStorage("
     ]
+
+    init(isSessionLoggingEnabled: Bool = false) {
+        self.isSessionLoggingEnabled = isSessionLoggingEnabled
+    }
 
     var body: some View {
         NavigationStack {
@@ -142,17 +147,19 @@ struct RootView: View {
             .navigationTitle(AppLocalizer.localized("title_notes"))
             .disabled(isSpeechToTextSheetPresented)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        isLogActionsPresented = true
-                    } label: {
-                        Image(systemName: "doc.text")
-                            .frame(width: 36, height: 36)
+                if isSessionLoggingEnabled {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            isLogActionsPresented = true
+                        } label: {
+                            Image(systemName: "doc.text")
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.plain)
+                        .background(.thinMaterial, in: Capsule())
+                        .padding(.trailing, 8)
+                        .accessibilityLabel(AppLocalizer.localized("a11y_log_actions"))
                     }
-                    .buttonStyle(.plain)
-                    .background(.thinMaterial, in: Capsule())
-                    .padding(.trailing, 8)
-                    .accessibilityLabel(AppLocalizer.localized("a11y_log_actions"))
                 }
 
                 ToolbarItem(placement: .topBarLeading) {
@@ -181,10 +188,7 @@ struct RootView: View {
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        STTSessionLogger.shared.log(
-                            source: "RootView",
-                            message: "ui action=note_mic_tap mode=\(selectedMode.rawValue) lang=\(selectedLanguage.rawValue)"
-                        )
+                        logSession("ui action=note_mic_tap mode=\(selectedMode.rawValue) lang=\(selectedLanguage.rawValue)")
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         Task {
                             _ = await manager.gateFeatureUsage()
@@ -210,7 +214,7 @@ struct RootView: View {
             }
         )
         .onChange(of: isSpeechToTextSheetPresented) { isPresented in
-            STTSessionLogger.shared.log(source: "RootView", message: "ui sheet_presented=\(isPresented)")
+            logSession("ui sheet_presented=\(isPresented)")
             if !isPresented {
                 // RecordScreen cleared onBackendStatusChange on dismiss — reattach here.
                 attachBackendStatusCallback()
@@ -218,26 +222,20 @@ struct RootView: View {
             }
         }
         .onChange(of: selectedMode) { _ in
-            STTSessionLogger.shared.log(source: "RootView", message: "ui mode_changed=\(selectedMode.rawValue)")
+            logSession("ui mode_changed=\(selectedMode.rawValue)")
             resetLiveDraftState()
         }
         .onChange(of: selectedLanguage) { _ in
-            STTSessionLogger.shared.log(source: "RootView", message: "ui language_changed=\(selectedLanguage.rawValue)")
+            logSession("ui language_changed=\(selectedLanguage.rawValue)")
             resetLiveDraftState()
             manager.resetSessionStateForLanguageChange(selectedLanguage)
         }
         .onChange(of: noteText) { value in
-            STTSessionLogger.shared.log(
-                source: "RootView",
-                message: "textview render chars=\(value.count) live_preview_chars=\(livePreviewText.count)"
-            )
+            logSession("textview render chars=\(value.count) live_preview_chars=\(livePreviewText.count)")
         }
         .onAppear {
             manager.setModelProvider(.appleModels)
-            STTSessionLogger.shared.log(
-                source: "RootView",
-                message: "ui appear mode=\(selectedMode.rawValue) lang=\(selectedLanguage.rawValue) provider=appleModels"
-            )
+            logSession("ui appear mode=\(selectedMode.rawValue) lang=\(selectedLanguage.rawValue) provider=appleModels")
             attachBackendStatusCallback()
             Task {
                 _ = await manager.gateFeatureUsage()
@@ -252,13 +250,13 @@ struct RootView: View {
         .confirmationDialog(AppLocalizer.localized("a11y_log_actions"), isPresented: $isLogActionsPresented, titleVisibility: .visible) {
             Button(AppLocalizer.localized("btn_clear_all_logs")) {
                 STTSessionLogger.shared.clearAllLogs()
-                STTSessionLogger.shared.log(source: "RootView", message: "ui action=clear_all_logs")
+                logSession("ui action=clear_all_logs")
             }
             Button(AppLocalizer.localized("btn_share_logs")) {
                 let text = STTSessionLogger.shared.shareableLogText()
                 logShareText = text
                 isLogSharePresented = true
-                STTSessionLogger.shared.log(source: "RootView", message: "ui action=share_logs text_chars=\(text.count)")
+                logSession("ui action=share_logs text_chars=\(text.count)")
             }
             Button(AppLocalizer.localized("btn_cancel"), role: .cancel) {}
         }
@@ -313,10 +311,7 @@ struct RootView: View {
         let segmentChars = partial.segments.reduce(0) { $0 + $1.text.count }
         let committedChars = partial.committedText?.count ?? 0
         let volatileChars = partial.volatileText?.count ?? 0
-        STTSessionLogger.shared.log(
-            source: "RootView",
-            message: "live_partial session=\(partial.sessionID.uuidString) window=\(String(format: "%.2f", partial.windowStartTime))-\(String(format: "%.2f", partial.windowEndTime)) segment_chars=\(segmentChars) committed_chars=\(committedChars) volatile_chars=\(volatileChars)"
-        )
+        logSession("live_partial session=\(partial.sessionID.uuidString) window=\(String(format: "%.2f", partial.windowStartTime))-\(String(format: "%.2f", partial.windowEndTime)) segment_chars=\(segmentChars) committed_chars=\(committedChars) volatile_chars=\(volatileChars)")
         if liveSessionID != partial.sessionID {
             liveSessionID = partial.sessionID
             liveDraftBaseText = noteText
@@ -375,12 +370,9 @@ struct RootView: View {
     private func commitFinalTranscript(sessionID: UUID, _ finalText: String) {
         let trimmed = finalText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        STTSessionLogger.shared.log(
-            source: "RootView",
-            message: "final_commit begin session=\(sessionID.uuidString) chars=\(trimmed.count)"
-        )
+        logSession("final_commit begin session=\(sessionID.uuidString) chars=\(trimmed.count)")
         guard isValidTranscriptText(trimmed) else {
-            STTSessionLogger.shared.log(source: "RootView", message: "final_commit dropped_invalid")
+            logSession("final_commit dropped_invalid")
             return
         }
 
@@ -398,11 +390,13 @@ struct RootView: View {
 
         let merged = merge(liveDraftBaseText, with: resolvedFinal)
         noteText = merged
-        STTSessionLogger.shared.log(
-            source: "RootView",
-            message: "final_commit applied chars=\(resolvedFinal.count) total_note_chars=\(noteText.count)"
-        )
+        logSession("final_commit applied chars=\(resolvedFinal.count) total_note_chars=\(noteText.count)")
         resetLiveDraftState()
+    }
+
+    private func logSession(_ message: String) {
+        guard isSessionLoggingEnabled else { return }
+        STTSessionLogger.shared.log(source: "RootView", message: message)
     }
 
     private func resetLiveDraftState() {
