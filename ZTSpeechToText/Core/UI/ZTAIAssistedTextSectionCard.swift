@@ -101,6 +101,7 @@ public struct ZTAIAssistedTextSectionHostView: View {
             showButtonsInHeader: showButtonsInHeader,
             showTitle: showTitle,
             titleFont: titleFont,
+            titleColor: titleColor,
             aiMenuOffset: aiMenuOffset,
             topPadding: topPadding,
             bottomPadding: bottomPadding,
@@ -191,6 +192,7 @@ public struct ZTAIAssistedTextSectionCard: View {
     public var showButtonsInHeader: Bool = true
     public var showTitle: Bool = true
     public var titleFont: Font = .headline
+    public var titleColor: Color = .primary
     public var aiMenuOffset: CGSize? = nil
     public var topPadding: CGFloat? = nil
     public var bottomPadding: CGFloat? = nil
@@ -270,6 +272,7 @@ public struct ZTAIAssistedTextSectionCard: View {
         showButtonsInHeader: Bool = true,
         showTitle: Bool = true,
         titleFont: Font = .headline,
+        titleColor: Color = .primary,
         aiMenuOffset: CGSize? = nil,
         topPadding: CGFloat? = nil,
         bottomPadding: CGFloat? = nil,
@@ -297,6 +300,7 @@ public struct ZTAIAssistedTextSectionCard: View {
         self.showButtonsInHeader = showButtonsInHeader
         self.showTitle = showTitle
         self.titleFont = titleFont
+        self.titleColor = titleColor
         self.aiMenuOffset = aiMenuOffset
         self.topPadding = topPadding
         self.bottomPadding = bottomPadding
@@ -312,7 +316,9 @@ public struct ZTAIAssistedTextSectionCard: View {
             if shouldShowHeaderRow {
                 HStack(alignment: .center, spacing: 12) {
                     if showTitle && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        SwiftUI.Text(title).font(titleFont)
+                        SwiftUI.Text(title)
+                            .font(titleFont)
+                            .foregroundStyle(titleColor)
                     }
                     Spacer()
                     if canUseAIFeatures && showButtonsInHeader {
