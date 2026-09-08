@@ -63,6 +63,8 @@
 "err_no_clear_speech" = "No clear speech was detected in this recording.";
 "err_input_text_required" = "Please enter text before continuing.";
 "err_input_text_too_short" = "Please enter at least 3 words so the text can be processed accurately.";
+"err_input_text_too_short_requirements" = "Input text is too short. Enter at least %d words or %d characters.";
+"err_document_type_required" = "Please select a document type before running structured extraction.";
 
 // MARK: - AI Assisted Notes Card
 "OK" = "OK";

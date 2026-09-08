@@ -293,14 +293,6 @@ struct TextAIView: View {
         if text.isEmpty {
             return AppLocalizer.localized("err_input_text_required")
         }
-
-        let minimumCharacters = 12
-        let minimumWords = 3
-        let wordCount = text.split(whereSeparator: \.isWhitespace).count
-        if text.count < minimumCharacters || wordCount < minimumWords {
-            return AppLocalizer.localized("err_input_text_too_short")
-        }
-
         return nil
     }
 

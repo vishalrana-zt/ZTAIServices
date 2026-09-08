@@ -23,3 +23,4 @@ xcuserdata/
 *.gguf
 ZTSpeechToText/ZTSpeechToTextApp.swift
 ZTSpeechToText.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+*.resolved

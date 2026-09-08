@@ -113,6 +113,7 @@ public struct TextAIExecutionResult: Sendable {
 
 public enum TextAIError: LocalizedError, Sendable {
     case emptyInput
+    case inputTooShort(minimumWords: Int, minimumCharacters: Int)
     case missingDocumentType
     case providerUnavailable(reason: String)
     case modelUnavailable(reason: String)
@@ -126,9 +127,17 @@ public enum TextAIError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .emptyInput:
-            return "Please enter text before running AI processing."
+            return ZTAIServiceLocalizer.localized("err_input_text_required")
+        case let .inputTooShort(minimumWords, minimumCharacters):
+            let format = ZTAIServiceLocalizer.localized("err_input_text_too_short_requirements")
+            return String(
+                format: format,
+                locale: Locale.current,
+                minimumWords,
+                minimumCharacters
+            )
         case .missingDocumentType:
-            return "Please select a document type before running structured extraction."
+            return ZTAIServiceLocalizer.localized("err_document_type_required")
         case let .providerUnavailable(reason):
             return "Provider unavailable: \(reason)"
         case let .modelUnavailable(reason):
@@ -303,6 +312,17 @@ public actor TextAIService {
         guard !trimmed.isEmpty else {
             throw TextAIError.emptyInput
         }
+        if let requirement = minimumInputRequirement(for: request.operation),
+           isInputTooShort(
+               trimmed,
+               minimumWords: requirement.minimumWords,
+               minimumCharacters: requirement.minimumCharacters
+           ) {
+            throw TextAIError.inputTooShort(
+                minimumWords: requirement.minimumWords,
+                minimumCharacters: requirement.minimumCharacters
+            )
+        }
         if request.operation == .structuredExtraction, request.documentType == nil {
             throw TextAIError.missingDocumentType
         }
@@ -375,6 +395,22 @@ public actor TextAIService {
         return .inferenceFailed(reason: nsError.localizedDescription)
     }
 
+    private func minimumInputRequirement(for operation: TextAIOperation) -> (minimumWords: Int, minimumCharacters: Int)? {
+        switch operation {
+        case .cleanup:
+            return (minimumWords: 3, minimumCharacters: 15)
+        case .summarize:
+            return (minimumWords: 8, minimumCharacters: 40)
+        case .structuredExtraction:
+            return nil
+        }
+    }
+
+    private func isInputTooShort(_ text: String, minimumWords: Int, minimumCharacters: Int) -> Bool {
+        let wordCount = text.split(whereSeparator: \.isWhitespace).count
+        let characterCount = text.count
+        return wordCount < minimumWords && characterCount < minimumCharacters
+    }
 }
 
 private func withTimeout<T: Sendable>(
