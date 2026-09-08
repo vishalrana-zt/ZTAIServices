@@ -91,3 +91,29 @@
 "lbl_ai_stop_recording_alert_title" = "Stop Recording?";
 "lbl_ai_stop_recording_alert_action" = "Stop Recording";
 "lbl_ai_stop_recording_alert_message" = "Recording is in progress. Do you want to stop recording and leave this screen?";
+
+// MARK: - Autofill Panel
+"lbl_autofill_picker_description" = "Take a photo with Camera or choose one from Photo Library. The text is extracted, matched to the fields, and shown for review before anything is filled.";
+"lbl_autofill_scan_photo" = "Photo";
+"lbl_autofill_scan_photo_subtitle" = "Business card, work order, or label";
+"lbl_autofill_speak" = "Speak";
+"lbl_autofill_speak_subtitle" = "Say the details in any order";
+"lbl_autofill_reading_photo" = "Reading the photo…";
+"lbl_autofill_pulling_details" = "Pulling details from the image";
+"lbl_autofill_extracting_details" = "Extracting details…";
+"lbl_autofill_matching_fields" = "Matching to form fields";
+"lbl_autofill_listening" = "Listening…";
+"lbl_autofill_speak_now" = "Speak now…";
+"lbl_autofill_stop" = "Stop";
+"lbl_autofill_discard" = "Discard";
+"lbl_autofill_check" = "Check";
+"lbl_autofill_try_again" = "Try Again";
+"lbl_autofill_missing_fields" = "Fields not found will need to be filled manually.";
+"lbl_autofill_undo" = "Undo";
+"lbl_autofill_review_subtitle" = "Untick anything you don't want. Nothing is written to the form until you tap Fill.";
+"lbl_autofill_fill_nothing" = "Fill nothing";
+"lbl_autofill_field_singular" = "field";
+"lbl_autofill_field_plural" = "fields";
+"lbl_autofill_found_details" = "Found %d details";
+"lbl_autofill_fill_fields" = "Fill %d fields";
+"lbl_autofill_banner_text" = "%d %@ filled from %@. Check anything marked, then save.";

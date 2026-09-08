@@ -1,8 +1,52 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import ZTAIServices
+// MARK: - Localized strings
 
-// MARK: - Sheet host view (use as full-screen overlay in UIHostingController)
+private enum ZTAutofillStrings {
+    private static func localized(_ key: String, fallback: String) -> String {
+        let v = ZTAIServiceLocalizer.localized(key)
+        return v == key ? fallback : v
+    }
+
+    static var pickerDescription: String { localized("lbl_autofill_picker_description", fallback: "Take a photo with Camera or choose one from Photo Library. The text is extracted, matched to the fields, and shown for review before anything is filled.") }
+    static var scanPhoto: String       { localized("lbl_autofill_scan_photo",           fallback: "Photo") }
+    static var scanPhotoSub: String    { localized("lbl_autofill_scan_photo_subtitle",   fallback: "Business card, work order, or label") }
+    static var speak: String           { localized("lbl_autofill_speak",                 fallback: "Speak") }
+    static var speakSub: String        { localized("lbl_autofill_speak_subtitle",         fallback: "Say the details in any order") }
+    static var readingPhoto: String    { localized("lbl_autofill_reading_photo",          fallback: "Reading the photo…") }
+    static var pullingDetails: String  { localized("lbl_autofill_pulling_details",        fallback: "Pulling details from the image") }
+    static var extracting: String      { localized("lbl_autofill_extracting_details",     fallback: "Extracting details…") }
+    static var matchingFields: String  { localized("lbl_autofill_matching_fields",        fallback: "Matching to form fields") }
+    static var listening: String       { localized("lbl_autofill_listening",              fallback: "Listening…") }
+    static var speakNow: String        { localized("lbl_autofill_speak_now",              fallback: "Speak now…") }
+    static var stop: String            { localized("lbl_autofill_stop",                   fallback: "Stop") }
+    static var discard: String         { localized("lbl_autofill_discard",                fallback: "Discard") }
+    static var check: String           { localized("lbl_autofill_check",                  fallback: "Check") }
+    static var tryAgain: String        { localized("lbl_autofill_try_again",              fallback: "Try Again") }
+    static var missingFields: String   { localized("lbl_autofill_missing_fields",         fallback: "Fields not found will need to be filled manually.") }
+    static var undo: String            { localized("lbl_autofill_undo",                   fallback: "Undo") }
+    static var reviewSubtitle: String  { localized("lbl_autofill_review_subtitle",        fallback: "Untick anything you don't want. Nothing is written to the form until you tap Fill.") }
+    static var fillNothing: String     { localized("lbl_autofill_fill_nothing",           fallback: "Fill nothing") }
+    static var fieldSingular: String   { localized("lbl_autofill_field_singular",         fallback: "field") }
+    static var fieldPlural: String     { localized("lbl_autofill_field_plural",           fallback: "fields") }
+
+    static func foundDetails(_ n: Int) -> String {
+        String(format: localized("lbl_autofill_found_details", fallback: "Found %d details"), n)
+    }
+    static func fillFields(_ n: Int) -> String {
+        guard n > 0 else { return fillNothing }
+        return String(format: localized("lbl_autofill_fill_fields", fallback: "Fill %d fields"), n)
+    }
+    static func bannerText(count: Int, source: String) -> String {
+        let word = count == 1 ? fieldSingular : fieldPlural
+        let fmt = localized("lbl_autofill_banner_text", fallback: "%d %@ filled from %@. Check anything marked, then save.")
+        return String(format: fmt, count, word, source)
+    }
+}
+
+// MARK: - Sheet host view (transparent overlay that drives the .sheet)
 
 public struct ZTFormAutofillSheetHostView: View {
     @ObservedObject public var coordinator: ZTFormAutofillCoordinator
@@ -16,13 +60,16 @@ public struct ZTFormAutofillSheetHostView: View {
     public var body: some View {
         Color.clear
             .allowsHitTesting(false)
-            .sheet(isPresented: $coordinator.isSheetPresented) {
+            .sheet(
+                isPresented: $coordinator.isSheetPresented,
+                onDismiss: { coordinator.dismiss() }
+            ) {
                 ZTFormAutofillBottomPanel(coordinator: coordinator, title: panelTitle)
             }
     }
 }
 
-// MARK: - Bottom Panel (sheet content)
+// MARK: - Bottom Panel (sheet content — no navigation bar)
 
 public struct ZTFormAutofillBottomPanel: View {
     @ObservedObject public var coordinator: ZTFormAutofillCoordinator
@@ -38,48 +85,35 @@ public struct ZTFormAutofillBottomPanel: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            Group {
-                switch coordinator.step {
-                case .idle, .applied:
-                    EmptyView()
-                case .picking:
-                    pickerView
-                case .scanningPhoto:
-                    progressCard(
-                        placeholder: "photo",
-                        headline: "Reading the photo…",
-                        subline: "Pulling details from the image"
-                    )
-                case .listening:
-                    listeningView
-                case .extracting:
-                    extractingView
-                case .review:
-                    reviewView
-                case .error(let message):
-                    errorView(message)
-                }
-            }
-            .navigationTitle(titleForStep(coordinator.step))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { coordinator.dismiss() }
-                        .foregroundStyle(Color(hex: "#0B6BEF"))
-                }
+        Group {
+            switch coordinator.step {
+            case .idle, .applied:
+                EmptyView()
+            case .picking:
+                pickerView
+            case .scanningPhoto:
+                progressCard(headline: ZTAutofillStrings.readingPhoto, subline: ZTAutofillStrings.pullingDetails)
+            case .listening:
+                listeningView
+            case .extracting:
+                extractingView
+            case .review:
+                reviewView
+            case .error(let message):
+                errorView(message)
             }
         }
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.visible)
-        .confirmationDialog("Choose Source", isPresented: $showPhotoSourceDialog, titleVisibility: .hidden) {
+        .interactiveDismissDisabled(false)
+        .confirmationDialog("", isPresented: $showPhotoSourceDialog, titleVisibility: .hidden) {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                Button("Camera") { showCameraPicker = true }
+                Button(ZTAutofillStrings.scanPhoto) { showCameraPicker = true }
             }
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                Text("Photo Library")
+                Text(ZTAutofillStrings.scanPhoto)
             }
-            Button("Cancel", role: .cancel) {}
+            Button(ZTAutofillStrings.discard, role: .cancel) {}
         }
         .sheet(isPresented: $showCameraPicker) {
             ZTInlineCameraPickerView { image in coordinator.handleSelectedImage(image) }
@@ -110,7 +144,7 @@ public struct ZTFormAutofillBottomPanel: View {
                         .font(.system(size: 15.5, weight: .semibold))
                         .foregroundStyle(Color(hex: "#10121A"))
                 }
-                Text("Take a photo or speak the details. The text is extracted, matched to the fields, and shown for review before anything is filled.")
+                Text(ZTAutofillStrings.pickerDescription)
                     .font(.system(size: 12.5))
                     .foregroundStyle(Color(hex: "#5a6070"))
                     .lineSpacing(2)
@@ -120,18 +154,20 @@ public struct ZTFormAutofillBottomPanel: View {
             .padding(.horizontal, 4)
 
             Button { showPhotoSourceDialog = true } label: {
-                pickerRow(icon: "camera", title: "Scan Photo", subtitle: "Business card, work order, or label")
+                pickerRow(icon: "camera", title: ZTAutofillStrings.scanPhoto, subtitle: ZTAutofillStrings.scanPhotoSub)
             }
             .buttonStyle(.plain)
 
             Button { coordinator.selectSpeak() } label: {
-                pickerRow(icon: "mic", title: "Speak", subtitle: "Say the details in any order")
+                pickerRow(icon: "mic", title: ZTAutofillStrings.speak, subtitle: ZTAutofillStrings.speakSub)
             }
             .buttonStyle(.plain)
 
             Spacer(minLength: 0)
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
     }
 
     private func pickerRow(icon: String, title: String, subtitle: String) -> some View {
@@ -169,21 +205,15 @@ public struct ZTFormAutofillBottomPanel: View {
 
     // MARK: - Progress card (scanning photo)
 
-    private func progressCard(placeholder: String, headline: String, subline: String) -> some View {
+    private func progressCard(headline: String, subline: String) -> some View {
         VStack {
             HStack(spacing: 12) {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(LinearGradient(
                         colors: [Color(hex: "#dfe6f0"), Color(hex: "#eef2f7")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        startPoint: .topLeading, endPoint: .bottomTrailing
                     ))
                     .frame(width: 56, height: 56)
-                    .overlay(
-                        Text(placeholder)
-                            .font(.system(size: 8, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Color(hex: "#7a8394"))
-                    )
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text(headline)
@@ -203,7 +233,6 @@ public struct ZTFormAutofillBottomPanel: View {
                 RoundedRectangle(cornerRadius: 14)
                     .strokeBorder(Color(hex: "#cfe0fb"), lineWidth: 1)
             )
-
             Spacer()
         }
         .padding(.horizontal, 16)
@@ -220,10 +249,10 @@ public struct ZTFormAutofillBottomPanel: View {
                 .progressViewStyle(.circular)
                 .tint(Color(hex: "#0B6BEF"))
                 .scaleEffect(1.2)
-            Text("Extracting details…")
+            Text(ZTAutofillStrings.extracting)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Color(hex: "#10121A"))
-            Text("Matching to form fields")
+            Text(ZTAutofillStrings.matchingFields)
                 .font(.system(size: 12.5))
                 .foregroundStyle(Color(hex: "#5a6070"))
             Spacer()
@@ -239,13 +268,13 @@ public struct ZTFormAutofillBottomPanel: View {
                 ZTRecordingPulseView()
                     .frame(width: 38, height: 38)
 
-                Text("Listening…")
+                Text(ZTAutofillStrings.listening)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color(hex: "#10121A"))
 
                 Spacer()
 
-                Button("Stop") { coordinator.stopListening() }
+                Button(ZTAutofillStrings.stop) { coordinator.stopListening() }
                     .font(.system(size: 14.5, weight: .semibold))
                     .foregroundStyle(Color(hex: "#0B6BEF"))
                     .padding(.horizontal, 12)
@@ -255,7 +284,7 @@ public struct ZTFormAutofillBottomPanel: View {
             }
             .padding(.bottom, 10)
 
-            Text(coordinator.liveTranscript.isEmpty ? "Speak now…" : coordinator.liveTranscript)
+            Text(coordinator.liveTranscript.isEmpty ? ZTAutofillStrings.speakNow : coordinator.liveTranscript)
                 .font(.system(size: 14.5))
                 .foregroundStyle(coordinator.liveTranscript.isEmpty ? Color(hex: "#7a8090") : Color(hex: "#10121A"))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -272,10 +301,10 @@ public struct ZTFormAutofillBottomPanel: View {
     private var reviewView: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Found \(coordinator.candidates.count) details")
+                Text(ZTAutofillStrings.foundDetails(coordinator.candidates.count))
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Color(hex: "#10121A"))
-                Text("\(coordinator.sourceLabel) Untick anything you don't want. Nothing is written to the form until you tap Fill.")
+                Text("\(coordinator.sourceLabel) \(ZTAutofillStrings.reviewSubtitle)")
                     .font(.system(size: 12.5))
                     .foregroundStyle(Color(hex: "#5a6070"))
                     .lineSpacing(2)
@@ -300,12 +329,14 @@ public struct ZTFormAutofillBottomPanel: View {
                         }
                     }
 
-                    // "Missing" placeholder row
                     HStack(spacing: 11) {
                         Circle()
-                            .strokeBorder(Color(hex: "#c6c6cc").opacity(0.8), style: StrokeStyle(lineWidth: 1.6, dash: [4, 3]))
+                            .strokeBorder(
+                                Color(hex: "#c6c6cc").opacity(0.8),
+                                style: StrokeStyle(lineWidth: 1.6, dash: [4, 3])
+                            )
                             .frame(width: 22, height: 22)
-                        Text("Fields not found will need to be filled manually.")
+                        Text(ZTAutofillStrings.missingFields)
                             .font(.system(size: 13))
                             .foregroundStyle(Color(hex: "#7a8090"))
                         Spacer()
@@ -319,7 +350,7 @@ public struct ZTFormAutofillBottomPanel: View {
 
             HStack(spacing: 10) {
                 Button { coordinator.dismiss() } label: {
-                    Text("Discard")
+                    Text(ZTAutofillStrings.discard)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Color(hex: "#3a3d45"))
                         .frame(height: 48)
@@ -331,7 +362,7 @@ public struct ZTFormAutofillBottomPanel: View {
 
                 Button { coordinator.applySelected() } label: {
                     let count = coordinator.candidates.filter { $0.isSelected }.count
-                    Text(count > 0 ? "Fill \(count) fields" : "Fill nothing")
+                    Text(ZTAutofillStrings.fillFields(count))
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -365,7 +396,7 @@ public struct ZTFormAutofillBottomPanel: View {
             Spacer(minLength: 4)
 
             if candidate.needsCheck {
-                Text("Check")
+                Text(ZTAutofillStrings.check)
                     .font(.system(size: 10.5, weight: .semibold))
                     .kerning(0.4)
                     .textCase(.uppercase)
@@ -393,7 +424,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 .foregroundStyle(Color(hex: "#5a6070"))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
-            Button("Try Again") { coordinator.retryFromPicker() }
+            Button(ZTAutofillStrings.tryAgain) { coordinator.retryFromPicker() }
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Color(hex: "#0B6BEF"))
                 .padding(.horizontal, 24)
@@ -421,29 +452,18 @@ public struct ZTFormAutofillBottomPanel: View {
         .animation(.easeInOut(duration: 0.15), value: isOn)
     }
 
-    private func titleForStep(_ step: ZTFormAutofillCoordinator.Step) -> String {
-        switch step {
-        case .picking: return title
-        case .scanningPhoto: return "Reading Photo"
-        case .listening: return "Listening"
-        case .extracting: return "Extracting"
-        case .review: return "Review Details"
-        default: return title
-        }
-    }
-
     private func detentsForStep(_ step: ZTFormAutofillCoordinator.Step) -> Set<PresentationDetent> {
         switch step {
-        case .review: return [.medium, .large]
-        case .scanningPhoto, .extracting: return [.height(220)]
-        case .listening: return [.height(260)]
-        case .error: return [.height(300)]
-        default: return [.medium]
+        case .review:                      return [.medium, .large]
+        case .scanningPhoto, .extracting:  return [.height(220)]
+        case .listening:                   return [.height(260)]
+        case .error:                       return [.height(300)]
+        default:                           return [.medium]
         }
     }
 }
 
-// MARK: - Applied banner (shown inline in the form)
+// MARK: - Applied banner (shown inline in the form after fill)
 
 public struct ZTFormAutofillAppliedBannerView: View {
     @ObservedObject public var coordinator: ZTFormAutofillCoordinator
@@ -458,12 +478,18 @@ public struct ZTFormAutofillAppliedBannerView: View {
                 Image(systemName: "sparkles")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color(hex: "#0B6BEF"))
-                Text(bannerText)
-                    .font(.system(size: 13.5, weight: .medium))
-                    .foregroundStyle(Color(hex: "#20242e"))
-                    .lineLimit(2)
+                Text(ZTAutofillStrings.bannerText(
+                    count: coordinator.appliedCount,
+                    source: coordinator.sourceLabel
+                        .lowercased()
+                        .trimmingCharacters(in: .punctuationCharacters)
+                        .trimmingCharacters(in: .whitespaces)
+                ))
+                .font(.system(size: 13.5, weight: .medium))
+                .foregroundStyle(Color(hex: "#20242e"))
+                .lineLimit(2)
                 Spacer(minLength: 8)
-                Button("Undo") { coordinator.undoApply() }
+                Button(ZTAutofillStrings.undo) { coordinator.undoApply() }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color(hex: "#0B6BEF"))
                     .padding(.horizontal, 9)
@@ -481,15 +507,6 @@ public struct ZTFormAutofillAppliedBannerView: View {
             )
             .transition(.scale(scale: 0.96).combined(with: .opacity))
         }
-    }
-
-    private var bannerText: String {
-        let n = coordinator.appliedCount
-        let src = coordinator.sourceLabel
-            .lowercased()
-            .trimmingCharacters(in: .punctuationCharacters)
-            .trimmingCharacters(in: .whitespaces)
-        return "\(n) \(n == 1 ? "field" : "fields") filled from \(src). Check anything marked, then save."
     }
 }
 
@@ -536,9 +553,7 @@ public struct ZTRecordingPulseView: View {
                 .scaleEffect(pulse ? 1.5 : 0.85)
                 .opacity(pulse ? 0 : 0.9)
                 .animation(.easeOut(duration: 1.4).repeatForever(autoreverses: false), value: pulse)
-
             Circle().fill(Color(hex: "#E0364C"))
-
             HStack(spacing: 3) {
                 ForEach(0..<4, id: \.self) { i in
                     ZTWaveBarView(delay: Double(i) * 0.12)
@@ -586,9 +601,7 @@ struct ZTInlineCameraPickerView: UIViewControllerRepresentable {
         init(_ parent: ZTInlineCameraPickerView) { self.parent = parent }
 
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                parent.onImagePicked(image)
-            }
+            if let image = info[.originalImage] as? UIImage { parent.onImagePicked(image) }
             parent.dismiss()
         }
 

@@ -91,3 +91,29 @@
 "lbl_ai_stop_recording_alert_title" = "Arrêter l'enregistrement?";
 "lbl_ai_stop_recording_alert_action" = "Arrêter l'enregistrement";
 "lbl_ai_stop_recording_alert_message" = "Un enregistrement est en cours. Voulez-vous l'arrêter et quitter cet écran?";
+
+// MARK: - Autofill Panel
+"lbl_autofill_picker_description" = "Prenez une photo avec Caméra ou choisissez-en une dans Photothèque. Le texte est extrait, associé aux champs et affiché pour vérification avant tout remplissage.";
+"lbl_autofill_scan_photo" = "Photo";
+"lbl_autofill_scan_photo_subtitle" = "Carte professionnelle, bon de travail ou étiquette";
+"lbl_autofill_speak" = "Parler";
+"lbl_autofill_speak_subtitle" = "Dites les détails dans n'importe quel ordre";
+"lbl_autofill_reading_photo" = "Lecture de la photo…";
+"lbl_autofill_pulling_details" = "Extraction des détails de l'image";
+"lbl_autofill_extracting_details" = "Extraction des détails…";
+"lbl_autofill_matching_fields" = "Association aux champs du formulaire";
+"lbl_autofill_listening" = "Écoute…";
+"lbl_autofill_speak_now" = "Parlez maintenant…";
+"lbl_autofill_stop" = "Arrêter";
+"lbl_autofill_discard" = "Ignorer";
+"lbl_autofill_check" = "Vérifier";
+"lbl_autofill_try_again" = "Réessayer";
+"lbl_autofill_missing_fields" = "Les champs introuvables devront être remplis manuellement.";
+"lbl_autofill_undo" = "Annuler";
+"lbl_autofill_review_subtitle" = "Décochez ce que vous ne voulez pas. Rien n'est écrit dans le formulaire tant que vous ne touchez pas Remplir.";
+"lbl_autofill_fill_nothing" = "Ne rien remplir";
+"lbl_autofill_field_singular" = "champ";
+"lbl_autofill_field_plural" = "champs";
+"lbl_autofill_found_details" = "%d détails trouvés";
+"lbl_autofill_fill_fields" = "Remplir %d champs";
+"lbl_autofill_banner_text" = "%d %@ remplis depuis %@. Vérifiez ce qui est marqué, puis enregistrez.";

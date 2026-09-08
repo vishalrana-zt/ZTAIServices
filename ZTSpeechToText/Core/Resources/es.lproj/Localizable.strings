@@ -91,3 +91,29 @@
 "lbl_ai_stop_recording_alert_title" = "¿Detener grabación?";
 "lbl_ai_stop_recording_alert_action" = "Detener grabación";
 "lbl_ai_stop_recording_alert_message" = "La grabación está en progreso. ¿Desea detenerla y salir de esta pantalla?";
+
+// MARK: - Autofill Panel
+"lbl_autofill_picker_description" = "Toma una foto con Cámara o elige una desde Fototeca. El texto se extrae, se relaciona con los campos y se muestra para revisión antes de completar nada.";
+"lbl_autofill_scan_photo" = "Foto";
+"lbl_autofill_scan_photo_subtitle" = "Tarjeta de presentación, orden de trabajo o etiqueta";
+"lbl_autofill_speak" = "Hablar";
+"lbl_autofill_speak_subtitle" = "Di los detalles en cualquier orden";
+"lbl_autofill_reading_photo" = "Leyendo la foto…";
+"lbl_autofill_pulling_details" = "Obteniendo detalles de la imagen";
+"lbl_autofill_extracting_details" = "Extrayendo detalles…";
+"lbl_autofill_matching_fields" = "Relacionando con los campos del formulario";
+"lbl_autofill_listening" = "Escuchando…";
+"lbl_autofill_speak_now" = "Habla ahora…";
+"lbl_autofill_stop" = "Detener";
+"lbl_autofill_discard" = "Descartar";
+"lbl_autofill_check" = "Revisar";
+"lbl_autofill_try_again" = "Intentar de nuevo";
+"lbl_autofill_missing_fields" = "Los campos no encontrados deberán completarse manualmente.";
+"lbl_autofill_undo" = "Deshacer";
+"lbl_autofill_review_subtitle" = "Desmarca lo que no quieras. No se escribe nada en el formulario hasta que toques Completar.";
+"lbl_autofill_fill_nothing" = "No completar nada";
+"lbl_autofill_field_singular" = "campo";
+"lbl_autofill_field_plural" = "campos";
+"lbl_autofill_found_details" = "Se encontraron %d detalles";
+"lbl_autofill_fill_fields" = "Completar %d campos";
+"lbl_autofill_banner_text" = "%d %@ completados desde %@. Revisa lo marcado y luego guarda.";
