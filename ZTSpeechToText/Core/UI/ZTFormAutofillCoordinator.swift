@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import UIKit
+import ZTAIServices
 
 // MARK: - Candidate model
 
@@ -58,7 +59,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     private var snapshotBeforeApply: [ZTAutofillCandidate] = []
 
     public init(
-        documentType: StructuredDocumentType = .businessCard,
+        documentType: StructuredDocumentType = .customer,
         fieldMapper: @escaping @Sendable (String) -> [ZTAutofillCandidate],
         onApply: (([ZTAutofillCandidate]) -> Void)? = nil,
         onUndo: (() -> Void)? = nil
