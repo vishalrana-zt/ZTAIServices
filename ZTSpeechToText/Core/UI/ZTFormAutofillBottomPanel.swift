@@ -33,6 +33,10 @@ private enum ZTAutofillStrings {
     static var fillNothing: String     { localized("lbl_autofill_fill_nothing",           fallback: "Fill nothing") }
     static var fieldSingular: String   { localized("lbl_autofill_field_singular",         fallback: "field") }
     static var fieldPlural: String     { localized("lbl_autofill_field_plural",           fallback: "fields") }
+    static var extractionAlertTitle: String { localized("lbl_autofill_extraction_alert_title", fallback: "Extraction in progress") }
+    static var extractionAlertMessage: String { localized("lbl_autofill_extraction_alert_message", fallback: "Details are still being extracted. Do you want to stop and discard this autofill?") }
+    static var extractionAlertContinue: String { localized("lbl_autofill_extraction_alert_continue", fallback: "Continue") }
+    static var extractionAlertStopDiscard: String { localized("lbl_autofill_extraction_alert_stop_discard", fallback: "Stop & Discard") }
 
     static func foundDetails(_ n: Int) -> String {
         String(format: localized("lbl_autofill_found_details", fallback: "Found %d details"), n)
@@ -74,6 +78,52 @@ private struct ZTAutofillSheetSizingModifier: ViewModifier {
     }
 }
 
+private struct ZTSheetDismissInterceptor: UIViewControllerRepresentable {
+    let isDismissDisabled: Bool
+    let onAttemptToDismiss: () -> Void
+
+    func makeUIViewController(context: Context) -> DismissAwareViewController {
+        let viewController = DismissAwareViewController()
+        viewController.onAttemptToDismiss = onAttemptToDismiss
+        viewController.isDismissDisabled = isDismissDisabled
+        return viewController
+    }
+
+    func updateUIViewController(_ uiViewController: DismissAwareViewController, context: Context) {
+        uiViewController.onAttemptToDismiss = onAttemptToDismiss
+        uiViewController.isDismissDisabled = isDismissDisabled
+        uiViewController.updatePresentationDelegate()
+    }
+
+    final class DismissAwareViewController: UIViewController, UIAdaptivePresentationControllerDelegate {
+        var onAttemptToDismiss: (() -> Void)?
+        var isDismissDisabled = false
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            updatePresentationDelegate()
+        }
+
+        override func didMove(toParent parent: UIViewController?) {
+            super.didMove(toParent: parent)
+            updatePresentationDelegate()
+        }
+
+        func updatePresentationDelegate() {
+            parent?.presentationController?.delegate = self
+        }
+
+        func presentationControllerShouldDismiss(_ presentationController: UIPresentationController) -> Bool {
+            !isDismissDisabled
+        }
+
+        func presentationControllerDidAttemptToDismiss(_ presentationController: UIPresentationController) {
+            guard isDismissDisabled else { return }
+            onAttemptToDismiss?()
+        }
+    }
+}
+
 // MARK: - Sheet host view (transparent overlay that drives the .sheet)
 
 public struct ZTFormAutofillSheetHostView: View {
@@ -107,6 +157,7 @@ public struct ZTFormAutofillBottomPanel: View {
     @State private var showCameraPicker = false
     @State private var showPhotoSourceDialog = false
     @State private var showPhotoLibraryPicker = false
+    @State private var showExtractionDismissAlert = false
 
     public init(coordinator: ZTFormAutofillCoordinator, title: String = "Autofill details") {
         self.coordinator = coordinator
@@ -136,7 +187,20 @@ public struct ZTFormAutofillBottomPanel: View {
         .presentationDragIndicator(.hidden)
         .modifier(ZTAutofillSheetSizingModifier())
         .modifier(ZTAutofillSheetBackgroundModifier())
-        .interactiveDismissDisabled(false)
+        .interactiveDismissDisabled(isExtractionInProgress)
+        .background(
+            ZTSheetDismissInterceptor(isDismissDisabled: isExtractionInProgress) {
+                showExtractionDismissAlert = true
+            }
+        )
+        .alert(ZTAutofillStrings.extractionAlertTitle, isPresented: $showExtractionDismissAlert) {
+            Button(ZTAutofillStrings.extractionAlertContinue, role: .cancel) {}
+            Button(ZTAutofillStrings.extractionAlertStopDiscard, role: .destructive) {
+                coordinator.dismiss()
+            }
+        } message: {
+            Text(ZTAutofillStrings.extractionAlertMessage)
+        }
         .confirmationDialog("", isPresented: $showPhotoSourceDialog, titleVisibility: .hidden) {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
                 Button(ZTAutofillStrings.camera) { showCameraPicker = true }
@@ -158,6 +222,15 @@ public struct ZTFormAutofillBottomPanel: View {
                 }
                 selectedPhotoItem = nil
             }
+        }
+    }
+
+    private var isExtractionInProgress: Bool {
+        switch coordinator.step {
+        case .scanningPhoto, .extracting:
+            return true
+        default:
+            return false
         }
     }
 
@@ -655,4 +728,3 @@ private func makeAutofillPickerPreviewCoordinator() -> ZTFormAutofillCoordinator
     )
 }
 #endif
-
