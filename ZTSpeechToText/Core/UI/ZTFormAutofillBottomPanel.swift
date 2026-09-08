@@ -57,6 +57,21 @@ private struct ZTAutofillSheetBackgroundModifier: ViewModifier {
     }
 }
 
+private struct ZTAutofillSheetSizingModifier: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            if #available(iOS 18.0, *) {
+                content.presentationSizing(.page)
+            } else {
+                content
+            }
+        } else {
+            content
+        }
+    }
+}
+
 // MARK: - Sheet host view (transparent overlay that drives the .sheet)
 
 public struct ZTFormAutofillSheetHostView: View {
@@ -116,6 +131,7 @@ public struct ZTFormAutofillBottomPanel: View {
         }
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.hidden)
+        .modifier(ZTAutofillSheetSizingModifier())
         .modifier(ZTAutofillSheetBackgroundModifier())
         .interactiveDismissDisabled(false)
         .confirmationDialog("", isPresented: $showPhotoSourceDialog, titleVisibility: .hidden) {
@@ -184,7 +200,7 @@ public struct ZTFormAutofillBottomPanel: View {
     private func pickerRow(icon: String, title: String, subtitle: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(Color(hex: "#0B6BEF"))
                 .frame(width: 38, height: 38)
                 .background(Color(hex: "#e8f1ff"))
@@ -205,7 +221,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Color(hex: "#c6c6cc"))
         }
-        .padding(13)
+        .padding(12)
         .background(Color(hex: "#f5f7fb"))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
@@ -237,7 +253,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 }
                 Spacer()
             }
-            .padding(13)
+            .padding(12)
             .background(Color(hex: "#f2f7ff"))
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
@@ -289,7 +305,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     .font(.system(size: 14.5, weight: .semibold))
                     .foregroundStyle(Color(hex: "#0B6BEF"))
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
+                    .padding(.vertical, 10)
                     .background(Color(hex: "#e8f1ff").opacity(0.8))
                     .clipShape(RoundedRectangle(cornerRadius: 9))
             }
@@ -322,7 +338,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 18)
-            .padding(.top, 14)
+            .padding(.top, 20)
             .padding(.bottom, 10)
 
             Divider()
@@ -336,7 +352,7 @@ public struct ZTFormAutofillBottomPanel: View {
                         .buttonStyle(.plain)
 
                         if idx < coordinator.candidates.count - 1 {
-                            Divider().padding(.leading, 51)
+                            Divider().padding(.leading, 52)
                         }
                     }
 
@@ -353,7 +369,7 @@ public struct ZTFormAutofillBottomPanel: View {
                         Spacer()
                     }
                     .padding(.horizontal, 18)
-                    .padding(.vertical, 11)
+                    .padding(.vertical, 12)
                 }
             }
 
@@ -419,7 +435,7 @@ public struct ZTFormAutofillBottomPanel: View {
             }
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 11)
+        .padding(.vertical, 12)
     }
 
     // MARK: - Error
@@ -504,13 +520,13 @@ public struct ZTFormAutofillAppliedBannerView: View {
                 Button(ZTAutofillStrings.undo) { coordinator.undoApply() }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color(hex: "#0B6BEF"))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
                     .background(Color(hex: "#dbe9fd"))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 11)
+            .padding(.vertical, 12)
             .background(Color(hex: "#eaf3ff"))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
