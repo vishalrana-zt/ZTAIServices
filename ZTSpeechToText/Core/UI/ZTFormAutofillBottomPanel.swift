@@ -12,6 +12,8 @@ private enum ZTAutofillStrings {
 
     static var pickerDescription: String { localized("lbl_autofill_picker_description", fallback: "Take a photo with Camera or choose one from Photo Library. The text is extracted, matched to the fields, and shown for review before anything is filled.") }
     static var scanPhoto: String       { localized("lbl_autofill_scan_photo",           fallback: "Photo") }
+    static var camera: String          { localized("btn_camera",                        fallback: "Camera") }
+    static var photoLibrary: String    { localized("btn_photo_library",                 fallback: "Photo Library") }
     static var scanPhotoSub: String    { localized("lbl_autofill_scan_photo_subtitle",   fallback: "Business card, work order, or label") }
     static var speak: String           { localized("lbl_autofill_speak",                 fallback: "Speak") }
     static var speakSub: String        { localized("lbl_autofill_speak_subtitle",         fallback: "Say the details in any order") }
@@ -104,6 +106,7 @@ public struct ZTFormAutofillBottomPanel: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showCameraPicker = false
     @State private var showPhotoSourceDialog = false
+    @State private var showPhotoLibraryPicker = false
 
     public init(coordinator: ZTFormAutofillCoordinator, title: String = "Autofill details") {
         self.coordinator = coordinator
@@ -136,17 +139,16 @@ public struct ZTFormAutofillBottomPanel: View {
         .interactiveDismissDisabled(false)
         .confirmationDialog("", isPresented: $showPhotoSourceDialog, titleVisibility: .hidden) {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                Button(ZTAutofillStrings.scanPhoto) { showCameraPicker = true }
+                Button(ZTAutofillStrings.camera) { showCameraPicker = true }
             }
-            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                Text(ZTAutofillStrings.scanPhoto)
-            }
+            Button(ZTAutofillStrings.photoLibrary) { showPhotoLibraryPicker = true }
             Button(ZTAutofillStrings.discard, role: .cancel) {}
         }
         .sheet(isPresented: $showCameraPicker) {
             ZTInlineCameraPickerView { image in coordinator.handleSelectedImage(image) }
                 .ignoresSafeArea()
         }
+        .photosPicker(isPresented: $showPhotoLibraryPicker, selection: $selectedPhotoItem, matching: .images)
         .onChange(of: selectedPhotoItem) { item in
             guard let item else { return }
             Task {
