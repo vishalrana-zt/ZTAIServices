@@ -24,27 +24,17 @@ public enum TextAISummaryStyle: String, CaseIterable, Sendable {
 }
 
 public enum StructuredDocumentType: String, CaseIterable, Identifiable, Sendable {
-    case invoice
-    case estimate
+    case customer
+    case fireEquipment
     case bill
-    case receipt
-    case contactCard
-    case businessCard
-    case fireEquipmentManualSticker
-    case other
 
     public var id: String { rawValue }
 
     nonisolated public var displayName: String {
         switch self {
-        case .invoice: return "Invoice"
-        case .estimate: return "Estimate"
+        case .customer: return "Customer"
+        case .fireEquipment: return "Fire Equipment"
         case .bill: return "Bill"
-        case .receipt: return "Receipt"
-        case .contactCard: return "Contact Card"
-        case .businessCard: return "Business Card"
-        case .fireEquipmentManualSticker: return "Fire Equipment Manual Sticker"
-        case .other: return "Other"
         }
     }
 
@@ -53,18 +43,12 @@ public enum StructuredDocumentType: String, CaseIterable, Identifiable, Sendable
     // NFPA/AHJ terminology and fire-specific systems rather than generic trades.
     nonisolated public var extractionHint: String {
         switch self {
-        case .invoice, .estimate:
-            return "Prioritize the site/property being serviced, billing party, systems inspected or quoted (sprinkler, fire alarm, extinguisher, kitchen hood/ansul suppression, backflow, fire pump, standpipe, fire door, emergency/exit lighting), line items tied to specific fire protection services (inspection, testing, maintenance, deficiency correction, monitoring), NFPA code references, inspection frequency/contract terms, totals, and due/validity dates."
-        case .bill:
-            return "Prioritize account/contract or work order identifiers, the serviced site address, recurring inspection or monitoring billing periods, fire protection systems covered, amounts, balance due, and payment terms."
-        case .receipt:
-            return "Prioritize the servicing fire protection company, site address, system worked on, technician name/license, payment method, and totals. Customer identity is frequently absent on field service receipts — do not infer it."
-        case .contactCard, .businessCard:
+        case .customer:
             return "Prioritize property owner, facility/property manager, or AHJ (authority having jurisdiction) contact details — name, title, organization, phone, email, and site or mailing address."
-        case .fireEquipmentManualSticker:
+        case .fireEquipment:
             return "Prioritize equipment identity (fire extinguisher, sprinkler head/riser, alarm control panel, pull station, kitchen hood suppression, backflow preventer, fire pump, standpipe, fire door, emergency/exit lighting), manufacturer, model, serial number, manufacture date, install location, last inspection/service/hydrostatic-test date, next-due date, applicable NFPA standard (e.g. NFPA 10, 13, 25, 72, 80, 96), tag/certification status, and any noted deficiencies or test results. First identify what kind of tag this is — an installation record, a periodic inspection tag, a recharge record, a non-compliance notice, a raw test-result record, or a design/nameplate placard — since that changes what fields to expect."
-        case .other:
-            return "Use broad extraction across site/customer entities, dates, amounts, fire protection equipment and systems, inspection/checklist results, deficiencies, code references, and a summary — this app's domain is fire inspection, so favor that interpretation when the document is ambiguous."
+        case .bill:
+            return "Prioritize the site/property being serviced, billing party, account/contract or work order identifiers, recurring inspection or monitoring billing periods, systems inspected or quoted (sprinkler, fire alarm, extinguisher, kitchen hood/ansul suppression, backflow, fire pump, standpipe, fire door, emergency/exit lighting), line items tied to specific fire protection services, NFPA code references, totals, balance due, payment terms, and due/validity dates. Customer identity is frequently absent on some receipts — do not infer it."
         }
     }
 }
@@ -486,20 +470,15 @@ enum UITargetPage: String, CaseIterable, Sendable {
 /// on `fireSystemVocabularyHint` above.
 nonisolated private func targetPages(for documentType: StructuredDocumentType) -> [UITargetPage] {
     switch documentType {
-    case .contactCard, .businessCard:
+    case .customer:
         return [.customer]
 
-    case .invoice, .estimate, .bill, .receipt:
+    case .bill:
         // These carry both "who" (customer/vendor) and "what was billed" (line items/totals).
         return [.customer, .invoiceEstimate]
 
-    case .fireEquipmentManualSticker:
+    case .fireEquipment:
         return [.equipmentAsset]
-
-    case .other:
-        // Unknown shape — ask for everything, let the app pick based on which
-        // sections actually came back populated / suggestedDocumentType.
-        return [.customer, .equipmentAsset, .invoiceEstimate]
     }
 }
 
@@ -508,7 +487,7 @@ nonisolated private func targetPages(for documentType: StructuredDocumentType) -
 /// Receipts especially are often just merchant + items + total, with no customer identity at all.
 nonisolated private func customerDataIsOptional(for documentType: StructuredDocumentType) -> Bool {
     switch documentType {
-    case .receipt, .bill:
+    case .bill:
         return true
     default:
         return false
@@ -532,7 +511,7 @@ nonisolated private func pageFieldFocus(_ page: UITargetPage, documentType: Stru
         // periodic inspection tags, recharge records, non-compliance notices,
         // raw test-result records, design placards, nameplates). Give extra,
         // concrete guidance for that case rather than relying on generic rules.
-        let tagHeuristicNote = documentType == .fireEquipmentManualSticker
+        let tagHeuristicNote = documentType == .fireEquipment
             ? """
 
 
@@ -689,17 +668,11 @@ nonisolated private func structuredExtractionSchemaTemplate(for documentType: St
     let pageSectionsJoined = sections.joined(separator: ",\n")
     let targetPagesJSON = pages.map { "\"\($0.rawValue)\"" }.joined(separator: ", ")
 
-    // "other" gets an extra hint field so the app can re-route once the model
-    // has actually inferred what kind of document this is.
-    let suggestedTypeField = documentType == .other
-        ? "\"suggestedDocumentType\": \"\",\n  "
-        : ""
-
     return """
     {
       "documentType": "",
       "targetPages": [\(targetPagesJSON)],
-      \(suggestedTypeField)"keyFacts": [""],
+      "keyFacts": [""],
       "summary": "",
       \(pageSectionsJoined)
     }
@@ -805,12 +778,12 @@ actor CloudTextProvider: TextModelProvider {
 
             // If structured extraction of a fire equipment tag came back malformed or near-empty,
             // retry with a simpler directive prompt that bypasses the complex schema and just
-            // enumerates visible tokens. Scoped to .fireEquipmentManualSticker only — the fallback's
+            // enumerates visible tokens. Scoped to .fireEquipment only — the fallback's
             // system prompt hardcodes that document type and a fire-equipment-only schema, so firing
             // it for any other document type (a sparse contact card, a mostly-blank receipt, etc.)
             // would silently relabel a legitimate near-empty result as a fire equipment sticker.
             if request.operation == .structuredExtraction,
-               request.documentType == .fireEquipmentManualSticker,
+               request.documentType == .fireEquipment,
                (!isValidStructuredJSONObject(result) || isNearEmptyStructuredResult(result)) {
                 let fallbackResult = try? await callStructuredExtractionFallback(
                     originalText: request.text,
@@ -823,7 +796,7 @@ actor CloudTextProvider: TextModelProvider {
             }
 
             if request.operation == .structuredExtraction,
-               request.documentType == .fireEquipmentManualSticker {
+               request.documentType == .fireEquipment {
                 let normalized = ensuredFireStickerMinimumStructuredOutput(result, originalOCRText: request.text)
                 return ProviderTextResult(text: normalized, status: .success)
             }
@@ -915,7 +888,7 @@ actor CloudTextProvider: TextModelProvider {
         }
 
         if obj["documentType"] == nil {
-            obj["documentType"] = "fireEquipmentManualSticker"
+            obj["documentType"] = "fireEquipment"
         }
 
         obj = cleanedFireStickerStructuredObject(obj, originalOCRText: originalOCRText)
@@ -1045,7 +1018,7 @@ actor CloudTextProvider: TextModelProvider {
     }
 
     /// Simplified single-purpose fallback for fire equipment tags/stickers only. Callers must
-    /// ensure request.documentType == .fireEquipmentManualSticker before invoking this — the
+    /// ensure request.documentType == .fireEquipment before invoking this — the
     /// prompt below hardcodes that document type and a fire-equipment-only schema, so it is not
     /// safe to use for any other document type.
     private func callStructuredExtractionFallback(
@@ -1057,7 +1030,7 @@ actor CloudTextProvider: TextModelProvider {
         You are a fire protection equipment label reader. The text below is fragmented OCR from an equipment tag or sticker. \
         Your job is to read every visible token and return a JSON object with these fields only:
         {
-          "documentType": "fireEquipmentManualSticker",
+          "documentType": "fireEquipment",
           "keyFacts": ["<list every readable item: brand name, model number, serial, pressure rating, valve type, NFPA standard, UL/FM marking, date, system type>"],
           "summary": "<one sentence describing the equipment based on what you can read>",
           "equipment": [{"system": "<sprinkler|fireAlarm|extinguisher|kitchenHoodSuppression|backflow|firePump|standpipe|fireDoor|emergencyLighting|other>", "component": "<device type>", "manufacturer": "<brand>", "model": "<model number>", "serialNumber": "<serial if present>", "systemDesignType": "<Calculated System|Pipe Schedule System|>", "agentType": "<Dry Chemical ABC|CO2|Wet Chemical|AFFF|Clean Agent|Water Mist|Class D|>"}],
@@ -1164,7 +1137,7 @@ actor CloudTextProvider: TextModelProvider {
         request: TextAIRequest,
         responseLanguage: String
     ) -> PromptParts {
-        let documentType = request.documentType ?? .other
+        let documentType = request.documentType ?? .bill
         let optimizedOCRText = optimizedStructuredInputText(
             request.text,
             documentType: documentType
@@ -1510,18 +1483,15 @@ actor CloudTextProvider: TextModelProvider {
         let maxLines: Int
         let maxChars: Int
         switch documentType {
-        case .contactCard, .businessCard:
+        case .customer:
             maxLines = 80
             maxChars = 3500
-        case .invoice, .estimate, .bill, .receipt:
+        case .bill:
             maxLines = 140
             maxChars = 7000
-        case .fireEquipmentManualSticker:
+        case .fireEquipment:
             maxLines = 200
             maxChars = 9000
-        case .other:
-            maxLines = 120
-            maxChars = 5500
         }
 
         // Fire equipment tags are short, dense, and full of checklist/reason
@@ -1531,7 +1501,7 @@ actor CloudTextProvider: TextModelProvider {
         // the model ever saw them. Skip filtering for this type; the text is
         // short enough that a length cap alone is sufficient.
         let selected: [String]
-        if documentType == .fireEquipmentManualSticker {
+        if documentType == .fireEquipment {
             selected = Array(lines.prefix(maxLines))
         } else {
             let highSignal = lines.filter { isHighSignalStructuredLine($0, documentType: documentType) }
@@ -1559,17 +1529,15 @@ actor CloudTextProvider: TextModelProvider {
         let hasInspectionHint = lower.contains("inspection") || lower.contains("deficiency") || lower.contains("serial") || lower.contains("asset") || lower.contains("compliance") || lower.contains("system") || lower.contains("nfpa") || lower.contains("sprinkler") || lower.contains("extinguisher") || lower.contains("alarm") || lower.contains("hydro")
 
         switch documentType {
-        case .contactCard, .businessCard:
+        case .customer:
             return hasEmail || hasPhoneHint || hasAddressHint || lower.contains("www") || lower.contains("http")
-        case .invoice, .estimate, .bill, .receipt:
+        case .bill:
             return hasInvoiceHint || hasCurrency || hasDate || hasDigit || hasEmail || hasAddressHint || hasInspectionHint
-        case .fireEquipmentManualSticker:
-            // Unused when documentType == .fireEquipmentManualSticker (filtering
+        case .fireEquipment:
+            // Unused when documentType == .fireEquipment (filtering
             // is bypassed entirely in optimizedStructuredInputText), kept here
             // only so the switch remains exhaustive.
             return hasInspectionHint || hasDate || hasDigit || hasAddressHint
-        case .other:
-            return hasEmail || hasPhoneHint || hasAddressHint || hasCurrency || hasDate || hasInvoiceHint || hasInspectionHint || hasDigit
         }
     }
 }
@@ -1705,7 +1673,7 @@ actor AppleFoundationModelProvider: TextModelProvider {
             Return only the summary.
             """
         case .structuredExtraction:
-            let documentType = request.documentType ?? .other
+            let documentType = request.documentType ?? .bill
             return """
             You extract structured information from OCR text for a fire protection inspection, testing, and maintenance app.
             You MUST respond in \(request.preferredLanguage.responseLanguageInstruction).
