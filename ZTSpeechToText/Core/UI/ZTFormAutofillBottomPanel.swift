@@ -193,8 +193,8 @@ public struct ZTFormAutofillBottomPanel: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 8)
+        .padding(.top, 20)
+        .padding(.bottom, 10)
     }
 
     private func pickerRow(icon: String, title: String, subtitle: String) -> some View {
@@ -244,10 +244,10 @@ public struct ZTFormAutofillBottomPanel: View {
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text(headline)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.headline.weight(.semibold))
                         .foregroundStyle(Color(hex: "#10121A"))
                     Text(subline)
-                        .font(.system(size: 12.5))
+                        .font(.subheadline)
                         .foregroundStyle(Color(hex: "#5a6070"))
                     ZTAutofillShimmerBar()
                 }
@@ -337,7 +337,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 16)
             .padding(.top, 20)
             .padding(.bottom, 10)
 
