@@ -115,7 +115,7 @@ public struct ZTFormAutofillBottomPanel: View {
             }
         }
         .presentationDetents(detentsForStep(coordinator.step))
-        .presentationDragIndicator(.visible)
+        .presentationDragIndicator(.hidden)
         .modifier(ZTAutofillSheetBackgroundModifier())
         .interactiveDismissDisabled(false)
         .confirmationDialog("", isPresented: $showPhotoSourceDialog, titleVisibility: .hidden) {
@@ -177,7 +177,8 @@ public struct ZTFormAutofillBottomPanel: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.top, 16)
+        .padding(.bottom, 8)
     }
 
     private func pickerRow(icon: String, title: String, subtitle: String) -> some View {
@@ -621,3 +622,19 @@ struct ZTInlineCameraPickerView: UIViewControllerRepresentable {
         }
     }
 }
+#if DEBUG
+@MainActor
+private func makeAutofillPickerPreviewCoordinator() -> ZTFormAutofillCoordinator {
+    let coordinator = ZTFormAutofillCoordinator(documentType: .customer, fieldMapper: { _ in [] })
+    coordinator.openSheet()
+    return coordinator
+}
+
+#Preview("Autofill Picker") {
+    ZTFormAutofillBottomPanel(
+        coordinator: makeAutofillPickerPreviewCoordinator(),
+        title: "Autofill customer details"
+    )
+}
+#endif
+
