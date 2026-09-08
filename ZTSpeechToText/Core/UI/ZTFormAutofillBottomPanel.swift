@@ -578,9 +578,10 @@ public struct ZTFormAutofillAppliedBannerView: View {
     public var body: some View {
         if coordinator.step == .applied {
             HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#0B6BEF"))
+                Image(systemName: "checkmark")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color(red: 0.114, green: 0.643, blue: 0.353))
                 Text(ZTAutofillStrings.bannerText(
                     count: coordinator.appliedCount,
                     source: coordinator.sourceLabel
@@ -588,26 +589,25 @@ public struct ZTFormAutofillAppliedBannerView: View {
                         .trimmingCharacters(in: .punctuationCharacters)
                         .trimmingCharacters(in: .whitespaces)
                 ))
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Color(hex: "#20242e"))
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(Color(red: 0.227, green: 0.239, blue: 0.271))
                 .lineLimit(2)
                 Spacer(minLength: 8)
+                Divider().frame(height: 18)
                 Button(ZTAutofillStrings.undo) { coordinator.undoApply() }
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                     .foregroundStyle(Color(hex: "#0B6BEF"))
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(Color(hex: "#dbe9fd"))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.vertical, 4)
+                    .buttonStyle(.plain)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
-            .background(Color(hex: "#eaf3ff"))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color(hex: "#cfe0fb"), lineWidth: 1)
-            )
+            .padding(.leading, 16)
+            .padding(.trailing, 8)
+            .padding(.vertical, 10)
+            .background(Capsule().fill(Color.white.opacity(0.94)))
+            .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 0.5))
             .transition(.scale(scale: 0.96).combined(with: .opacity))
         }
     }
