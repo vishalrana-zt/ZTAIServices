@@ -52,9 +52,9 @@ private struct ZTAutofillSheetBackgroundModifier: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         if #available(iOS 16.4, *) {
-            content.presentationBackground(Color.white)
+            content.presentationBackground(Color(.systemGray6))
         } else {
-            content.background(Color.white)
+            content.background(Color(.systemGray6))
         }
     }
 }
@@ -195,7 +195,7 @@ public struct ZTFormAutofillBottomPanel: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, 16)
-        .padding(.top, 20)
+        .padding(.top, 32)
         .padding(.bottom, 10)
     }
 
@@ -224,7 +224,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 .foregroundStyle(Color(hex: "#c6c6cc"))
         }
         .padding(12)
-        .background(Color(hex: "#f5f7fb"))
+        .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
@@ -265,7 +265,7 @@ public struct ZTFormAutofillBottomPanel: View {
             Spacer()
         }
         .padding(.horizontal, 16)
-        .padding(.top, 20)
+        .padding(.top, 32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -340,7 +340,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 20)
+            .padding(.top, 32)
             .padding(.bottom, 10)
 
             Divider()
