@@ -46,6 +46,17 @@ private enum ZTAutofillStrings {
     }
 }
 
+private struct ZTAutofillSheetBackgroundModifier: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content.presentationBackground(Color.white)
+        } else {
+            content.background(Color.white)
+        }
+    }
+}
+
 // MARK: - Sheet host view (transparent overlay that drives the .sheet)
 
 public struct ZTFormAutofillSheetHostView: View {
@@ -105,6 +116,7 @@ public struct ZTFormAutofillBottomPanel: View {
         }
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.visible)
+        .modifier(ZTAutofillSheetBackgroundModifier())
         .interactiveDismissDisabled(false)
         .confirmationDialog("", isPresented: $showPhotoSourceDialog, titleVisibility: .hidden) {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -162,12 +174,10 @@ public struct ZTFormAutofillBottomPanel: View {
                 pickerRow(icon: "mic", title: ZTAutofillStrings.speak, subtitle: ZTAutofillStrings.speakSub)
             }
             .buttonStyle(.plain)
-
-            Spacer(minLength: 0)
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 16)
+        .padding(.vertical, 10)
     }
 
     private func pickerRow(icon: String, title: String, subtitle: String) -> some View {
@@ -454,6 +464,7 @@ public struct ZTFormAutofillBottomPanel: View {
 
     private func detentsForStep(_ step: ZTFormAutofillCoordinator.Step) -> Set<PresentationDetent> {
         switch step {
+        case .picking:                     return [.height(380)]
         case .review:                      return [.medium, .large]
         case .scanningPhoto, .extracting:  return [.height(220)]
         case .listening:                   return [.height(260)]
@@ -485,7 +496,7 @@ public struct ZTFormAutofillAppliedBannerView: View {
                         .trimmingCharacters(in: .punctuationCharacters)
                         .trimmingCharacters(in: .whitespaces)
                 ))
-                .font(.system(size: 13.5, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(Color(hex: "#20242e"))
                 .lineLimit(2)
                 Spacer(minLength: 8)
