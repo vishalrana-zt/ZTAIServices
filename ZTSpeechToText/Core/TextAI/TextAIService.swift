@@ -1316,7 +1316,7 @@ actor CloudTextProvider: TextModelProvider {
 
         if let textAIError = error as? TextAIError {
             switch textAIError {
-            case .providerUnavailable, .unsupportedOperation, .unsupportedLanguage, .emptyInput, .missingDocumentType, .cancelled, .unusableModelOutput:
+            case .providerUnavailable, .unsupportedOperation, .unsupportedLanguage, .emptyInput, .inputTooShort, .missingDocumentType, .cancelled, .unusableModelOutput:
                 return false
             case .modelUnavailable, .modelLoadingFailed:
                 return false
