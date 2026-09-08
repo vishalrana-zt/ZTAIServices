@@ -72,6 +72,7 @@ struct RootView: View {
     ) {
         self.isSessionLoggingEnabled = isSessionLoggingEnabled
         self.noteEditorTextStyle = noteEditorTextStyle
+        CloudAPIConfiguration.isLoggingEnabled = isSessionLoggingEnabled
     }
 
     var body: some View {

@@ -157,6 +157,10 @@ private struct SpeechToTextSheetModifier: ViewModifier {
         content
             .overlay {
                 if isPresented {
+                    Color.black.opacity(0.001)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(true)
+                        .onTapGesture { }
                     SpeechToTextFlowSheet(
                         configuration: configuration,
                         onLiveTranscriptChanged: { partial in

@@ -72,7 +72,7 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
     }
 
     public var hasActiveRecording: Bool {
-        isSpeechRecordingActive
+        isSpeechRecordingActive || isSpeechToTextSheetPresented
     }
 
     public func stopRecordingAndDismissSheet() {
