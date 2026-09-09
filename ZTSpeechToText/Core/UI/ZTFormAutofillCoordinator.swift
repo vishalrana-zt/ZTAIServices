@@ -78,6 +78,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         candidates = []
         previewCandidates = []
         liveTranscript = ""
+        sourceLabel = ""
         selectedImage = nil
         ocrText = ""
         step = .picking
@@ -89,7 +90,10 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         extractionTask = nil
         speechBridge.cancel()
         isSheetPresented = false
+        candidates = []
         previewCandidates = []
+        liveTranscript = ""
+        sourceLabel = ""
         selectedImage = nil
         ocrText = ""
         step = .idle
@@ -188,6 +192,12 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     public func applySelected() {
         let selected = candidates.filter { $0.isSelected }
         onApply?(selected)
+        candidates = []
+        previewCandidates = []
+        selectedImage = nil
+        ocrText = ""
+        liveTranscript = ""
+        sourceLabel = ""
         step = .idle
         isSheetPresented = false
     }
@@ -196,8 +206,12 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         extractionTask?.cancel()
         extractionTask = nil
         speechBridge.cancel()
+        candidates = []
         liveTranscript = ""
         previewCandidates = []
+        sourceLabel = ""
+        selectedImage = nil
+        ocrText = ""
         step = .picking
     }
 

@@ -72,7 +72,7 @@ private struct ZTAutofillSheetSizingModifier: ViewModifier {
     func body(content: Content) -> some View {
         if UIDevice.current.userInterfaceIdiom == .pad {
             if #available(iOS 18.0, *) {
-                content.presentationSizing(.fitted)
+                content.presentationSizing(.page)
             } else {
                 content
             }
@@ -143,12 +143,24 @@ public struct ZTFormAutofillSheetHostView: View {
     public var body: some View {
         Color.clear
             .allowsHitTesting(false)
-            .sheet(
-                isPresented: $coordinator.isSheetPresented,
-                onDismiss: { coordinator.dismiss() }
-            ) {
-                ZTFormAutofillBottomPanel(coordinator: coordinator, title: panelTitle)
+            .overlay {
+                if coordinator.isSheetPresented {
+                    ZStack(alignment: .bottom) {
+                        Color.black.opacity(0.28)
+                            .ignoresSafeArea()
+                            .allowsHitTesting(true)
+                            .onTapGesture { }
+
+                        ZTFormAutofillBottomPanel(coordinator: coordinator, title: panelTitle)
+                            .frame(maxWidth: .infinity, alignment: .bottom)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    .allowsHitTesting(true)
+                }
             }
+            .animation(.interactiveSpring(response: 0.30, dampingFraction: 0.90, blendDuration: 0.10), value: coordinator.isSheetPresented)
     }
 }
 
@@ -284,7 +296,7 @@ public struct ZTFormAutofillBottomPanel: View {
             }
             .buttonStyle(.plain)
         }
-        .frame(maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .top)
         .padding(.horizontal, 16)
         .padding(.top, 32)
         .padding(.bottom, 10)
@@ -355,7 +367,7 @@ public struct ZTFormAutofillBottomPanel: View {
             cancelButton
         }
         .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var scanningThumb: some View {
@@ -421,7 +433,7 @@ public struct ZTFormAutofillBottomPanel: View {
             cancelButton
         }
         .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     // MARK: - Listening
@@ -457,7 +469,7 @@ public struct ZTFormAutofillBottomPanel: View {
             Spacer()
         }
         .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .top)
     }
 
     // MARK: - Review
