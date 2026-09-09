@@ -168,9 +168,9 @@ public struct ZTFormAutofillSheetHostView: View {
                             .frame(maxWidth: .infinity, alignment: .bottom)
                             .background(Color.white)
                             .clipShape(ZTTopSheetCornersShape(radius: 34))
-                            .ignoresSafeArea(edges: .bottom)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
+                    .ignoresSafeArea(edges: .bottom)
                     .allowsHitTesting(true)
                 }
             }
@@ -214,9 +214,11 @@ public struct ZTFormAutofillBottomPanel: View {
                     .frame(height: reviewPanelHeight, alignment: .top)
             case .error(let message):
                 errorView(message)
+                    .frame(height: 300, alignment: .top)
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxHeight: maxPanelHeight, alignment: .top)
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.hidden)
         .modifier(ZTAutofillSheetSizingModifier())
@@ -603,7 +605,6 @@ public struct ZTFormAutofillBottomPanel: View {
 
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 16) {
-            Spacer()
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.largeTitle)
                 .foregroundStyle(Color(hex: "#E0364C"))
@@ -619,8 +620,9 @@ public struct ZTFormAutofillBottomPanel: View {
                 .padding(.vertical, 10)
                 .background(Color(hex: "#e8f1ff"))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-            Spacer()
         }
+        .padding(.top, 32)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
     }
 
@@ -656,7 +658,11 @@ public struct ZTFormAutofillBottomPanel: View {
     }
 
     private var reviewPanelHeight: CGFloat {
-        UIScreen.main.bounds.height * (UIDevice.current.userInterfaceIdiom == .pad ? 0.52 : 0.56)
+        UIScreen.main.bounds.height * (UIDevice.current.userInterfaceIdiom == .pad ? 0.50 : 0.56)
+    }
+
+    private var maxPanelHeight: CGFloat {
+        UIScreen.main.bounds.height * 0.55
     }
 
     private func detentsForStep(_ step: ZTFormAutofillCoordinator.Step) -> Set<PresentationDetent> {
