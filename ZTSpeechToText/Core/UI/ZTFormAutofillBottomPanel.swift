@@ -166,7 +166,7 @@ public struct ZTFormAutofillSheetHostView: View {
 
                         ZTFormAutofillBottomPanel(coordinator: coordinator, title: panelTitle)
                             .frame(maxWidth: .infinity, alignment: .bottom)
-                            .background(Color.white)
+                            .background(Color.white.ignoresSafeArea(edges: .bottom))
                             .clipShape(ZTTopSheetCornersShape(radius: 34))
                             .ignoresSafeArea(edges: .bottom)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -216,6 +216,8 @@ public struct ZTFormAutofillBottomPanel: View {
                 errorView(message)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.white)
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.hidden)
         .modifier(ZTAutofillSheetSizingModifier())
@@ -316,8 +318,8 @@ public struct ZTFormAutofillBottomPanel: View {
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .padding(.horizontal, 16)
-        .padding(.top, 32)
-        .padding(.bottom, 16)
+        .padding(.top, 20)
+        .padding(.bottom, 20)
         .background(Color.white)
     }
 
@@ -353,7 +355,7 @@ public struct ZTFormAutofillBottomPanel: View {
     // MARK: - Scanning photo
 
     private var scanningPhotoView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
                     scanningThumb
@@ -369,7 +371,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     Spacer()
                 }
             }
-            .padding(14)
+            .padding(16)
             .background(
                 LinearGradient(
                     colors: [Color(hex: "#f5f9ff"), Color(hex: "#eef5ff")],
@@ -385,8 +387,8 @@ public struct ZTFormAutofillBottomPanel: View {
             cancelButton
         }
         .padding(.horizontal, panelHorizontalPadding)
-        .padding(.top, 12)
-        .padding(.bottom, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .top)
     }
 
@@ -420,7 +422,7 @@ public struct ZTFormAutofillBottomPanel: View {
     // MARK: - Extracting
 
     private var extractingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             VStack(spacing: 12) {
                 HStack(spacing: 10) {
                     ZTSparklesIcon()
@@ -437,7 +439,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 }
                 ZTAutofillShimmerBar()
             }
-            .padding(14)
+            .padding(16)
             .background(
                 LinearGradient(
                     colors: [Color(hex: "#f5f9ff"), Color(hex: "#eef5ff")],
@@ -453,8 +455,8 @@ public struct ZTFormAutofillBottomPanel: View {
             cancelButton
         }
         .padding(.horizontal, panelHorizontalPadding)
-        .padding(.top, 12)
-        .padding(.bottom, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .top)
     }
 
@@ -644,14 +646,14 @@ public struct ZTFormAutofillBottomPanel: View {
             .font(.headline)
             .foregroundStyle(Color(hex: "#3a3d45"))
             .frame(maxWidth: .infinity)
-            .frame(height: 46)
+            .frame(height: 48)
             .background(Color(hex: "#f2f2f7"))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .buttonStyle(.plain)
     }
 
     private var panelHorizontalPadding: CGFloat {
-        UIDevice.current.userInterfaceIdiom == .pad ? 30 : 16
+        UIDevice.current.userInterfaceIdiom == .pad ? 32 : 16
     }
 
     private var reviewPanelHeight: CGFloat {
