@@ -156,8 +156,6 @@ public struct ZTFormAutofillBottomPanel: View {
     @State private var showPhotoLibraryPicker = false
     @State private var showExtractionDismissAlert = false
     @State private var showSpeechSheet = false
-    @State private var extractingResolvedCount = 0
-    @State private var extractingProgressTask: Task<Void, Never>?
 
     public init(coordinator: ZTFormAutofillCoordinator, title: String = "Autofill details") {
         self.coordinator = coordinator
@@ -335,30 +333,6 @@ public struct ZTFormAutofillBottomPanel: View {
                     }
                     Spacer()
                 }
-
-                if !coordinator.ocrText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(ZTAutofillStrings.textFound)
-                            .font(.caption)
-                            .kerning(0.8)
-                            .foregroundStyle(Color(hex: "#8892a4"))
-                        Text(coordinator.ocrText)
-                            .font(.caption.monospaced())
-                            .foregroundStyle(Color(hex: "#3a4150"))
-                            .lineSpacing(3)
-                            .lineLimit(5)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Color.white.opacity(0.75))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .strokeBorder(Color(hex: "#0b6bef").opacity(0.14), lineWidth: 1)
-                    )
-                }
             }
             .padding(14)
             .background(
@@ -373,19 +347,10 @@ public struct ZTFormAutofillBottomPanel: View {
                     .strokeBorder(Color(hex: "#d5e4fb"), lineWidth: 1)
             )
 
-            Button(ZTAutofillStrings.cancel) { coordinator.dismiss() }
-                .font(.headline)
-                .foregroundStyle(Color(hex: "#3a3d45"))
-                .frame(maxWidth: .infinity)
-                .frame(height: 46)
-                .background(Color(hex: "#f2f2f7"))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .buttonStyle(.plain)
+            cancelButton
         }
         .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 18)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private var scanningThumb: some View {
@@ -432,15 +397,8 @@ public struct ZTFormAutofillBottomPanel: View {
                             .foregroundStyle(Color(hex: "#5a6070"))
                     }
                     Spacer()
-                    Text("\(extractingDoneCount)/\(extractingRows.count)")
-                        .font(.subheadline.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(Color(hex: "#0B6BEF"))
                 }
-                VStack(spacing: 8) {
-                    ForEach(Array(extractingRows.enumerated()), id: \.offset) { _, row in
-                        extractingRow(row)
-                    }
-                }
+                ZTAutofillShimmerBar()
             }
             .padding(14)
             .background(
@@ -455,25 +413,10 @@ public struct ZTFormAutofillBottomPanel: View {
                     .strokeBorder(Color(hex: "#d5e4fb"), lineWidth: 1)
             )
 
-            Button(ZTAutofillStrings.cancel) { coordinator.dismiss() }
-                .font(.headline)
-                .foregroundStyle(Color(hex: "#3a3d45"))
-                .frame(maxWidth: .infinity)
-                .frame(height: 46)
-                .background(Color(hex: "#f2f2f7"))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .buttonStyle(.plain)
+            cancelButton
         }
         .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 18)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onAppear { startExtractingProgressAnimation() }
-        .onDisappear {
-            extractingProgressTask?.cancel()
-            extractingProgressTask = nil
-            extractingResolvedCount = 0
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     // MARK: - Listening
@@ -657,102 +600,23 @@ public struct ZTFormAutofillBottomPanel: View {
         .animation(.easeInOut(duration: 0.15), value: isOn)
     }
 
-    private struct ExtractingRow {
-        let label: String
-        let value: String
-        let isDone: Bool
-    }
-
-    private var extractingLabels: [String] {
-        let fallback = ["First Name", "Last Name", "Mobile", "Email", "Address", "City"]
-        let mapped = coordinator.candidates.map { $0.label.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        return Array((mapped.isEmpty ? fallback : mapped).prefix(6))
-    }
-
-    private var extractingValues: [String] {
-        let ocrLines = coordinator.ocrText
-            .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        let candidateValues = coordinator.candidates.map { $0.value.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        let source = ocrLines.isEmpty ? candidateValues : ocrLines
-        return Array(source.prefix(6))
-    }
-
-    private var extractingDoneCount: Int {
-        min(max(0, extractingResolvedCount), extractingLabels.count)
-    }
-
-    private var extractingRows: [ExtractingRow] {
-        extractingLabels.enumerated().map { idx, label in
-            let isDone = idx < extractingDoneCount
-            let value = extractingValues.indices.contains(idx) ? extractingValues[idx] : " "
-            return ExtractingRow(label: label, value: value, isDone: isDone)
-        }
-    }
-
-    private func extractingRow(_ row: ExtractingRow) -> some View {
-        HStack(spacing: 9) {
-            ZStack {
-                Circle()
-                    .fill(row.isDone ? Color(hex: "#0B6BEF") : Color(hex: "#eef5ff"))
-                Circle()
-                    .strokeBorder(row.isDone ? Color(hex: "#0B6BEF") : Color(hex: "#b8d0f4"), lineWidth: 1.5)
-                if row.isDone {
-                    Image(systemName: "checkmark")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
-                }
-            }
-            .frame(width: 17, height: 17)
-
-            Text(row.label)
-                .font(.caption)
-                .foregroundStyle(Color(hex: "#7a8090"))
-
-            if row.isDone {
-                Text(row.value)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color(hex: "#10121A"))
-                    .lineLimit(1)
-            } else {
-                ZTAutofillShimmerBar()
-                    .frame(height: 9)
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                    .opacity(0.65)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .frame(minHeight: 26)
-    }
-
-    private func startExtractingProgressAnimation() {
-        extractingProgressTask?.cancel()
-        extractingResolvedCount = min(3, extractingLabels.count)
-        extractingProgressTask = Task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 700_000_000)
-                await MainActor.run {
-                    let maxCount = extractingLabels.count
-                    if extractingResolvedCount < maxCount - 1 {
-                        extractingResolvedCount += 1
-                    }
-                }
-            }
-        }
+    private var cancelButton: some View {
+        Button(ZTAutofillStrings.cancel) { coordinator.dismiss() }
+            .font(.system(size: 15.5, weight: .semibold))
+            .foregroundStyle(Color(hex: "#3a3d45"))
+            .frame(maxWidth: .infinity)
+            .frame(height: 46)
+            .background(Color(hex: "#f2f2f7"))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .buttonStyle(.plain)
     }
 
     private func detentsForStep(_ step: ZTFormAutofillCoordinator.Step) -> Set<PresentationDetent> {
         switch step {
         case .picking:                     return [.height(380)]
         case .review:                      return [.medium, .large]
-        case .scanningPhoto:
-            let hasOCR = !coordinator.ocrText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            return [.height(hasOCR ? 350 : 270)]
-        case .extracting:                  return [.height(332)]
+        case .scanningPhoto:               return [.height(270)]
+        case .extracting:                  return [.height(250)]
         case .listening:                   return [.height(260)]
         case .error:                       return [.height(300)]
         default:                           return [.medium]
@@ -922,18 +786,37 @@ struct ZTScanCornerBrackets: View {
 
 struct ZTSparklesIcon: View {
     @State private var pulse = false
+    @State private var animateWhole = false
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(Color(hex: "#0b6bef"))
+
             Image(systemName: "sparkles")
-                .font(.subheadline.weight(.semibold))
+                .font(.subheadline)
+                .fontWeight(.semibold)
                 .foregroundStyle(.white)
-                .scaleEffect(pulse ? 0.85 : 1.0)
-                .animation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true), value: pulse)
+                .scaleEffect(pulse ? 0.74 : 1.06, anchor: .center)
+                .opacity(pulse ? 0.3 : 1.0)
+                .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: pulse)
+
+            Image(systemName: "sparkle")
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundStyle(.white)
+                .offset(x: 7, y: -6)
+                .scaleEffect(pulse ? 1.02 : 0.75, anchor: .center)
+                .opacity(pulse ? 1.0 : 0.3)
+                .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true).delay(0.55), value: pulse)
         }
-        .onAppear { pulse = true }
+        .scaleEffect(animateWhole ? 1.12 : 1.0)
+        .rotationEffect(.degrees(animateWhole ? 9 : 0))
+        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: animateWhole)
+        .onAppear {
+            animateWhole = true
+            pulse = true
+        }
     }
 }
 
@@ -945,9 +828,42 @@ private func makeAutofillPickerPreviewCoordinator() -> ZTFormAutofillCoordinator
     return coordinator
 }
 
+@MainActor
+private func makeAutofillReadingPreviewCoordinator() -> ZTFormAutofillCoordinator {
+    let coordinator = ZTFormAutofillCoordinator(documentType: .customer, fieldMapper: { _ in [] })
+    coordinator.openSheet()
+    coordinator.debugSetState(
+        step: .scanningPhoto,
+        selectedImage: UIImage(systemName: "doc.text.viewfinder")
+    )
+    return coordinator
+}
+
+@MainActor
+private func makeAutofillExtractingPreviewCoordinator() -> ZTFormAutofillCoordinator {
+    let coordinator = ZTFormAutofillCoordinator(documentType: .customer, fieldMapper: { _ in [] })
+    coordinator.openSheet()
+    coordinator.debugSetState(step: .extracting)
+    return coordinator
+}
+
 #Preview("Autofill Picker") {
     ZTFormAutofillBottomPanel(
         coordinator: makeAutofillPickerPreviewCoordinator(),
+        title: "Autofill customer details"
+    )
+}
+
+#Preview("Autofill Reading") {
+    ZTFormAutofillBottomPanel(
+        coordinator: makeAutofillReadingPreviewCoordinator(),
+        title: "Autofill customer details"
+    )
+}
+
+#Preview("Autofill Extracting") {
+    ZTFormAutofillBottomPanel(
+        coordinator: makeAutofillExtractingPreviewCoordinator(),
         title: "Autofill customer details"
     )
 }

@@ -48,6 +48,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     @Published public private(set) var liveTranscript = ""
     @Published public private(set) var selectedImage: UIImage? = nil
     @Published public private(set) var ocrText: String = ""
+    @Published public private(set) var previewCandidates: [ZTAutofillCandidate] = []
 
     public var onApply: (([ZTAutofillCandidate]) -> Void)?
     public var onUndo: (() -> Void)?
@@ -75,6 +76,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     public func openSheet() {
         candidates = []
+        previewCandidates = []
         liveTranscript = ""
         selectedImage = nil
         ocrText = ""
@@ -87,6 +89,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         extractionTask = nil
         speechBridge.cancel()
         isSheetPresented = false
+        previewCandidates = []
         selectedImage = nil
         ocrText = ""
         step = .idle
@@ -103,7 +106,14 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             do {
                 let text = try await self.ocrEngine.recognizeText(in: image, languageHints: [])
                 if Task.isCancelled { return }
-                await MainActor.run { self.ocrText = text }
+                await MainActor.run {
+                    self.ocrText = text
+                    self.previewCandidates = self.mapNonEmptyCandidates(from: text, fallbackText: text)
+                }
+                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    try? await Task.sleep(nanoseconds: 700_000_000)
+                    if Task.isCancelled { return }
+                }
                 await self.runExtraction(from: text)
             } catch {
                 if Task.isCancelled { return }
@@ -117,6 +127,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         extractionTask?.cancel()
         sourceLabel = Self.localizedLabel("lbl_autofill_source_voice", fallback: "Heard from your dictation.")
         liveTranscript = ""
+        previewCandidates = []
         step = .listening
 
         speechBridge.onPartialText = { [weak self] partial in
@@ -162,6 +173,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         speechBridge.cancel()
         sourceLabel = Self.localizedLabel("lbl_autofill_source_voice", fallback: "Heard from your dictation.")
         liveTranscript = text
+        previewCandidates = mapNonEmptyCandidates(from: text, fallbackText: text)
         extractionTask = Task { [weak self] in
             guard let self else { return }
             await self.runExtraction(from: text)
@@ -185,6 +197,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         extractionTask = nil
         speechBridge.cancel()
         liveTranscript = ""
+        previewCandidates = []
         step = .picking
     }
 
@@ -193,6 +206,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     private func runExtraction(from text: String) async {
         step = .extracting
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        previewCandidates = mapNonEmptyCandidates(from: trimmed, fallbackText: trimmed)
         guard !trimmed.isEmpty else {
             step = .error("No text was captured. Please try again.")
             return
@@ -206,6 +220,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                 step = .error("No details could be extracted. Try again with a clearer source.")
             } else {
                 candidates = nonEmpty
+                previewCandidates = nonEmpty
                 step = .review
             }
         } catch {
@@ -261,3 +276,24 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         return .english
     }
 }
+
+#if DEBUG
+@MainActor
+extension ZTFormAutofillCoordinator {
+    func debugSetState(
+        step: Step,
+        selectedImage: UIImage? = nil,
+        ocrText: String = "",
+        liveTranscript: String = "",
+        candidates: [ZTAutofillCandidate] = []
+    ) {
+        self.selectedImage = selectedImage
+        self.ocrText = ocrText
+        self.liveTranscript = liveTranscript
+        self.candidates = candidates
+        self.previewCandidates = candidates
+        self.step = step
+        self.isSheetPresented = true
+    }
+}
+#endif
