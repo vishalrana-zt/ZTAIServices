@@ -82,6 +82,19 @@ private struct ZTAutofillSheetSizingModifier: ViewModifier {
     }
 }
 
+private struct ZTTopSheetCornersShape: Shape {
+    var radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: [.topLeft, .topRight],
+            cornerRadii: CGSize(width: radius, height: radius)
+        )
+        return Path(path.cgPath)
+    }
+}
+
 private struct ZTSheetDismissInterceptor: UIViewControllerRepresentable {
     let isDismissDisabled: Bool
     let onAttemptToDismiss: () -> Void
@@ -154,7 +167,8 @@ public struct ZTFormAutofillSheetHostView: View {
                         ZTFormAutofillBottomPanel(coordinator: coordinator, title: panelTitle)
                             .frame(maxWidth: .infinity, alignment: .bottom)
                             .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+                            .clipShape(ZTTopSheetCornersShape(radius: 34))
+                            .ignoresSafeArea(edges: .bottom)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     .allowsHitTesting(true)
@@ -197,6 +211,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 extractingView
             case .review:
                 reviewView
+                    .frame(height: reviewPanelHeight, alignment: .top)
             case .error(let message):
                 errorView(message)
             }
@@ -295,11 +310,14 @@ public struct ZTFormAutofillBottomPanel: View {
                 pickerRow(icon: "mic", title: ZTAutofillStrings.speak, subtitle: ZTAutofillStrings.speakSub)
             }
             .buttonStyle(.plain)
+
+            cancelButton
+                .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .padding(.horizontal, 16)
         .padding(.top, 32)
-        .padding(.bottom, 10)
+        .padding(.bottom, 16)
         .background(Color.white)
     }
 
@@ -335,7 +353,7 @@ public struct ZTFormAutofillBottomPanel: View {
     // MARK: - Scanning photo
 
     private var scanningPhotoView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
                     scanningThumb
@@ -366,8 +384,10 @@ public struct ZTFormAutofillBottomPanel: View {
 
             cancelButton
         }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.horizontal, panelHorizontalPadding)
+        .padding(.top, 12)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, alignment: .top)
     }
 
     private var scanningThumb: some View {
@@ -400,7 +420,7 @@ public struct ZTFormAutofillBottomPanel: View {
     // MARK: - Extracting
 
     private var extractingView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             VStack(spacing: 12) {
                 HStack(spacing: 10) {
                     ZTSparklesIcon()
@@ -432,8 +452,10 @@ public struct ZTFormAutofillBottomPanel: View {
 
             cancelButton
         }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.horizontal, panelHorizontalPadding)
+        .padding(.top, 12)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, alignment: .top)
     }
 
     // MARK: - Listening
@@ -628,6 +650,14 @@ public struct ZTFormAutofillBottomPanel: View {
             .buttonStyle(.plain)
     }
 
+    private var panelHorizontalPadding: CGFloat {
+        UIDevice.current.userInterfaceIdiom == .pad ? 30 : 16
+    }
+
+    private var reviewPanelHeight: CGFloat {
+        UIScreen.main.bounds.height * (UIDevice.current.userInterfaceIdiom == .pad ? 0.52 : 0.56)
+    }
+
     private func detentsForStep(_ step: ZTFormAutofillCoordinator.Step) -> Set<PresentationDetent> {
         let progressDetent: PresentationDetent = .height(220)
         switch step {
@@ -781,7 +811,6 @@ struct ZTScanCornerBrackets: View {
         Canvas { ctx, size in
             let l: CGFloat = 14
             let t: CGFloat = 1.5
-            let r: CGFloat = 6
             let color = GraphicsContext.Shading.color(Color(hex: "#0b6bef").opacity(0.55))
             let corners: [(CGPoint, (CGFloat, CGFloat), (CGFloat, CGFloat))] = [
                 (CGPoint(x: 5, y: 5),   (l, 0),   (0, l)),
