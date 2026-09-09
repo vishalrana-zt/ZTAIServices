@@ -60,9 +60,9 @@ private struct ZTAutofillSheetBackgroundModifier: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         if #available(iOS 16.4, *) {
-            content.presentationBackground(Color(.systemGray6))
+            content.presentationBackground(.white)
         } else {
-            content.background(Color(.systemGray6))
+            content.background(Color.white)
         }
     }
 }
@@ -70,7 +70,15 @@ private struct ZTAutofillSheetBackgroundModifier: ViewModifier {
 private struct ZTAutofillSheetSizingModifier: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
-        content
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            if #available(iOS 18.0, *) {
+                content.presentationSizing(.fitted)
+            } else {
+                content
+            }
+        } else {
+            content
+        }
     }
 }
 
@@ -280,6 +288,7 @@ public struct ZTFormAutofillBottomPanel: View {
         .padding(.horizontal, 16)
         .padding(.top, 32)
         .padding(.bottom, 10)
+        .background(Color.white)
     }
 
     private func pickerRow(icon: String, title: String, subtitle: String) -> some View {
@@ -301,17 +310,13 @@ public struct ZTFormAutofillBottomPanel: View {
             }
 
             Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color(hex: "#c6c6cc"))
         }
         .padding(12)
-        .background(Color.white)
+        .background(Color(hex: "#f5f7fb"))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(Color.black.opacity(0.07), lineWidth: 0.5)
+                .strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5)
         )
     }
 
@@ -602,7 +607,7 @@ public struct ZTFormAutofillBottomPanel: View {
 
     private var cancelButton: some View {
         Button(ZTAutofillStrings.cancel) { coordinator.dismiss() }
-            .font(.system(size: 15.5, weight: .semibold))
+            .font(.headline)
             .foregroundStyle(Color(hex: "#3a3d45"))
             .frame(maxWidth: .infinity)
             .frame(height: 46)
@@ -612,11 +617,12 @@ public struct ZTFormAutofillBottomPanel: View {
     }
 
     private func detentsForStep(_ step: ZTFormAutofillCoordinator.Step) -> Set<PresentationDetent> {
+        let progressDetent: PresentationDetent = .height(220)
         switch step {
         case .picking:                     return [.height(380)]
         case .review:                      return [.medium, .large]
-        case .scanningPhoto:               return [.height(270)]
-        case .extracting:                  return [.height(250)]
+        case .scanningPhoto:               return [progressDetent]
+        case .extracting:                  return [progressDetent]
         case .listening:                   return [.height(260)]
         case .error:                       return [.height(300)]
         default:                           return [.medium]
