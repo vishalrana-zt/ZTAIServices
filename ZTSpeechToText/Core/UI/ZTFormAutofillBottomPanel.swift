@@ -168,6 +168,7 @@ public struct ZTFormAutofillSheetHostView: View {
                             .frame(maxWidth: .infinity, alignment: .bottom)
                             .background(Color.white)
                             .clipShape(ZTTopSheetCornersShape(radius: 34))
+                            .ignoresSafeArea(edges: .bottom)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     .allowsHitTesting(true)
@@ -385,7 +386,7 @@ public struct ZTFormAutofillBottomPanel: View {
             cancelButton
         }
         .padding(.horizontal, panelHorizontalPadding)
-        .padding(.top, 16)
+        .padding(.top, 32)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .top)
     }
@@ -453,7 +454,7 @@ public struct ZTFormAutofillBottomPanel: View {
             cancelButton
         }
         .padding(.horizontal, panelHorizontalPadding)
-        .padding(.top, 16)
+        .padding(.top, 32)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .top)
     }
