@@ -47,6 +47,8 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     @Published public private(set) var appliedCount = 0
     @Published public private(set) var sourceLabel = ""
     @Published public private(set) var liveTranscript = ""
+    @Published public private(set) var selectedImage: UIImage? = nil
+    @Published public private(set) var ocrText: String = ""
 
     public var onApply: (([ZTAutofillCandidate]) -> Void)?
     public var onUndo: (() -> Void)?
@@ -76,6 +78,8 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     public func openSheet() {
         candidates = []
         liveTranscript = ""
+        selectedImage = nil
+        ocrText = ""
         step = .picking
         isSheetPresented = true
     }
@@ -85,18 +89,23 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         extractionTask = nil
         speechBridge.cancel()
         isSheetPresented = false
+        selectedImage = nil
+        ocrText = ""
         step = .idle
     }
 
     public func handleSelectedImage(_ image: UIImage) {
+        selectedImage = image
+        ocrText = ""
         extractionTask?.cancel()
-        sourceLabel = "Read from the photo."
+        sourceLabel = Self.localizedLabel("lbl_autofill_source_photo", fallback: "Read from the photo.")
         step = .scanningPhoto
         extractionTask = Task { [weak self] in
             guard let self else { return }
             do {
                 let text = try await self.ocrEngine.recognizeText(in: image, languageHints: [])
                 if Task.isCancelled { return }
+                await MainActor.run { self.ocrText = text }
                 await self.runExtraction(from: text)
             } catch {
                 if Task.isCancelled { return }
@@ -108,7 +117,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     public func selectSpeak() {
         extractionTask?.cancel()
-        sourceLabel = "Heard from your dictation."
+        sourceLabel = Self.localizedLabel("lbl_autofill_source_voice", fallback: "Heard from your dictation.")
         liveTranscript = ""
         step = .listening
 
@@ -153,17 +162,9 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     public func applySelected() {
         let selected = candidates.filter { $0.isSelected }
-        snapshotBeforeApply = candidates
-        appliedCount = selected.count
         onApply?(selected)
-        step = .applied
-        isSheetPresented = false
-    }
-
-    public func undoApply() {
-        onUndo?()
-        candidates = snapshotBeforeApply
         step = .idle
+        isSheetPresented = false
     }
 
     public func retryFromPicker() {
@@ -203,6 +204,11 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             let msg = (error as? TextAIError)?.localizedDescription ?? error.localizedDescription
             step = .error(msg)
         }
+    }
+
+    private static func localizedLabel(_ key: String, fallback: String) -> String {
+        let v = ZTAIServiceLocalizer.localized(key)
+        return v == key ? fallback : v
     }
 
     private func resolvedLanguage() -> SupportedLanguage {

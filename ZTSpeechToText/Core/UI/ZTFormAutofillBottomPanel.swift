@@ -30,6 +30,8 @@ private enum ZTAutofillStrings {
     static var missingFields: String   { localized("lbl_autofill_missing_fields",         fallback: "Fields not found will need to be filled manually.") }
     static var undo: String            { localized("lbl_autofill_undo",                   fallback: "Undo") }
     static var reviewSubtitle: String  { localized("lbl_autofill_review_subtitle",        fallback: "Untick anything you don't want. Nothing is written to the form until you tap Fill.") }
+    static var sourcePhoto: String     { localized("lbl_autofill_source_photo",           fallback: "Read from the photo.") }
+    static var sourceVoice: String     { localized("lbl_autofill_source_voice",           fallback: "Heard from your dictation.") }
     static var fillNothing: String     { localized("lbl_autofill_fill_nothing",           fallback: "Fill nothing") }
     static var fieldSingular: String   { localized("lbl_autofill_field_singular",         fallback: "field") }
     static var fieldPlural: String     { localized("lbl_autofill_field_plural",           fallback: "fields") }
@@ -172,7 +174,7 @@ public struct ZTFormAutofillBottomPanel: View {
             case .picking:
                 pickerView
             case .scanningPhoto:
-                progressCard(headline: ZTAutofillStrings.readingPhoto, subline: ZTAutofillStrings.pullingDetails)
+                scanningPhotoView
             case .listening:
                 listeningView
             case .extracting:
@@ -305,61 +307,128 @@ public struct ZTFormAutofillBottomPanel: View {
         )
     }
 
-    // MARK: - Progress card (scanning photo)
+    // MARK: - Scanning photo
 
-    private func progressCard(headline: String, subline: String) -> some View {
-        VStack {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(LinearGradient(
-                        colors: [Color(hex: "#dfe6f0"), Color(hex: "#eef2f7")],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
-                    .frame(width: 56, height: 56)
-
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(headline)
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(Color(hex: "#10121A"))
-                    Text(subline)
-                        .font(.subheadline)
-                        .foregroundStyle(Color(hex: "#5a6070"))
-                    ZTAutofillShimmerBar()
+    private var scanningPhotoView: some View {
+        VStack(spacing: 12) {
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    scanningThumb
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(ZTAutofillStrings.readingPhoto)
+                            .font(.system(size: 15.5, weight: .semibold))
+                            .foregroundStyle(Color(hex: "#10121A"))
+                        Text(ZTAutofillStrings.pullingDetails)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(Color(hex: "#5a6070"))
+                        ZTAutofillShimmerBar()
+                    }
+                    Spacer()
                 }
-                Spacer()
+
+                if !coordinator.ocrText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("TEXT FOUND")
+                            .font(.system(size: 10.5, weight: .medium))
+                            .kerning(0.8)
+                            .foregroundStyle(Color(hex: "#8892a4"))
+                        Text(coordinator.ocrText)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(Color(hex: "#3a4150"))
+                            .lineSpacing(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 9)
+                    .background(Color.white.opacity(0.75))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(Color(hex: "#0b6bef").opacity(0.14), lineWidth: 1)
+                    )
+                }
             }
-            .padding(12)
-            .background(Color(hex: "#f2f7ff"))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .padding(14)
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: "#f5f9ff"), Color(hex: "#eef5ff")],
+                    startPoint: .top, endPoint: .bottom
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(Color(hex: "#cfe0fb"), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(Color(hex: "#d5e4fb"), lineWidth: 1)
             )
             Spacer()
         }
         .padding(.horizontal, 16)
-        .padding(.top, 32)
+        .padding(.top, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var scanningThumb: some View {
+        ZStack {
+            if let img = coordinator.selectedImage {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 74, height: 74)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "#dfe6f0"), Color(hex: "#eef2f7")],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 74, height: 74)
+            }
+            ZTScanSweepOverlay()
+                .frame(width: 74, height: 74)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            ZTScanCornerBrackets()
+                .frame(width: 74, height: 74)
+        }
+        .frame(width: 74, height: 74)
     }
 
     // MARK: - Extracting
 
     private var extractingView: some View {
-        VStack(spacing: 14) {
-            Spacer()
-            ProgressView()
-                .progressViewStyle(.circular)
-                .tint(Color(hex: "#0B6BEF"))
-                .scaleEffect(1.2)
-            Text(ZTAutofillStrings.extracting)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color(hex: "#10121A"))
-            Text(ZTAutofillStrings.matchingFields)
-                .font(.system(size: 12.5))
-                .foregroundStyle(Color(hex: "#5a6070"))
-            Spacer()
+        VStack(spacing: 12) {
+            HStack(spacing: 9) {
+                ZTSparklesIcon()
+                    .frame(width: 28, height: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ZTAutofillStrings.extracting)
+                        .font(.system(size: 15.5, weight: .semibold))
+                        .foregroundStyle(Color(hex: "#10121A"))
+                    Text(ZTAutofillStrings.matchingFields)
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(Color(hex: "#5a6070"))
+                }
+                Spacer()
+            }
+            ZTAutofillShimmerBar()
         }
-        .frame(maxWidth: .infinity)
+        .padding(14)
+        .background(
+            LinearGradient(
+                colors: [Color(hex: "#f5f9ff"), Color(hex: "#eef5ff")],
+                startPoint: .top, endPoint: .bottom
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color(hex: "#d5e4fb"), lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: - Listening
@@ -497,17 +566,6 @@ public struct ZTFormAutofillBottomPanel: View {
 
             Spacer(minLength: 4)
 
-            if candidate.needsCheck {
-                Text(ZTAutofillStrings.check)
-                    .font(.system(size: 10.5, weight: .semibold))
-                    .kerning(0.4)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Color(hex: "#8a5a00"))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
-                    .background(Color(hex: "#fdf0d5"))
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-            }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
@@ -713,6 +771,76 @@ struct ZTInlineCameraPickerView: UIViewControllerRepresentable {
         }
     }
 }
+// MARK: - Scan sweep overlay (animated line)
+
+struct ZTScanSweepOverlay: View {
+    @State private var offsetY: CGFloat = -34
+
+    var body: some View {
+        LinearGradient(
+            colors: [
+                Color(hex: "#0b6bef").opacity(0),
+                Color(hex: "#0b6bef").opacity(0.28),
+                Color(hex: "#0b6bef")
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 34)
+        .offset(y: offsetY)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false)) {
+                offsetY = 74
+            }
+        }
+    }
+}
+
+// MARK: - Scan corner brackets
+
+struct ZTScanCornerBrackets: View {
+    var body: some View {
+        Canvas { ctx, size in
+            let l: CGFloat = 14
+            let t: CGFloat = 1.5
+            let r: CGFloat = 6
+            let color = GraphicsContext.Shading.color(Color(hex: "#0b6bef").opacity(0.55))
+            let corners: [(CGPoint, (CGFloat, CGFloat), (CGFloat, CGFloat))] = [
+                (CGPoint(x: 5, y: 5),   (l, 0),   (0, l)),
+                (CGPoint(x: size.width - 5, y: 5),  (-l, 0), (0, l)),
+                (CGPoint(x: 5, y: size.height - 5), (l, 0),  (0, -l)),
+                (CGPoint(x: size.width - 5, y: size.height - 5), (-l, 0), (0, -l))
+            ]
+            for (origin, h, v) in corners {
+                var p = Path()
+                p.move(to: CGPoint(x: origin.x + h.0, y: origin.y + h.1))
+                p.addLine(to: origin)
+                p.addLine(to: CGPoint(x: origin.x + v.0, y: origin.y + v.1))
+                ctx.stroke(p, with: color, style: StrokeStyle(lineWidth: t, lineCap: .round))
+            }
+        }
+    }
+}
+
+// MARK: - Sparkles icon
+
+struct ZTSparklesIcon: View {
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color(hex: "#0b6bef"))
+            Image(systemName: "sparkles")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .scaleEffect(pulse ? 0.85 : 1.0)
+                .animation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true), value: pulse)
+        }
+        .onAppear { pulse = true }
+    }
+}
+
 #if DEBUG
 @MainActor
 private func makeAutofillPickerPreviewCoordinator() -> ZTFormAutofillCoordinator {

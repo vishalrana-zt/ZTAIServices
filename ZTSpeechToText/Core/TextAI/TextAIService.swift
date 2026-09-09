@@ -1231,6 +1231,10 @@ actor CloudTextProvider: TextModelProvider {
             // keep output deterministic/conservative rather than creative.
             body["max_tokens"] = 2000
             body["temperature"] = 0
+            // seed pins OpenAI's backend RNG so the same input always produces
+            // the same JSON structure. Any fixed integer works; 1000 is used as a
+            // neutral baseline (non-zero avoids edge-cases on some model versions).
+            body["seed"] = 1000
         }
 
         var req = URLRequest(url: url)

@@ -117,3 +117,6 @@
 "lbl_autofill_found_details" = "Se encontraron %d detalles";
 "lbl_autofill_fill_fields" = "Completar %d campos";
 "lbl_autofill_banner_text" = "%d %@ completados desde %@. Revisa lo marcado y luego guarda.";
+"lbl_autofill_source_photo" = "Leído desde la foto.";
+"lbl_autofill_source_voice" = "Escuchado desde su dictado."
+
