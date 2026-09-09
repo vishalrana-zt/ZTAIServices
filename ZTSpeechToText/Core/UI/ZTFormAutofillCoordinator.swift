@@ -225,6 +225,19 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             }
         } catch {
             if Task.isCancelled { return }
+            if isOffline(error) {
+                if !previewCandidates.isEmpty {
+                    candidates = previewCandidates
+                    step = .review
+                } else {
+                    step = .error(Self.localizedLabel(
+                        "err_autofill_no_internet",
+                        fallback: "No internet connection. Connect to the internet and try again."
+                    ))
+                }
+                return
+            }
+
             let msg = (error as? TextAIError)?.localizedDescription ?? error.localizedDescription
             step = .error(msg)
         }
@@ -274,6 +287,26 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         if code.hasPrefix("es") { return .spanish }
         if code.hasPrefix("fr") { return .french }
         return .english
+    }
+
+    private func isOffline(_ error: Error) -> Bool {
+        if case let TextAIError.providerUnavailable(reason) = error {
+            let value = reason.lowercased()
+            if value.contains("internet") || value.contains("network") || value.contains("offline") {
+                return true
+            }
+        }
+
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else { return false }
+        let offlineCodes: Set<Int> = [
+            NSURLErrorNotConnectedToInternet,
+            NSURLErrorNetworkConnectionLost,
+            NSURLErrorCannotConnectToHost,
+            NSURLErrorCannotFindHost,
+            NSURLErrorDNSLookupFailed
+        ]
+        return offlineCodes.contains(nsError.code)
     }
 }
 

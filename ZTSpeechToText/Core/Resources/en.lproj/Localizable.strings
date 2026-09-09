@@ -121,3 +121,4 @@
 "lbl_autofill_banner_text" = "%d %@ filled from %@. Check anything marked, then save.";
 "lbl_autofill_source_photo" = "Read from the photo.";
 "lbl_autofill_source_voice" = "Heard from your dictation.";
+"err_autofill_no_internet" = "No internet connection. Connect to the internet and try again.";
