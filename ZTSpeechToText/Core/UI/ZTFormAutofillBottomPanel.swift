@@ -166,9 +166,8 @@ public struct ZTFormAutofillSheetHostView: View {
 
                         ZTFormAutofillBottomPanel(coordinator: coordinator, title: panelTitle)
                             .frame(maxWidth: .infinity, alignment: .bottom)
-                            .background(Color.white.ignoresSafeArea(edges: .bottom))
+                            .background(Color.white)
                             .clipShape(ZTTopSheetCornersShape(radius: 34))
-                            .ignoresSafeArea(edges: .bottom)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     .allowsHitTesting(true)
@@ -216,8 +215,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 errorView(message)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.white)
+        .frame(maxWidth: .infinity, alignment: .top)
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.hidden)
         .modifier(ZTAutofillSheetSizingModifier())
