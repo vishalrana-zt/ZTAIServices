@@ -436,7 +436,7 @@ public struct ZTFormAutofillBottomPanel: View {
                         .font(.subheadline.weight(.semibold).monospacedDigit())
                         .foregroundStyle(Color(hex: "#0B6BEF"))
                 }
-                VStack(spacing: 6) {
+                VStack(spacing: 8) {
                     ForEach(Array(extractingRows.enumerated()), id: \.offset) { _, row in
                         extractingRow(row)
                     }
@@ -465,7 +465,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 8)
+        .padding(.top, 16)
         .padding(.bottom, 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear { startExtractingProgressAnimation() }
@@ -752,7 +752,7 @@ public struct ZTFormAutofillBottomPanel: View {
         case .scanningPhoto:
             let hasOCR = !coordinator.ocrText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             return [.height(hasOCR ? 350 : 270)]
-        case .extracting:                  return [.height(340)]
+        case .extracting:                  return [.height(332)]
         case .listening:                   return [.height(260)]
         case .error:                       return [.height(300)]
         default:                           return [.medium]
