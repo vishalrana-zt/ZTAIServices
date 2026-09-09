@@ -105,6 +105,8 @@
 "lbl_autofill_listening" = "Écoute…";
 "lbl_autofill_speak_now" = "Parlez maintenant…";
 "lbl_autofill_stop" = "Arrêter";
+"lbl_autofill_cancel" = "Annuler";
+"lbl_autofill_text_found" = "TEXTE TROUVÉ";
 "lbl_autofill_discard" = "Ignorer";
 "lbl_autofill_check" = "Vérifier";
 "lbl_autofill_try_again" = "Réessayer";
@@ -118,5 +120,4 @@
 "lbl_autofill_fill_fields" = "Remplir %d champs";
 "lbl_autofill_banner_text" = "%d %@ remplis depuis %@. Vérifiez ce qui est marqué, puis enregistrez.";
 "lbl_autofill_source_photo" = "Lu depuis la photo.";
-"lbl_autofill_source_voice" = "Entendu depuis votre dictée."
-
+"lbl_autofill_source_voice" = "Entendu depuis votre dictée.";

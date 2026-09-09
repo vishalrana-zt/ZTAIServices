@@ -105,6 +105,8 @@
 "lbl_autofill_listening" = "Escuchando…";
 "lbl_autofill_speak_now" = "Habla ahora…";
 "lbl_autofill_stop" = "Detener";
+"lbl_autofill_cancel" = "Cancelar";
+"lbl_autofill_text_found" = "TEXTO ENCONTRADO";
 "lbl_autofill_discard" = "Descartar";
 "lbl_autofill_check" = "Revisar";
 "lbl_autofill_try_again" = "Intentar de nuevo";
@@ -118,5 +120,4 @@
 "lbl_autofill_fill_fields" = "Completar %d campos";
 "lbl_autofill_banner_text" = "%d %@ completados desde %@. Revisa lo marcado y luego guarda.";
 "lbl_autofill_source_photo" = "Leído desde la foto.";
-"lbl_autofill_source_voice" = "Escuchado desde su dictado."
-
+"lbl_autofill_source_voice" = "Escuchado desde su dictado.";

@@ -105,6 +105,8 @@
 "lbl_autofill_listening" = "Listening…";
 "lbl_autofill_speak_now" = "Speak now…";
 "lbl_autofill_stop" = "Stop";
+"lbl_autofill_cancel" = "Cancel";
+"lbl_autofill_text_found" = "TEXT FOUND";
 "lbl_autofill_discard" = "Discard";
 "lbl_autofill_check" = "Check";
 "lbl_autofill_try_again" = "Try Again";

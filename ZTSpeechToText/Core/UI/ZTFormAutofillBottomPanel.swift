@@ -70,15 +70,7 @@ private struct ZTAutofillSheetBackgroundModifier: ViewModifier {
 private struct ZTAutofillSheetSizingModifier: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            if #available(iOS 18.0, *) {
-                content.presentationSizing(.page)
-            } else {
-                content
-            }
-        } else {
-            content
-        }
+        content
     }
 }
 
@@ -115,6 +107,7 @@ private struct ZTSheetDismissInterceptor: UIViewControllerRepresentable {
 
         func updatePresentationDelegate() {
             parent?.presentationController?.delegate = self
+            parent?.sheetPresentationController?.prefersGrabberVisible = false
         }
 
         func presentationControllerShouldDismiss(_ presentationController: UIPresentationController) -> Bool {
@@ -163,6 +156,8 @@ public struct ZTFormAutofillBottomPanel: View {
     @State private var showPhotoLibraryPicker = false
     @State private var showExtractionDismissAlert = false
     @State private var showSpeechSheet = false
+    @State private var extractingResolvedCount = 0
+    @State private var extractingProgressTask: Task<Void, Never>?
 
     public init(coordinator: ZTFormAutofillCoordinator, title: String = "Autofill details") {
         self.coordinator = coordinator
@@ -437,8 +432,15 @@ public struct ZTFormAutofillBottomPanel: View {
                             .foregroundStyle(Color(hex: "#5a6070"))
                     }
                     Spacer()
+                    Text("\(extractingDoneCount)/\(extractingRows.count)")
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Color(hex: "#0B6BEF"))
                 }
-                ZTAutofillShimmerBar()
+                VStack(spacing: 6) {
+                    ForEach(Array(extractingRows.enumerated()), id: \.offset) { _, row in
+                        extractingRow(row)
+                    }
+                }
             }
             .padding(14)
             .background(
@@ -466,6 +468,12 @@ public struct ZTFormAutofillBottomPanel: View {
         .padding(.top, 8)
         .padding(.bottom, 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onAppear { startExtractingProgressAnimation() }
+        .onDisappear {
+            extractingProgressTask?.cancel()
+            extractingProgressTask = nil
+            extractingResolvedCount = 0
+        }
     }
 
     // MARK: - Listening
@@ -649,14 +657,102 @@ public struct ZTFormAutofillBottomPanel: View {
         .animation(.easeInOut(duration: 0.15), value: isOn)
     }
 
+    private struct ExtractingRow {
+        let label: String
+        let value: String
+        let isDone: Bool
+    }
+
+    private var extractingLabels: [String] {
+        let fallback = ["First Name", "Last Name", "Mobile", "Email", "Address", "City"]
+        let mapped = coordinator.candidates.map { $0.label.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return Array((mapped.isEmpty ? fallback : mapped).prefix(6))
+    }
+
+    private var extractingValues: [String] {
+        let ocrLines = coordinator.ocrText
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let candidateValues = coordinator.candidates.map { $0.value.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let source = ocrLines.isEmpty ? candidateValues : ocrLines
+        return Array(source.prefix(6))
+    }
+
+    private var extractingDoneCount: Int {
+        min(max(0, extractingResolvedCount), extractingLabels.count)
+    }
+
+    private var extractingRows: [ExtractingRow] {
+        extractingLabels.enumerated().map { idx, label in
+            let isDone = idx < extractingDoneCount
+            let value = extractingValues.indices.contains(idx) ? extractingValues[idx] : " "
+            return ExtractingRow(label: label, value: value, isDone: isDone)
+        }
+    }
+
+    private func extractingRow(_ row: ExtractingRow) -> some View {
+        HStack(spacing: 9) {
+            ZStack {
+                Circle()
+                    .fill(row.isDone ? Color(hex: "#0B6BEF") : Color(hex: "#eef5ff"))
+                Circle()
+                    .strokeBorder(row.isDone ? Color(hex: "#0B6BEF") : Color(hex: "#b8d0f4"), lineWidth: 1.5)
+                if row.isDone {
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                }
+            }
+            .frame(width: 17, height: 17)
+
+            Text(row.label)
+                .font(.caption)
+                .foregroundStyle(Color(hex: "#7a8090"))
+
+            if row.isDone {
+                Text(row.value)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color(hex: "#10121A"))
+                    .lineLimit(1)
+            } else {
+                ZTAutofillShimmerBar()
+                    .frame(height: 9)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .opacity(0.65)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: 26)
+    }
+
+    private func startExtractingProgressAnimation() {
+        extractingProgressTask?.cancel()
+        extractingResolvedCount = min(3, extractingLabels.count)
+        extractingProgressTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                await MainActor.run {
+                    let maxCount = extractingLabels.count
+                    if extractingResolvedCount < maxCount - 1 {
+                        extractingResolvedCount += 1
+                    }
+                }
+            }
+        }
+    }
+
     private func detentsForStep(_ step: ZTFormAutofillCoordinator.Step) -> Set<PresentationDetent> {
         switch step {
         case .picking:                     return [.height(380)]
         case .review:                      return [.medium, .large]
         case .scanningPhoto:
             let hasOCR = !coordinator.ocrText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            return [.height(hasOCR ? 360 : 300)]
-        case .extracting:                  return [.height(280)]
+            return [.height(hasOCR ? 350 : 270)]
+        case .extracting:                  return [.height(340)]
         case .listening:                   return [.height(260)]
         case .error:                       return [.height(300)]
         default:                           return [.medium]
