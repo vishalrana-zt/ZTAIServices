@@ -203,12 +203,16 @@ public struct ZTFormAutofillBottomPanel: View {
                 EmptyView()
             case .picking:
                 pickerView
+                    .frame(height: 380, alignment: .top)
             case .scanningPhoto:
                 scanningPhotoView
+                    .frame(height: 238, alignment: .top)
             case .listening:
                 listeningView
+                    .frame(height: 260, alignment: .top)
             case .extracting:
                 extractingView
+                    .frame(height: 224, alignment: .top)
             case .review:
                 reviewView
                     .frame(height: reviewPanelHeight, alignment: .top)
@@ -218,7 +222,6 @@ public struct ZTFormAutofillBottomPanel: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
-        .frame(maxHeight: maxPanelHeight, alignment: .top)
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.hidden)
         .modifier(ZTAutofillSheetSizingModifier())
@@ -658,10 +661,6 @@ public struct ZTFormAutofillBottomPanel: View {
     }
 
     private var reviewPanelHeight: CGFloat {
-        UIScreen.main.bounds.height * (UIDevice.current.userInterfaceIdiom == .pad ? 0.50 : 0.56)
-    }
-
-    private var maxPanelHeight: CGFloat {
         UIScreen.main.bounds.height * 0.55
     }
 
