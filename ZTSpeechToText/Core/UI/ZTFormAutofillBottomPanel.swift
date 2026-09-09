@@ -24,6 +24,8 @@ private enum ZTAutofillStrings {
     static var listening: String       { localized("lbl_autofill_listening",              fallback: "Listening…") }
     static var speakNow: String        { localized("lbl_autofill_speak_now",              fallback: "Speak now…") }
     static var stop: String            { localized("lbl_autofill_stop",                   fallback: "Stop") }
+    static var cancel: String          { localized("lbl_autofill_cancel",                 fallback: "Cancel") }
+    static var textFound: String       { localized("lbl_autofill_text_found",             fallback: "TEXT FOUND") }
     static var discard: String         { localized("lbl_autofill_discard",                fallback: "Discard") }
     static var check: String           { localized("lbl_autofill_check",                  fallback: "Check") }
     static var tryAgain: String        { localized("lbl_autofill_try_again",              fallback: "Try Again") }
@@ -160,6 +162,7 @@ public struct ZTFormAutofillBottomPanel: View {
     @State private var showPhotoSourceDialog = false
     @State private var showPhotoLibraryPicker = false
     @State private var showExtractionDismissAlert = false
+    @State private var showSpeechSheet = false
 
     public init(coordinator: ZTFormAutofillCoordinator, title: String = "Autofill details") {
         self.coordinator = coordinator
@@ -225,6 +228,18 @@ public struct ZTFormAutofillBottomPanel: View {
                 selectedPhotoItem = nil
             }
         }
+        .speechToTextSheet(
+            isPresented: $showSpeechSheet,
+            configuration: SpeechToTextSheetConfiguration(
+                preferredLanguage: coordinator.preferredLanguageForSpeechSheet(),
+                operationMode: .postRecording,
+                showsModelProviderSelector: false,
+                showsLiveTranscriptionToggle: false
+            ),
+            onTextReady: { _, text in
+                coordinator.handleSpokenText(text)
+            }
+        )
     }
 
     private var isExtractionInProgress: Bool {
@@ -243,14 +258,14 @@ public struct ZTFormAutofillBottomPanel: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.headline)
                         .foregroundStyle(Color(hex: "#0B6BEF"))
                     Text(title)
-                        .font(.system(size: 15.5, weight: .semibold))
+                        .font(.headline)
                         .foregroundStyle(Color(hex: "#10121A"))
                 }
                 Text(ZTAutofillStrings.pickerDescription)
-                    .font(.system(size: 12.5))
+                    .font(.subheadline)
                     .foregroundStyle(Color(hex: "#5a6070"))
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -263,7 +278,7 @@ public struct ZTFormAutofillBottomPanel: View {
             }
             .buttonStyle(.plain)
 
-            Button { coordinator.selectSpeak() } label: {
+            Button { showSpeechSheet = true } label: {
                 pickerRow(icon: "mic", title: ZTAutofillStrings.speak, subtitle: ZTAutofillStrings.speakSub)
             }
             .buttonStyle(.plain)
@@ -285,17 +300,17 @@ public struct ZTFormAutofillBottomPanel: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 15.5, weight: .semibold))
+                    .font(.headline)
                     .foregroundStyle(Color(hex: "#10121A"))
                 Text(subtitle)
-                    .font(.system(size: 12.5))
+                    .font(.subheadline)
                     .foregroundStyle(Color(hex: "#6c7079"))
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color(hex: "#c6c6cc"))
         }
         .padding(12)
@@ -316,10 +331,10 @@ public struct ZTFormAutofillBottomPanel: View {
                     scanningThumb
                     VStack(alignment: .leading, spacing: 6) {
                         Text(ZTAutofillStrings.readingPhoto)
-                            .font(.system(size: 15.5, weight: .semibold))
+                            .font(.headline)
                             .foregroundStyle(Color(hex: "#10121A"))
                         Text(ZTAutofillStrings.pullingDetails)
-                            .font(.system(size: 12.5))
+                            .font(.subheadline)
                             .foregroundStyle(Color(hex: "#5a6070"))
                         ZTAutofillShimmerBar()
                     }
@@ -328,19 +343,19 @@ public struct ZTFormAutofillBottomPanel: View {
 
                 if !coordinator.ocrText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("TEXT FOUND")
-                            .font(.system(size: 10.5, weight: .medium))
+                        Text(ZTAutofillStrings.textFound)
+                            .font(.caption)
                             .kerning(0.8)
                             .foregroundStyle(Color(hex: "#8892a4"))
                         Text(coordinator.ocrText)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(.caption.monospaced())
                             .foregroundStyle(Color(hex: "#3a4150"))
                             .lineSpacing(3)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 9)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
                     .background(Color.white.opacity(0.75))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(
@@ -361,10 +376,21 @@ public struct ZTFormAutofillBottomPanel: View {
                 RoundedRectangle(cornerRadius: 16)
                     .strokeBorder(Color(hex: "#d5e4fb"), lineWidth: 1)
             )
-            Spacer()
+
+            Button(ZTAutofillStrings.cancel) { coordinator.dismiss() }
+                .font(.headline)
+                .foregroundStyle(Color(hex: "#3a3d45"))
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(Color(hex: "#f2f2f7"))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .buttonStyle(.plain)
+
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
         .padding(.top, 24)
+        .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -399,35 +425,49 @@ public struct ZTFormAutofillBottomPanel: View {
 
     private var extractingView: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 9) {
-                ZTSparklesIcon()
-                    .frame(width: 28, height: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(ZTAutofillStrings.extracting)
-                        .font(.system(size: 15.5, weight: .semibold))
-                        .foregroundStyle(Color(hex: "#10121A"))
-                    Text(ZTAutofillStrings.matchingFields)
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(Color(hex: "#5a6070"))
+            VStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    ZTSparklesIcon()
+                        .frame(width: 28, height: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(ZTAutofillStrings.extracting)
+                            .font(.headline)
+                            .foregroundStyle(Color(hex: "#10121A"))
+                        Text(ZTAutofillStrings.matchingFields)
+                            .font(.subheadline)
+                            .foregroundStyle(Color(hex: "#5a6070"))
+                    }
+                    Spacer()
                 }
-                Spacer()
+                ZTAutofillShimmerBar()
             }
-            ZTAutofillShimmerBar()
-        }
-        .padding(14)
-        .background(
-            LinearGradient(
-                colors: [Color(hex: "#f5f9ff"), Color(hex: "#eef5ff")],
-                startPoint: .top, endPoint: .bottom
+            .padding(14)
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: "#f5f9ff"), Color(hex: "#eef5ff")],
+                    startPoint: .top, endPoint: .bottom
+                )
             )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(hex: "#d5e4fb"), lineWidth: 1)
-        )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(Color(hex: "#d5e4fb"), lineWidth: 1)
+            )
+
+            Button(ZTAutofillStrings.cancel) { coordinator.dismiss() }
+                .font(.headline)
+                .foregroundStyle(Color(hex: "#3a3d45"))
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(Color(hex: "#f2f2f7"))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .buttonStyle(.plain)
+
+            Spacer(minLength: 0)
+        }
         .padding(.horizontal, 16)
         .padding(.top, 24)
+        .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
@@ -440,13 +480,13 @@ public struct ZTFormAutofillBottomPanel: View {
                     .frame(width: 38, height: 38)
 
                 Text(ZTAutofillStrings.listening)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.headline)
                     .foregroundStyle(Color(hex: "#10121A"))
 
                 Spacer()
 
                 Button(ZTAutofillStrings.stop) { coordinator.stopListening() }
-                    .font(.system(size: 14.5, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color(hex: "#0B6BEF"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
@@ -456,7 +496,7 @@ public struct ZTFormAutofillBottomPanel: View {
             .padding(.bottom, 10)
 
             Text(coordinator.liveTranscript.isEmpty ? ZTAutofillStrings.speakNow : coordinator.liveTranscript)
-                .font(.system(size: 14.5))
+                .font(.body)
                 .foregroundStyle(coordinator.liveTranscript.isEmpty ? Color(hex: "#7a8090") : Color(hex: "#10121A"))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -473,10 +513,10 @@ public struct ZTFormAutofillBottomPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(ZTAutofillStrings.foundDetails(coordinator.candidates.count))
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(Color(hex: "#10121A"))
                 Text("\(coordinator.sourceLabel) \(ZTAutofillStrings.reviewSubtitle)")
-                    .font(.system(size: 12.5))
+                    .font(.subheadline)
                     .foregroundStyle(Color(hex: "#5a6070"))
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -508,7 +548,7 @@ public struct ZTFormAutofillBottomPanel: View {
                             )
                             .frame(width: 22, height: 22)
                         Text(ZTAutofillStrings.missingFields)
-                            .font(.system(size: 13))
+                            .font(.footnote)
                             .foregroundStyle(Color(hex: "#7a8090"))
                         Spacer()
                     }
@@ -522,7 +562,7 @@ public struct ZTFormAutofillBottomPanel: View {
             HStack(spacing: 10) {
                 Button { coordinator.dismiss() } label: {
                     Text(ZTAutofillStrings.discard)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.headline)
                         .foregroundStyle(Color(hex: "#3a3d45"))
                         .frame(height: 48)
                         .padding(.horizontal, 18)
@@ -534,7 +574,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 Button { coordinator.applySelected() } label: {
                     let count = coordinator.candidates.filter { $0.isSelected }.count
                     Text(ZTAutofillStrings.fillFields(count))
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.headline)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
@@ -555,10 +595,10 @@ public struct ZTFormAutofillBottomPanel: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(candidate.label)
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(Color(hex: "#7a8090"))
                 Text(candidate.value)
-                    .font(.system(size: 15.5, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundStyle(Color(hex: "#10121A"))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .multilineTextAlignment(.leading)
@@ -577,15 +617,15 @@ public struct ZTFormAutofillBottomPanel: View {
         VStack(spacing: 16) {
             Spacer()
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 36))
+                .font(.largeTitle)
                 .foregroundStyle(Color(hex: "#E0364C"))
             Text(message)
-                .font(.system(size: 14))
+                .font(.body)
                 .foregroundStyle(Color(hex: "#5a6070"))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
             Button(ZTAutofillStrings.tryAgain) { coordinator.retryFromPicker() }
-                .font(.system(size: 15, weight: .semibold))
+                .font(.headline)
                 .foregroundStyle(Color(hex: "#0B6BEF"))
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
@@ -604,7 +644,7 @@ public struct ZTFormAutofillBottomPanel: View {
             Circle().strokeBorder(isOn ? Color(hex: "#0B6BEF") : Color(hex: "#c6c6cc"), lineWidth: 1.6)
             if isOn {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(.white)
             }
         }
@@ -616,7 +656,8 @@ public struct ZTFormAutofillBottomPanel: View {
         switch step {
         case .picking:                     return [.height(380)]
         case .review:                      return [.medium, .large]
-        case .scanningPhoto, .extracting:  return [.height(220)]
+        case .scanningPhoto:               return [.height(420)]
+        case .extracting:                  return [.height(260)]
         case .listening:                   return [.height(260)]
         case .error:                       return [.height(300)]
         default:                           return [.medium]
@@ -792,7 +833,7 @@ struct ZTSparklesIcon: View {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(Color(hex: "#0b6bef"))
             Image(systemName: "sparkles")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
                 .scaleEffect(pulse ? 0.85 : 1.0)
                 .animation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true), value: pulse)

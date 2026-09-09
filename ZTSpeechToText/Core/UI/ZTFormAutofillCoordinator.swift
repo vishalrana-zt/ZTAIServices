@@ -153,6 +153,21 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         }
     }
 
+    public func preferredLanguageForSpeechSheet() -> SupportedLanguage {
+        resolvedLanguage()
+    }
+
+    public func handleSpokenText(_ text: String) {
+        extractionTask?.cancel()
+        speechBridge.cancel()
+        sourceLabel = Self.localizedLabel("lbl_autofill_source_voice", fallback: "Heard from your dictation.")
+        liveTranscript = text
+        extractionTask = Task { [weak self] in
+            guard let self else { return }
+            await self.runExtraction(from: text)
+        }
+    }
+
     public func toggleCandidate(id: String) {
         guard let idx = candidates.firstIndex(where: { $0.id == id }) else { return }
         candidates[idx].isSelected.toggle()
@@ -189,8 +204,15 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                 documentType: documentType
             )
             if Task.isCancelled { return }
-            let mapped = fieldMapper(result.outputText)
-            let nonEmpty = mapped.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            var mapped = fieldMapper(result.outputText)
+            var nonEmpty = mapped.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+            // Fallback to raw OCR/transcript text if structured output could not be mapped.
+            if nonEmpty.isEmpty, result.outputText != trimmed {
+                mapped = fieldMapper(trimmed)
+                nonEmpty = mapped.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            }
+
             if nonEmpty.isEmpty {
                 step = .error("No details could be extracted. Try again with a clearer source.")
             } else {
