@@ -44,7 +44,6 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     @Published public private(set) var step: Step = .idle
     @Published public var isSheetPresented = false
     @Published public private(set) var candidates: [ZTAutofillCandidate] = []
-    @Published public private(set) var appliedCount = 0
     @Published public private(set) var sourceLabel = ""
     @Published public private(set) var liveTranscript = ""
     @Published public private(set) var selectedImage: UIImage? = nil
@@ -59,7 +58,6 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     private let textAIService = TextAIService()
     private let speechBridge = SpeechToTextFlowBridge()
     private var extractionTask: Task<Void, Never>?
-    private var snapshotBeforeApply: [ZTAutofillCandidate] = []
 
     public init(
         documentType: StructuredDocumentType = .customer,

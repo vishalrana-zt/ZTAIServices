@@ -624,51 +624,11 @@ public struct ZTFormAutofillBottomPanel: View {
     }
 }
 
-// MARK: - Applied banner (shown inline in the form after fill)
+// MARK: - Applied banner (retained for API compatibility; no longer shown)
 
 public struct ZTFormAutofillAppliedBannerView: View {
-    @ObservedObject public var coordinator: ZTFormAutofillCoordinator
-
-    public init(coordinator: ZTFormAutofillCoordinator) {
-        self.coordinator = coordinator
-    }
-
-    public var body: some View {
-        if coordinator.step == .applied {
-            HStack(spacing: 10) {
-                Image(systemName: "checkmark")
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color(red: 0.114, green: 0.643, blue: 0.353))
-                Text(ZTAutofillStrings.bannerText(
-                    count: coordinator.appliedCount,
-                    source: coordinator.sourceLabel
-                        .lowercased()
-                        .trimmingCharacters(in: .punctuationCharacters)
-                        .trimmingCharacters(in: .whitespaces)
-                ))
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(Color(red: 0.227, green: 0.239, blue: 0.271))
-                .lineLimit(2)
-                Spacer(minLength: 8)
-                Divider().frame(height: 18)
-                Button(ZTAutofillStrings.undo) { coordinator.undoApply() }
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color(hex: "#0B6BEF"))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .buttonStyle(.plain)
-            }
-            .padding(.leading, 16)
-            .padding(.trailing, 8)
-            .padding(.vertical, 10)
-            .background(Capsule().fill(Color.white.opacity(0.94)))
-            .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 0.5))
-            .transition(.scale(scale: 0.96).combined(with: .opacity))
-        }
-    }
+    public init(coordinator: ZTFormAutofillCoordinator) {}
+    public var body: some View { EmptyView() }
 }
 
 // MARK: - Shimmer animation bar
