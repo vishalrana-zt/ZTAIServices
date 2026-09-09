@@ -197,21 +197,10 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             step = .error("No text was captured. Please try again.")
             return
         }
-        do {
-            let result = try await textAIService.structuredExtract(
-                text: trimmed,
-                preferredLanguage: resolvedLanguage(),
-                documentType: documentType
-            )
-            if Task.isCancelled { return }
-            var mapped = fieldMapper(result.outputText)
-            var nonEmpty = mapped.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
-            // Fallback to raw OCR/transcript text if structured output could not be mapped.
-            if nonEmpty.isEmpty, result.outputText != trimmed {
-                mapped = fieldMapper(trimmed)
-                nonEmpty = mapped.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            }
+        do {
+            let nonEmpty = try await extractCandidates(from: trimmed, allowsRetry: true)
+            if Task.isCancelled { return }
 
             if nonEmpty.isEmpty {
                 step = .error("No details could be extracted. Try again with a clearer source.")
@@ -224,6 +213,40 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             let msg = (error as? TextAIError)?.localizedDescription ?? error.localizedDescription
             step = .error(msg)
         }
+    }
+
+    private func extractCandidates(from text: String, allowsRetry: Bool) async throws -> [ZTAutofillCandidate] {
+        let result = try await textAIService.structuredExtract(
+            text: text,
+            preferredLanguage: resolvedLanguage(),
+            documentType: documentType
+        )
+        if Task.isCancelled { return [] }
+
+        let nonEmpty = mapNonEmptyCandidates(from: result.outputText, fallbackText: text)
+
+        // Structured extraction can occasionally return an unmappable payload on the first attempt.
+        // Retry once automatically before surfacing an error state to the user.
+        if nonEmpty.isEmpty, allowsRetry {
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            if Task.isCancelled { return [] }
+            return try await extractCandidates(from: text, allowsRetry: false)
+        }
+
+        return nonEmpty
+    }
+
+    private func mapNonEmptyCandidates(from extractedText: String, fallbackText: String) -> [ZTAutofillCandidate] {
+        var mapped = fieldMapper(extractedText)
+        var nonEmpty = mapped.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+        // Fallback to raw OCR/transcript text if structured output could not be mapped.
+        if nonEmpty.isEmpty, extractedText != fallbackText {
+            mapped = fieldMapper(fallbackText)
+            nonEmpty = mapped.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        }
+
+        return nonEmpty
     }
 
     private static func localizedLabel(_ key: String, fallback: String) -> String {

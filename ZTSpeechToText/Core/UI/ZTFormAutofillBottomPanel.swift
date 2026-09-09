@@ -18,7 +18,7 @@ private enum ZTAutofillStrings {
     static var speak: String           { localized("lbl_autofill_speak",                 fallback: "Speak") }
     static var speakSub: String        { localized("lbl_autofill_speak_subtitle",         fallback: "Say the details in any order") }
     static var readingPhoto: String    { localized("lbl_autofill_reading_photo",          fallback: "Reading the photo…") }
-    static var pullingDetails: String  { localized("lbl_autofill_pulling_details",        fallback: "Pulling details from the image") }
+    static var pullingDetails: String  { localized("lbl_autofill_pulling_details",        fallback: "Finding text in the image") }
     static var extracting: String      { localized("lbl_autofill_extracting_details",     fallback: "Extracting details…") }
     static var matchingFields: String  { localized("lbl_autofill_matching_fields",        fallback: "Matching to form fields") }
     static var listening: String       { localized("lbl_autofill_listening",              fallback: "Listening…") }
@@ -351,6 +351,7 @@ public struct ZTFormAutofillBottomPanel: View {
                             .font(.caption.monospaced())
                             .foregroundStyle(Color(hex: "#3a4150"))
                             .lineSpacing(3)
+                            .lineLimit(5)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -381,17 +382,15 @@ public struct ZTFormAutofillBottomPanel: View {
                 .font(.headline)
                 .foregroundStyle(Color(hex: "#3a3d45"))
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
+                .frame(height: 46)
                 .background(Color(hex: "#f2f2f7"))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .buttonStyle(.plain)
-
-            Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 24)
-        .padding(.bottom, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, 8)
+        .padding(.bottom, 18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var scanningThumb: some View {
@@ -458,16 +457,14 @@ public struct ZTFormAutofillBottomPanel: View {
                 .font(.headline)
                 .foregroundStyle(Color(hex: "#3a3d45"))
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
+                .frame(height: 46)
                 .background(Color(hex: "#f2f2f7"))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .buttonStyle(.plain)
-
-            Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 24)
-        .padding(.bottom, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
@@ -656,8 +653,10 @@ public struct ZTFormAutofillBottomPanel: View {
         switch step {
         case .picking:                     return [.height(380)]
         case .review:                      return [.medium, .large]
-        case .scanningPhoto:               return [.height(420)]
-        case .extracting:                  return [.height(260)]
+        case .scanningPhoto:
+            let hasOCR = !coordinator.ocrText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return [.height(hasOCR ? 360 : 300)]
+        case .extracting:                  return [.height(280)]
         case .listening:                   return [.height(260)]
         case .error:                       return [.height(300)]
         default:                           return [.medium]
