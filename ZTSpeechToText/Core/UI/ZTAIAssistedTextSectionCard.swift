@@ -140,6 +140,9 @@ public struct ZTAIAssistedTextSectionHostView: View {
             onDisappear: {
                 coordinator.handleSectionDisappear()
                 onDisappear?()
+            },
+            onAIMenuOpenChanged: { isOpen in
+                coordinator.isAIMenuOpen = isOpen
             }
         )
     }
@@ -229,6 +232,7 @@ public struct ZTAIAssistedTextSectionCard: View {
     public var livePreviewText: String = ""
     public var onMicTap: (() -> Void)?
     public var onDisappear: (() -> Void)?
+    public var onAIMenuOpenChanged: ((Bool) -> Void)?
 
     @StateObject private var aiController = ZTAIAssistantController()
     @State private var editorText: String = ""
@@ -313,7 +317,8 @@ public struct ZTAIAssistedTextSectionCard: View {
         isSpeechRecordingActive: Bool = false,
         livePreviewText: String = "",
         onMicTap: (() -> Void)? = nil,
-        onDisappear: (() -> Void)? = nil
+        onDisappear: (() -> Void)? = nil,
+        onAIMenuOpenChanged: ((Bool) -> Void)? = nil
     ) {
         self.title = title
         self.placeholder = placeholder
@@ -347,6 +352,7 @@ public struct ZTAIAssistedTextSectionCard: View {
         self.livePreviewText = livePreviewText
         self.onMicTap = onMicTap
         self.onDisappear = onDisappear
+        self.onAIMenuOpenChanged = onAIMenuOpenChanged
     }
 
     public var body: some View {
@@ -445,7 +451,7 @@ public struct ZTAIAssistedTextSectionCard: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.top, topPadding ?? cardVerticalPadding)
+        .padding(.top, (topPadding ?? cardVerticalPadding) + (canUseAIFeatures && showButtonsInHeader && cardHorizontalPadding == 0 ? 12 : 0))
         .padding(.bottom, bottomPadding ?? cardVerticalPadding)
         .padding(.horizontal, cardHorizontalPadding)
         .background(cardBackground, in: RoundedRectangle(cornerRadius: sectionCornerRadius, style: .continuous))
@@ -486,6 +492,7 @@ public struct ZTAIAssistedTextSectionCard: View {
                         }
                     }
                 )
+                .allowsHitTesting(aiController.isMenuOpen || aiController.toastState != nil)
                 .zIndex(10_000)
             }
         }
@@ -497,6 +504,9 @@ public struct ZTAIAssistedTextSectionCard: View {
         }
         .onChange(of: text) { newValue in
             if newValue != editorText { editorText = newValue }
+        }
+        .onChange(of: aiController.isMenuOpen) { isOpen in
+            onAIMenuOpenChanged?(isOpen)
         }
         .onDisappear {
             aiController.cancelActiveOperations()

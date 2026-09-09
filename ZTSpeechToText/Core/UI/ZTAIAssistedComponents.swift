@@ -942,6 +942,85 @@ private struct ZTAIAssistantToastView: View {
     }
 }
 
+/// A UIView wrapper that hosts a `ZTAICleanupPopupWrapper` UIHostingController.
+///
+/// It extends above the notes card to give the AI popup room to render and
+/// receive touches. Hit-testing is gated so the extended spacer area only
+/// intercepts touches when the popup is open — form fields above the notes
+/// section remain fully tappable when the popup is closed.
+public final class ZTAIPopupHostContainer: UIView {
+
+    /// The view representing the notes card area (e.g. noteContainerView).
+    /// Points inside this view are always forwarded to the hosting controller.
+    public weak var notesCardView: UIView?
+
+    public private(set) var isMenuOpen: Bool = false
+    private var menuCancellable: AnyCancellable?
+
+    public override init(frame: CGRect) { super.init(frame: frame) }
+    required init?(coder: NSCoder) { super.init(coder: coder) }
+
+    public func observe(coordinator: ZTAIAssistedTextSectionCoordinator) {
+        menuCancellable = coordinator.$isAIMenuOpen
+            .receive(on: RunLoop.main)
+            .sink { [weak self] isOpen in self?.isMenuOpen = isOpen }
+    }
+
+    public override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard !isHidden, alpha > 0.01, isUserInteractionEnabled else { return nil }
+        // Points inside the notes card always reach the hosting controller (text editing).
+        if let card = notesCardView {
+            let cardPoint = card.convert(point, from: self)
+            if card.bounds.contains(cardPoint) { return super.hitTest(point, with: event) }
+        }
+        // Extended spacer area: only forward when popup is open.
+        guard isMenuOpen else { return nil }
+        return super.hitTest(point, with: event)
+    }
+}
+
+/// Wraps a `ZTAIAssistedTextSectionHostView` with a transparent spacer above
+/// the editor so the AI popup—which floats above the card—can receive touches
+/// when embedded in a UIHostingController constrained to a small container.
+/// The spacer intercepts touches only while the popup is open, so all form
+/// elements above remain fully tappable when it is closed.
+public struct ZTAICleanupPopupWrapper: View {
+    @ObservedObject public var coordinator: ZTAIAssistedTextSectionCoordinator
+    public let content: ZTAIAssistedTextSectionHostView
+
+    public init(coordinator: ZTAIAssistedTextSectionCoordinator, content: ZTAIAssistedTextSectionHostView) {
+        self.coordinator = coordinator
+        self.content = content
+    }
+
+    /// Returns the spacer height needed for a given notes view. Pass the
+    /// negated result as the `constant` on the hosting view's `topAnchor`
+    /// constraint so the notes card renders at the original container position.
+    ///
+    /// Formula: estimated popup height + button offset – editor min height,
+    /// floored at 100pt, plus a 30pt safety buffer.
+    public static func overflowHeight(for content: ZTAIAssistedTextSectionHostView) -> CGFloat {
+        let buttonOffset: CGFloat = UIDevice.current.userInterfaceIdiom == .pad ? 56 : 58
+        let estimatedPopupHeight: CGFloat = 210
+        let raw = estimatedPopupHeight + buttonOffset - content.editorMinHeight
+        return max(100, raw) + 30
+    }
+
+    private var overflowHeight: CGFloat { Self.overflowHeight(for: content) }
+
+    public var body: some View {
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: overflowHeight)
+                .allowsHitTesting(coordinator.isAIMenuOpen)
+                .onTapGesture {
+                    ZTAIAssistantController.requestCloseOpenMenus()
+                }
+            content
+        }
+    }
+}
+
 @MainActor
 private func dismissKeyboardIfNeeded() {
     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)

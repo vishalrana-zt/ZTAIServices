@@ -8,6 +8,7 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
     @Published public var isSpeechToTextSheetPresented = false
     @Published public var isSpeechRecordingActive = false
     @Published public private(set) var livePreviewText = ""
+    @Published public var isAIMenuOpen: Bool = false
 
     private var isOnDeviceLiveStreamingAvailable = false
     private var liveSessionID: UUID?
