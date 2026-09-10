@@ -116,9 +116,6 @@ public final class SpeechToTextFlowBridge {
     }
 
     private func fallbackPreferredLanguage() -> SupportedLanguage {
-        let preferred = Locale.preferredLanguages.first?.lowercased() ?? "en"
-        if preferred.hasPrefix("es") { return .spanish }
-        if preferred.hasPrefix("fr") { return .french }
-        return .english
+        ZTAIServiceLocalizer.resolvedSupportedLanguage()
     }
 }

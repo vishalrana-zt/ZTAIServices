@@ -146,7 +146,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                 return
             }
             do {
-                try await self.speechBridge.start(configuration: .init(mode: .postRecording))
+                try await self.speechBridge.start(configuration: .init(preferredLanguage: self.resolvedLanguage(), mode: .postRecording))
             } catch {
                 step = .error(error.localizedDescription)
             }
