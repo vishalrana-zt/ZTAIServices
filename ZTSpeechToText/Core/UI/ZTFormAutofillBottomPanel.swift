@@ -203,7 +203,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 EmptyView()
             case .picking:
                 pickerView
-                    .frame(height: 380, alignment: .top)
+                    .frame(height: 400, alignment: .top)
             case .scanningPhoto:
                 scanningPhotoView
                     .frame(height: 238, alignment: .top)
@@ -667,7 +667,7 @@ public struct ZTFormAutofillBottomPanel: View {
     private func detentsForStep(_ step: ZTFormAutofillCoordinator.Step) -> Set<PresentationDetent> {
         let progressDetent: PresentationDetent = .height(220)
         switch step {
-        case .picking:                     return [.height(380)]
+        case .picking:                     return [.height(400)]
         case .review:                      return [.medium, .large]
         case .scanningPhoto:               return [progressDetent]
         case .extracting:                  return [progressDetent]
