@@ -88,6 +88,18 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
         return capable
     }
 
+    /// True when the device supports on-device speech transcription via Apple SpeechAnalyzer
+    /// in either live-streaming or post-recording mode. Use this to decide whether to
+    /// show the Apple SpeechAnalyzer badge in the UI.
+    public var isAppleSpeechAnalyzerAvailable: Bool {
+        guard #available(iOS 26.0, *) else { return false }
+        appleCapabilityLock.lock()
+        let liveCapable = didCheckAdvancedAppleTranscriberCapability && advancedDictationTranscriberCapable
+        let speechCapable = didCheckAdvancedAppleTranscriberCapability && advancedSpeechTranscriberCapable
+        appleCapabilityLock.unlock()
+        return liveCapable || speechCapable
+    }
+
     public struct DownloadStatus: Equatable {
         public let progress: Double
         public let downloadedBytes: Int64

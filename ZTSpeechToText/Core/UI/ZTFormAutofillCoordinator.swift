@@ -63,6 +63,10 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     private let textAIService = TextAIService()
     private let speechBridge = SpeechToTextFlowBridge()
     private var extractionTask: Task<Void, Never>?
+    // Keyed by trimmed OCR/transcript text so the same card never hits the Cloud API twice
+    // within the same session (covers repeated test scans of the same card).
+    private var extractionCache: [String: [ZTAutofillCandidate]] = [:]
+    private let extractionCacheMaxSize = 10
 
     public init(
         documentType: StructuredDocumentType = .customer,
@@ -117,14 +121,40 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         extractionTask = Task { [weak self] in
             guard let self else { return }
             do {
+                #if DEBUG
+                let ocrStart = Date()
+                #endif
                 let text = try await self.ocrEngine.recognizeText(in: image, languageHints: [])
+                #if DEBUG
+                if CloudAPIConfiguration.isLoggingEnabled {
+                    print("[AUTOFILL_TIMING] OCR: \(String(format: "%.2f", Date().timeIntervalSince(ocrStart)))s")
+                }
+                #endif
                 if Task.isCancelled { return }
                 await MainActor.run {
                     self.ocrText = text
                     self.previewCandidates = self.mapNonEmptyCandidates(from: text, fallbackText: text)
                 }
-                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    try? await Task.sleep(nanoseconds: 700_000_000)
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                // Return cached extraction immediately — same card never hits the Cloud API twice.
+                let cached = await MainActor.run { self.extractionCache[trimmed] }
+                if !trimmed.isEmpty, let cached {
+                    #if DEBUG
+                    if CloudAPIConfiguration.isLoggingEnabled {
+                        print("[AUTOFILL_TIMING] Cache hit — \(cached.count) candidates, skipping Cloud API")
+                    }
+                    #endif
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    if Task.isCancelled { return }
+                    await MainActor.run {
+                        self.candidates = cached
+                        self.previewCandidates = cached
+                        self.step = .review
+                    }
+                    return
+                }
+                if !trimmed.isEmpty {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
                     if Task.isCancelled { return }
                 }
                 await self.runExtraction(from: text)
@@ -242,12 +272,24 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         }
 
         do {
+            #if DEBUG
+            let extractStart = Date()
+            #endif
             let nonEmpty = try await extractCandidates(from: trimmed, allowsRetry: true)
+            #if DEBUG
+            if CloudAPIConfiguration.isLoggingEnabled {
+                print("[AUTOFILL_TIMING] Extraction: \(String(format: "%.2f", Date().timeIntervalSince(extractStart)))s, \(nonEmpty.count) candidates")
+            }
+            #endif
             if Task.isCancelled { return }
 
             if nonEmpty.isEmpty {
-                step = .error("No details could be extracted. Try again with a clearer source.")
+                step = .error(Self.localizedLabel(
+                    "err_autofill_no_details_extracted",
+                    fallback: "No details could be extracted from the provided input."
+                ))
             } else {
+                cacheExtraction(key: trimmed, candidates: nonEmpty)
                 candidates = nonEmpty
                 previewCandidates = nonEmpty
                 step = .review
@@ -283,6 +325,15 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         if Task.isCancelled { return [] }
 
         let nonEmpty = mapNonEmptyCandidates(from: result.outputText, fallbackText: text)
+        #if DEBUG
+        if CloudAPIConfiguration.isLoggingEnabled {
+            if nonEmpty.isEmpty {
+                print("[AUTOFILL_DEBUG] fieldMapper empty — provider=\(result.provider.rawValue) output=\(result.outputText.prefix(300))")
+            } else {
+                print("[AUTOFILL_DEBUG] fieldMapper ok — \(nonEmpty.count) candidates via \(result.provider.rawValue)")
+            }
+        }
+        #endif
 
         // Structured extraction can occasionally return an unmappable payload on the first attempt.
         // Retry once automatically before surfacing an error state to the user.
@@ -293,6 +344,13 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         }
 
         return nonEmpty
+    }
+
+    private func cacheExtraction(key: String, candidates: [ZTAutofillCandidate]) {
+        if extractionCache.count >= extractionCacheMaxSize, let oldest = extractionCache.keys.first {
+            extractionCache.removeValue(forKey: oldest)
+        }
+        extractionCache[key] = candidates
     }
 
     private func mapNonEmptyCandidates(from extractedText: String, fallbackText: String) -> [ZTAutofillCandidate] {

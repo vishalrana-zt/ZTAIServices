@@ -122,3 +122,4 @@
 "lbl_autofill_source_photo" = "Lu depuis la photo.";
 "lbl_autofill_source_voice" = "Entendu depuis votre dictée.";
 "err_autofill_no_internet" = "Aucune connexion internet. Connectez-vous à internet et réessayez.";
+"err_autofill_no_details_extracted" = "Aucun détail n'a pu être extrait de l'entrée fournie.";

@@ -830,6 +830,9 @@ public struct ZTAIAssistantMenuOverlay: View {
                             .lineLimit(1).minimumScaleFactor(0.82)
                     }
                     Spacer()
+                    if ZTAIModelBadgeKind.isAppleFoundationModelsAvailable {
+                        ZTAIModelBadge(kind: .appleFoundationModels)
+                    }
                 }
                 .contentShape(Rectangle())
             }

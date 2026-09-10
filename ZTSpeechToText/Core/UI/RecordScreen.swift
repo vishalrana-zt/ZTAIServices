@@ -192,6 +192,10 @@ struct RecordScreen: View {
 
                 Spacer(minLength: isPad ? 8 : 4)
 
+                if ZTAIModelBadgeKind.isAppleSpeechAnalyzerAvailable {
+                    ZTAIModelBadge(kind: .appleSpeechAnalyzer)
+                }
+
                 Button(action: {
                     if isListening {
                         handleStopTapped()

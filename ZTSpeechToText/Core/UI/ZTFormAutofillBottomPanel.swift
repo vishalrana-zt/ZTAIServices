@@ -184,10 +184,6 @@ public struct ZTFormAutofillBottomPanel: View {
     @ObservedObject public var coordinator: ZTFormAutofillCoordinator
     public let title: String
 
-    private var onDeviceBadge: ZTAIModelBadgeKind? {
-        coordinator.activeModelBadge
-    }
-
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showCameraPicker = false
     @State private var showPhotoSourceDialog = false
@@ -210,23 +206,20 @@ public struct ZTFormAutofillBottomPanel: View {
                     .frame(height: pickerPanelHeight, alignment: .top)
             case .scanningPhoto:
                 scanningPhotoView
-                    .frame(height: 238, alignment: .top)
-            case .listening:
-                listeningView
-                    .frame(height: 260, alignment: .top)
-            case .extracting:
+                    .frame(height: UIDevice.current.userInterfaceIdiom == .pad ? 200 : 220, alignment: .top)
+            case .extracting, .listening:
                 extractingView
-                    .frame(height: 224, alignment: .top)
+                    .frame(height: UIDevice.current.userInterfaceIdiom == .pad ? 200 : 220, alignment: .top)
             case .review:
                 reviewView
                     .frame(height: reviewPanelHeight, alignment: .top)
             case .error(let message):
                 errorView(message)
-                    .frame(height: 300, alignment: .top)
+                    .frame(height: 260, alignment: .top)
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
-        .blur(radius: showSpeechSheet ? 10 : 0)
+        .blur(radius: showSpeechSheet ? 6 : 0)
         .allowsHitTesting(!showSpeechSheet)
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.hidden)
@@ -291,10 +284,28 @@ public struct ZTFormAutofillBottomPanel: View {
         }
     }
 
+    private var pickerHeaderBadge: ZTAIModelBadgeKind? {
+        let supportsPhoto = ZTAIModelBadgeKind.isAppleVisionOCRAvailable
+        let supportsSpeech = ZTAIModelBadgeKind.isAppleSpeechAnalyzerAvailable
+        return (supportsPhoto && supportsSpeech) ? .appleFoundationModels : nil
+    }
+
+    private var photoRowBadge: ZTAIModelBadgeKind? {
+        let supportsPhoto = ZTAIModelBadgeKind.isAppleVisionOCRAvailable
+        let supportsSpeech = ZTAIModelBadgeKind.isAppleSpeechAnalyzerAvailable
+        return (supportsPhoto && !supportsSpeech) ? .appleVisionOCR : nil
+    }
+
+    private var speechRowBadge: ZTAIModelBadgeKind? {
+        let supportsPhoto = ZTAIModelBadgeKind.isAppleVisionOCRAvailable
+        let supportsSpeech = ZTAIModelBadgeKind.isAppleSpeechAnalyzerAvailable
+        return (!supportsPhoto && supportsSpeech) ? .appleSpeechAnalyzer : nil
+    }
+
     // MARK: - Picker
 
     private var pickerView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
@@ -303,6 +314,10 @@ public struct ZTFormAutofillBottomPanel: View {
                     Text(title)
                         .font(.headline)
                         .foregroundStyle(Color(hex: "#10121A"))
+                    Spacer()
+                    if let headerBadge = pickerHeaderBadge {
+                        ZTAIModelBadge(kind: headerBadge)
+                    }
                 }
                 Text(ZTAutofillStrings.pickerDescription)
                     .font(.subheadline)
@@ -318,7 +333,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     icon: "camera",
                     title: ZTAutofillStrings.scanPhoto,
                     subtitle: ZTAutofillStrings.scanPhotoSub,
-                    badge: .appleVisionOCR
+                    trailingBadge: photoRowBadge
                 )
             }
             .buttonStyle(.plain)
@@ -328,7 +343,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     icon: "mic",
                     title: ZTAutofillStrings.speak,
                     subtitle: ZTAutofillStrings.speakSub,
-                    badge: .appleSpeechAnalyzer
+                    trailingBadge: speechRowBadge
                 )
             }
             .buttonStyle(.plain)
@@ -337,13 +352,11 @@ public struct ZTFormAutofillBottomPanel: View {
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .top)
-        .padding(.horizontal, 16)
-        .padding(.top, 20)
-        .padding(.bottom, 20)
+        .padding(16)
         .background(Color.white)
     }
 
-    private func pickerRow(icon: String, title: String, subtitle: String, badge: ZTAIModelBadgeKind? = nil) -> some View {
+    private func pickerRow(icon: String, title: String, subtitle: String, trailingBadge: ZTAIModelBadgeKind? = nil) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.title3.weight(.semibold))
@@ -363,11 +376,11 @@ public struct ZTFormAutofillBottomPanel: View {
 
             Spacer()
 
-            if let badge {
-                ZTAIModelBadge(kind: badge)
+            if let trailingBadge {
+                ZTAIModelBadge(kind: trailingBadge)
             }
         }
-        .padding(12)
+        .padding(10)
         .background(Color(hex: "#f5f7fb"))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
@@ -379,14 +392,8 @@ public struct ZTFormAutofillBottomPanel: View {
     // MARK: - Scanning photo
 
     private var scanningPhotoView: some View {
-        VStack(spacing: 14) {
-            if let badge = onDeviceBadge {
-                HStack {
-                    ZTAIModelBadge(kind: badge)
-                    Spacer()
-                }
-            }
-            VStack(spacing: 12) {
+        VStack(spacing: 10) {
+            VStack(spacing: 10) {
                 HStack(spacing: 12) {
                     scanningThumb
                     VStack(alignment: .leading, spacing: 6) {
@@ -399,9 +406,12 @@ public struct ZTFormAutofillBottomPanel: View {
                         ZTAutofillShimmerBar()
                     }
                     Spacer()
+                    if ZTAIModelBadgeKind.isAppleVisionOCRAvailable {
+                        ZTAIModelBadge(kind: .appleVisionOCR)
+                    }
                 }
             }
-            .padding(16)
+            .padding(10)
             .background(
                 LinearGradient(
                     colors: [Color(hex: "#f5f9ff"), Color(hex: "#eef5ff")],
@@ -452,14 +462,8 @@ public struct ZTFormAutofillBottomPanel: View {
     // MARK: - Extracting
 
     private var extractingView: some View {
-        VStack(spacing: 14) {
-            if let badge = onDeviceBadge {
-                HStack {
-                    ZTAIModelBadge(kind: badge)
-                    Spacer()
-                }
-            }
-            VStack(spacing: 12) {
+        VStack(spacing: 10) {
+            VStack(spacing: 10) {
                 HStack(spacing: 10) {
                     ZTSparklesIcon()
                         .frame(width: 28, height: 28)
@@ -472,10 +476,13 @@ public struct ZTFormAutofillBottomPanel: View {
                             .foregroundStyle(Color(hex: "#5a6070"))
                     }
                     Spacer()
+                    if ZTAIModelBadgeKind.isAppleFoundationModelsAvailable {
+                        ZTAIModelBadge(kind: .appleFoundationModels)
+                    }
                 }
                 ZTAutofillShimmerBar()
             }
-            .padding(16)
+            .padding(10)
             .background(
                 LinearGradient(
                     colors: [Color(hex: "#f5f9ff"), Color(hex: "#eef5ff")],
@@ -496,58 +503,11 @@ public struct ZTFormAutofillBottomPanel: View {
         .frame(maxWidth: .infinity, alignment: .top)
     }
 
-    // MARK: - Listening
-
-    private var listeningView: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let badge = onDeviceBadge {
-                HStack {
-                    ZTAIModelBadge(kind: badge)
-                    Spacer()
-                }
-                .padding(.bottom, 10)
-            }
-            HStack(alignment: .center, spacing: 11) {
-                ZTRecordingPulseView()
-                    .frame(width: 38, height: 38)
-
-                Text(ZTAutofillStrings.listening)
-                    .font(.headline)
-                    .foregroundStyle(Color(hex: "#10121A"))
-
-                Spacer()
-
-                Button(ZTAutofillStrings.stop) { coordinator.stopListening() }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color(hex: "#0B6BEF"))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Color(hex: "#e8f1ff").opacity(0.8))
-                    .clipShape(RoundedRectangle(cornerRadius: 9))
-            }
-            .padding(.bottom, 10)
-
-            Text(coordinator.liveTranscript.isEmpty ? ZTAutofillStrings.speakNow : coordinator.liveTranscript)
-                .font(.body)
-                .foregroundStyle(coordinator.liveTranscript.isEmpty ? Color(hex: "#7a8090") : Color(hex: "#10121A"))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer()
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .top)
-    }
-
     // MARK: - Review
 
     private var reviewView: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 3) {
-                if let badge = onDeviceBadge {
-                    ZTAIModelBadge(kind: badge)
-                        .padding(.bottom, 6)
-                }
                 Text(ZTAutofillStrings.foundDetails(coordinator.candidates.count))
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Color(hex: "#10121A"))
@@ -576,7 +536,7 @@ public struct ZTFormAutofillBottomPanel: View {
                         }
                     }
 
-                    HStack(spacing: 11) {
+                    HStack(spacing: 12) {
                         Circle()
                             .strokeBorder(
                                 Color(hex: "#c6c6cc").opacity(0.8),
@@ -588,7 +548,7 @@ public struct ZTFormAutofillBottomPanel: View {
                             .foregroundStyle(Color(hex: "#7a8090"))
                         Spacer()
                     }
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                 }
             }
@@ -601,7 +561,7 @@ public struct ZTFormAutofillBottomPanel: View {
                         .font(.headline)
                         .foregroundStyle(Color(hex: "#3a3d45"))
                         .frame(height: 48)
-                        .padding(.horizontal, 18)
+                        .padding(.horizontal, 16)
                         .background(Color(hex: "#f2f2f7"))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
@@ -643,7 +603,7 @@ public struct ZTFormAutofillBottomPanel: View {
             Spacer(minLength: 4)
 
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
 
@@ -704,24 +664,56 @@ public struct ZTFormAutofillBottomPanel: View {
     }
 
     private var pickerPanelHeight: CGFloat {
-        UIDevice.current.userInterfaceIdiom == .pad ? 320 : 400
+        if UIDevice.current.userInterfaceIdiom == .phone{
+            return 400
+        }
+        return 350
     }
 
     private var reviewPanelHeight: CGFloat {
-        UIScreen.main.bounds.height * 0.55
+        (presentedPopoverHeight() ?? UIScreen.main.bounds.height) * 0.7
+    }
+
+    private func presentedPopoverHeight() -> CGFloat? {
+        guard UIDevice.current.userInterfaceIdiom == .pad else { return nil }
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let keyWindow = scene.windows.first(where: { $0.isKeyWindow }),
+              let topController = keyWindow.rootViewController?.ztTopMostPresentedController else {
+            return nil
+        }
+
+        let isPopover = topController.modalPresentationStyle == .popover || topController.popoverPresentationController != nil
+        guard isPopover else { return nil }
+
+        let preferredHeight = topController.preferredContentSize.height
+        if preferredHeight > 0 {
+            return preferredHeight
+        }
+
+        let renderedHeight = topController.view.bounds.height
+        return renderedHeight > 0 ? renderedHeight : nil
+    }
+
+    private func isPresentedAsPopover() -> Bool {
+        presentedPopoverHeight() != nil
     }
 
     private func detentsForStep(_ step: ZTFormAutofillCoordinator.Step) -> Set<PresentationDetent> {
-        let progressDetent: PresentationDetent = .height(220)
+        let progressDetent: PresentationDetent = .height(UIDevice.current.userInterfaceIdiom == .pad ? 200 : 220)
         switch step {
         case .picking:                     return [.height(pickerPanelHeight)]
         case .review:                      return [.medium, .large]
         case .scanningPhoto:               return [progressDetent]
-        case .extracting:                  return [progressDetent]
-        case .listening:                   return [.height(260)]
+        case .extracting, .listening:      return [progressDetent]
         case .error:                       return [.height(300)]
         default:                           return [.medium]
         }
+    }
+}
+
+private extension UIViewController {
+    var ztTopMostPresentedController: UIViewController {
+        presentedViewController?.ztTopMostPresentedController ?? self
     }
 }
 

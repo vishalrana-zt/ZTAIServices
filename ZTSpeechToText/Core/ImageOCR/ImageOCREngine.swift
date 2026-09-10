@@ -63,14 +63,28 @@ public struct ImageOCREngine {
         case ciImage(CIImage)
     }
 
+    // Vision doesn't benefit from full-resolution camera photos — 1500px on the long edge
+    // gives accurate text recognition while cutting processing time significantly for
+    // typical 12–48 MP phone images.
+    private func resizedForOCR(_ image: UIImage) -> UIImage {
+        let maxDimension: CGFloat = 1500
+        let size = image.size
+        guard size.width > maxDimension || size.height > maxDimension else { return image }
+        let scale = maxDimension / max(size.width, size.height)
+        let newSize = CGSize(width: (size.width * scale).rounded(), height: (size.height * scale).rounded())
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+    }
+
     // Recognizes all readable text in the given image.
     // languageHints: BCP-47 codes (e.g. "en-US") improve accuracy but are optional.
     // Returns the full extracted text with lines joined by newlines.
     public func recognizeText(in image: UIImage, languageHints: [String] = []) async throws -> String {
+        let input = resizedForOCR(image)
         let source: VisionImageSource
-        if let cgImage = image.cgImage {
+        if let cgImage = input.cgImage {
             source = .cgImage(cgImage)
-        } else if let ciImage = image.ciImage ?? CIImage(image: image) {
+        } else if let ciImage = input.ciImage ?? CIImage(image: input) {
             source = .ciImage(ciImage)
         } else {
             throw ImageOCRError.invalidImage

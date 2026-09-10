@@ -1,5 +1,8 @@
 import SwiftUI
 import ZTAIServices
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 
 public enum ZTAIModelBadgeKind: Equatable {
     case appleSpeechAnalyzer
@@ -15,17 +18,6 @@ public enum ZTAIModelBadgeKind: Equatable {
         }
     }
 
-    var iconName: String {
-        switch self {
-        case .appleSpeechAnalyzer:
-            return "waveform"
-        case .appleFoundationModels:
-            return "sparkles"
-        case .appleVisionOCR:
-            return "text.viewfinder"
-        }
-    }
-
     var title: String {
         switch self {
         case .appleSpeechAnalyzer:
@@ -35,6 +27,30 @@ public enum ZTAIModelBadgeKind: Equatable {
         case .appleVisionOCR:
             return "On-device OCR"
         }
+    }
+
+    /// Apple Vision OCR is always available on iOS — show this badge for all photo-scanning paths.
+    public static var isAppleVisionOCRAvailable: Bool {
+        true
+    }
+
+    /// Returns true when the device supports on-device speech via Apple SpeechAnalyzer
+    /// (live-streaming or post-recording). False → Cloud API transcription, no badge shown.
+    public static var isAppleSpeechAnalyzerAvailable: Bool {
+        SpeechToTextManager.shared.isAppleSpeechAnalyzerAvailable
+    }
+
+    /// Returns true when Apple Foundation Models is available on this device.
+    /// False → Cloud API extraction, no badge shown.
+    public static var isAppleFoundationModelsAvailable: Bool {
+        if #available(iOS 26.0, *) {
+            #if canImport(FoundationModels)
+            return SystemLanguageModel.default.isAvailable
+            #else
+            return false
+            #endif
+        }
+        return false
     }
 
     var tint: Color {
@@ -57,17 +73,21 @@ public struct ZTAIModelBadge: View {
     }
 
     public var body: some View {
-        Image(systemName: kind.iconName)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(kind.tint)
-            .frame(width: 20, height: 20)
+        iconView
+            .frame(width: 24, height: 24)
             .padding(6)
-            .background(kind.tint.opacity(0.12), in: Circle())
             .overlay(
-                Circle()
-                    .stroke(kind.tint.opacity(0.35), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.black.opacity(0.15), lineWidth: 0.5)
             )
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(kind.title)
+    }
+
+    private var iconView: some View {
+        Image("icn_apple_foundation", bundle: .module)
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
     }
 }
