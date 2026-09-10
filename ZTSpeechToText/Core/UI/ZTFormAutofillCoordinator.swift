@@ -22,6 +22,8 @@ public struct ZTAutofillCandidate: Identifiable {
     }
 }
 
+public enum ZTAutofillImageSource { case camera, library }
+
 // MARK: - Coordinator
 
 @MainActor
@@ -52,6 +54,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     public var onApply: (([ZTAutofillCandidate]) -> Void)?
     public var onUndo: (() -> Void)?
+    public var onAnalyticsEvent: ((String, [String: Any]) -> Void)?
 
     private let documentType: StructuredDocumentType
     private let fieldMapper: @Sendable (String) -> [ZTAutofillCandidate]
@@ -83,6 +86,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         ocrText = ""
         step = .picking
         isSheetPresented = true
+        onAnalyticsEvent?("AI_AUTOFILL_OPENED", ["document_type": documentType.rawValue])
     }
 
     public func dismiss() {
@@ -99,10 +103,11 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         step = .idle
     }
 
-    public func handleSelectedImage(_ image: UIImage) {
+    public func handleSelectedImage(_ image: UIImage, source: ZTAutofillImageSource = .library) {
         selectedImage = image
         ocrText = ""
         extractionTask?.cancel()
+        onAnalyticsEvent?("AI_AUTOFILL_SOURCE_PHOTO", ["source": source == .camera ? "camera" : "library"])
         sourceLabel = Self.localizedLabel("lbl_autofill_source_photo", fallback: "Read from the photo.")
         step = .scanningPhoto
         extractionTask = Task { [weak self] in
@@ -129,6 +134,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     public func selectSpeak() {
         extractionTask?.cancel()
+        onAnalyticsEvent?("AI_AUTOFILL_SOURCE_AUDIO", [:])
         sourceLabel = Self.localizedLabel("lbl_autofill_source_voice", fallback: "Heard from your dictation.")
         liveTranscript = ""
         previewCandidates = []
@@ -191,6 +197,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     public func applySelected() {
         let selected = candidates.filter { $0.isSelected }
+        onAnalyticsEvent?("AI_AUTOFILL_APPLIED", ["candidate_count": selected.count])
         onApply?(selected)
         candidates = []
         previewCandidates = []

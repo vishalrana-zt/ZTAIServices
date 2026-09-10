@@ -248,7 +248,7 @@ public struct ZTFormAutofillBottomPanel: View {
             Button(ZTAutofillStrings.discard, role: .cancel) {}
         }
         .sheet(isPresented: $showCameraPicker) {
-            ZTInlineCameraPickerView { image in coordinator.handleSelectedImage(image) }
+            ZTInlineCameraPickerView { image in coordinator.handleSelectedImage(image, source: .camera) }
                 .ignoresSafeArea()
         }
         .photosPicker(isPresented: $showPhotoLibraryPicker, selection: $selectedPhotoItem, matching: .images)
@@ -257,7 +257,7 @@ public struct ZTFormAutofillBottomPanel: View {
             Task {
                 if let data = try? await item.loadTransferable(type: Data.self),
                    let image = UIImage(data: data) {
-                    coordinator.handleSelectedImage(image)
+                    coordinator.handleSelectedImage(image, source: .library)
                 }
                 selectedPhotoItem = nil
             }

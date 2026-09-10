@@ -9,6 +9,7 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
     @Published public var isSpeechRecordingActive = false
     @Published public private(set) var livePreviewText = ""
     @Published public var isAIMenuOpen: Bool = false
+    public var onAnalyticsEvent: ((String, [String: Any]) -> Void)?
 
     private var isOnDeviceLiveStreamingAvailable = false
     private var liveSessionID: UUID?

@@ -268,6 +268,7 @@ public final class ZTAIAssistantController: ObservableObject {
     @Published public var isMenuOpen = false
     @Published public var toastState: ZTAIToastState?
     @Published public var errorMessage: String?
+    public var onAnalyticsEvent: ((String, [String: Any]) -> Void)?
 
     private let aiCancelRevealDelay: UInt64 = 2_000_000_000
 
@@ -324,15 +325,18 @@ public final class ZTAIAssistantController: ObservableObject {
         if isRecording {
             stopRecording(applyText: applyText)
         } else {
+            onAnalyticsEvent?("AI_MIC_TAPPED", [:])
             startRecording(currentText: currentText, applyText: applyText)
         }
     }
 
     public func runCleanUp(currentText: @escaping () -> String, applyText: @escaping (String) -> Void) {
+        onAnalyticsEvent?("AI_CLEANUP_TAPPED", [:])
         runAIAction(action: .cleaningUp, currentText: currentText, applyText: applyText)
     }
 
     public func runSummarize(style: ZTAISummaryStyle, currentText: @escaping () -> String, applyText: @escaping (String) -> Void) {
+        onAnalyticsEvent?("AI_SUMMARIZE_TAPPED", ["mode": style.rawValue])
         runAIAction(action: .summarizing(style), currentText: currentText, applyText: applyText)
     }
 

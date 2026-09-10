@@ -195,6 +195,7 @@ public struct ZTAIAssistedSpeechToTextSheetHostView: View {
             }
             .onAppear {
                 coordinator.prepareForScreenAppearance()
+                aiController.onAnalyticsEvent = coordinator.onAnalyticsEvent
             }
     }
 }
