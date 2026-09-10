@@ -222,6 +222,8 @@ public struct ZTFormAutofillBottomPanel: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
+        .blur(radius: showSpeechSheet ? 10 : 0)
+        .allowsHitTesting(!showSpeechSheet)
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.hidden)
         .modifier(ZTAutofillSheetSizingModifier())
