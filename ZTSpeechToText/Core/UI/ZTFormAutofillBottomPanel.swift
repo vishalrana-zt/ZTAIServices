@@ -28,7 +28,7 @@ private enum ZTAutofillStrings {
     static var textFound: String       { localized("lbl_autofill_text_found",             fallback: "TEXT FOUND") }
     static var discard: String         { localized("lbl_autofill_discard",                fallback: "Discard") }
     static var check: String           { localized("lbl_autofill_check",                  fallback: "Check") }
-    static var tryAgain: String        { localized("lbl_autofill_try_again",              fallback: "Try Again") }
+    static var tryAgain: String        { localized("lbl_autofill_try_again",              fallback: "Try again") }
     static var missingFields: String   { localized("lbl_autofill_missing_fields",         fallback: "Fields not found will need to be filled manually.") }
     static var undo: String            { localized("lbl_autofill_undo",                   fallback: "Undo") }
     static var reviewSubtitle: String  { localized("lbl_autofill_review_subtitle",        fallback: "Untick anything you don't want. Nothing is written to the form until you tap Fill.") }
@@ -305,7 +305,7 @@ public struct ZTFormAutofillBottomPanel: View {
     // MARK: - Picker
 
     private var pickerView: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
@@ -349,7 +349,6 @@ public struct ZTFormAutofillBottomPanel: View {
             .buttonStyle(.plain)
 
             cancelButton
-                .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .padding(16)
@@ -392,9 +391,9 @@ public struct ZTFormAutofillBottomPanel: View {
     // MARK: - Scanning photo
 
     private var scanningPhotoView: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 16) {
             VStack(spacing: 10) {
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     scanningThumb
                     VStack(alignment: .leading, spacing: 6) {
                         Text(ZTAutofillStrings.readingPhoto)
@@ -427,7 +426,7 @@ public struct ZTFormAutofillBottomPanel: View {
             cancelButton
         }
         .padding(.horizontal, panelHorizontalPadding)
-        .padding(.top, 32)
+        .padding(.top, 24)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .top)
     }
@@ -462,11 +461,11 @@ public struct ZTFormAutofillBottomPanel: View {
     // MARK: - Extracting
 
     private var extractingView: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 16) {
             VStack(spacing: 10) {
                 HStack(spacing: 10) {
                     ZTSparklesIcon()
-                        .frame(width: 28, height: 28)
+                        .frame(width: 32, height: 32)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(ZTAutofillStrings.extracting)
                             .font(.headline)
@@ -498,7 +497,7 @@ public struct ZTFormAutofillBottomPanel: View {
             cancelButton
         }
         .padding(.horizontal, panelHorizontalPadding)
-        .padding(.top, 32)
+        .padding(.top, 24)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .top)
     }
@@ -586,7 +585,7 @@ public struct ZTFormAutofillBottomPanel: View {
     }
 
     private func reviewRow(_ candidate: ZTAutofillCandidate) -> some View {
-        HStack(alignment: .center, spacing: 11) {
+        HStack(alignment: .center, spacing: 12) {
             checkmarkCircle(isOn: candidate.isSelected)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -619,13 +618,25 @@ public struct ZTFormAutofillBottomPanel: View {
                 .foregroundStyle(Color(hex: "#5a6070"))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
-            Button(ZTAutofillStrings.tryAgain) { coordinator.retryFromPicker() }
-                .font(.headline)
-                .foregroundStyle(Color(hex: "#0B6BEF"))
-                .padding(.horizontal, 24)
-                .padding(.vertical, 10)
-                .background(Color(hex: "#e8f1ff"))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+            HStack(spacing: 12) {
+                Button(ZTAutofillStrings.tryAgain) { coordinator.retryFromPicker() }
+                    .font(.headline)
+                    .foregroundStyle(Color.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color(hex: "#0B6BEF"))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                Button(ZTAutofillStrings.cancel) { coordinator.dismiss() }
+                    .font(.headline)
+                    .foregroundStyle(Color(hex: "#3a3d45"))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color(hex: "#f2f2f7"))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
         }
         .padding(.top, 32)
         .padding(.horizontal, 16)
