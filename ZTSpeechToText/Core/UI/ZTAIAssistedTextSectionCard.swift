@@ -143,6 +143,12 @@ public struct ZTAIAssistedTextSectionHostView: View {
             },
             onAIMenuOpenChanged: { isOpen in
                 coordinator.isAIMenuOpen = isOpen
+            },
+            onCleanupAnalyticsTap: {
+                coordinator.reportCleanupTapped()
+            },
+            onSummarizeAnalyticsTap: { style in
+                coordinator.reportSummarizeTapped(style: style)
             }
         )
     }
@@ -195,7 +201,6 @@ public struct ZTAIAssistedSpeechToTextSheetHostView: View {
             }
             .onAppear {
                 coordinator.prepareForScreenAppearance()
-                aiController.onAnalyticsEvent = coordinator.onAnalyticsEvent
             }
     }
 }
@@ -234,6 +239,8 @@ public struct ZTAIAssistedTextSectionCard: View {
     public var onMicTap: (() -> Void)?
     public var onDisappear: (() -> Void)?
     public var onAIMenuOpenChanged: ((Bool) -> Void)?
+    public var onCleanupAnalyticsTap: (() -> Void)?
+    public var onSummarizeAnalyticsTap: ((ZTAISummaryStyle) -> Void)?
 
     @StateObject private var aiController = ZTAIAssistantController()
     @State private var editorText: String = ""
@@ -319,7 +326,9 @@ public struct ZTAIAssistedTextSectionCard: View {
         livePreviewText: String = "",
         onMicTap: (() -> Void)? = nil,
         onDisappear: (() -> Void)? = nil,
-        onAIMenuOpenChanged: ((Bool) -> Void)? = nil
+        onAIMenuOpenChanged: ((Bool) -> Void)? = nil,
+        onCleanupAnalyticsTap: (() -> Void)? = nil,
+        onSummarizeAnalyticsTap: ((ZTAISummaryStyle) -> Void)? = nil
     ) {
         self.title = title
         self.placeholder = placeholder
@@ -354,6 +363,8 @@ public struct ZTAIAssistedTextSectionCard: View {
         self.onMicTap = onMicTap
         self.onDisappear = onDisappear
         self.onAIMenuOpenChanged = onAIMenuOpenChanged
+        self.onCleanupAnalyticsTap = onCleanupAnalyticsTap
+        self.onSummarizeAnalyticsTap = onSummarizeAnalyticsTap
     }
 
     public var body: some View {
@@ -468,6 +479,7 @@ public struct ZTAIAssistedTextSectionCard: View {
                     menuAlignment: .bottomTrailing,
                     menuOffset: resolvedAIMenuOffset,
                     onCleanupTap: {
+                        onCleanupAnalyticsTap?()
                         aiController.runCleanUp(
                             currentText: { editorText },
                             applyText: { updatedText in
@@ -477,6 +489,7 @@ public struct ZTAIAssistedTextSectionCard: View {
                         )
                     },
                     onSummarizeTap: { style in
+                        onSummarizeAnalyticsTap?(style)
                         aiController.runSummarize(
                             style: style,
                             currentText: { editorText },

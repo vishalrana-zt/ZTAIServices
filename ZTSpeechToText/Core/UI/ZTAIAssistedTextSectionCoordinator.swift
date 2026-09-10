@@ -5,11 +5,14 @@ import ZTAIServices
 
 @MainActor
 public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
+    public typealias AnalyticsEventHandler = (String, [String: Any]) -> Void
+
     @Published public var isSpeechToTextSheetPresented = false
     @Published public var isSpeechRecordingActive = false
     @Published public private(set) var livePreviewText = ""
     @Published public var isAIMenuOpen: Bool = false
-    public var onAnalyticsEvent: ((String, [String: Any]) -> Void)?
+
+    public var onAnalyticsEvent: AnalyticsEventHandler?
 
     private var isOnDeviceLiveStreamingAvailable = false
     private var liveSessionID: UUID?
@@ -90,6 +93,7 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
 
     public func handleMicTap(isReadOnly: Bool, dismissKeyboard: () -> Void) {
         guard !isReadOnly else { return }
+        onAnalyticsEvent?(AIAnalyticsEvent.micTapped, [:])
         dismissKeyboard()
 
         Task {
@@ -206,4 +210,28 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
         }
         isOnDeviceLiveStreamingAvailable = speechManager.isOnDeviceLiveStreamingAvailable
     }
+
+    public func reportCleanupTapped() {
+        onAnalyticsEvent?(
+            AIAnalyticsEvent.cleanupTapped,
+            [AIAnalyticsProperty.mode: "cleanup"]
+        )
+    }
+
+    public func reportSummarizeTapped(style: ZTAISummaryStyle) {
+        onAnalyticsEvent?(
+            AIAnalyticsEvent.summarizeTapped,
+            [AIAnalyticsProperty.mode: "summarize_\(style.rawValue)"]
+        )
+    }
+}
+
+private enum AIAnalyticsEvent {
+    static let micTapped = "AI_MIC_TAPPED"
+    static let cleanupTapped = "AI_CLEANUP_TAPPED"
+    static let summarizeTapped = "AI_SUMMARIZE_TAPPED"
+}
+
+private enum AIAnalyticsProperty {
+    static let mode = "mode"
 }
