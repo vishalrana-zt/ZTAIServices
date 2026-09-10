@@ -268,6 +268,7 @@ public final class ZTAIAssistantController: ObservableObject {
     @Published public var isMenuOpen = false
     @Published public var toastState: ZTAIToastState?
     @Published public var errorMessage: String?
+    @Published public var activeModelBadge: ZTAIModelBadgeKind?
     public var onAnalyticsEvent: ((String, [String: Any]) -> Void)?
 
     private let aiCancelRevealDelay: UInt64 = 2_000_000_000
@@ -371,6 +372,7 @@ public final class ZTAIAssistantController: ObservableObject {
         status = .idle
         aiGlyphPhase = .idle
         errorMessage = nil
+        activeModelBadge = nil
         closeMenu()
         toastDismissTask?.cancel()
     }
@@ -392,6 +394,9 @@ public final class ZTAIAssistantController: ObservableObject {
             }
 
             do {
+                await MainActor.run {
+                    self.activeModelBadge = .appleSpeechAnalyzer
+                }
                 let language = self.preferredLanguage()
                 try await self.dictationService.start(preferredLanguage: language) { partialText in
                     self.applyDictationText(partialText, applyText: applyText)
@@ -479,6 +484,7 @@ public final class ZTAIAssistantController: ObservableObject {
                     self.isRunningAI = false
                     self.status = .idle
                     self.aiGlyphPhase = .idle
+                    self.activeModelBadge = ZTAIModelBadgeKind(provider: result.provider)
                     switch action {
                     case .cleaningUp:
                         self.presentToast(title: ZTAIStrings.toastCleanedUp, badge: nil)

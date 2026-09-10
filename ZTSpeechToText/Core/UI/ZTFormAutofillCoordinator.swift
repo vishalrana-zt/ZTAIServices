@@ -51,6 +51,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     @Published public private(set) var selectedImage: UIImage? = nil
     @Published public private(set) var ocrText: String = ""
     @Published public private(set) var previewCandidates: [ZTAutofillCandidate] = []
+    @Published public var activeModelBadge: ZTAIModelBadgeKind? = nil
 
     public var onApply: (([ZTAutofillCandidate]) -> Void)?
     public var onUndo: (() -> Void)?
@@ -84,6 +85,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         sourceLabel = ""
         selectedImage = nil
         ocrText = ""
+        activeModelBadge = nil
         step = .picking
         isSheetPresented = true
         onAnalyticsEvent?("AI_AUTOFILL_OPENED", ["document_type": documentType.rawValue])
@@ -100,12 +102,14 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         sourceLabel = ""
         selectedImage = nil
         ocrText = ""
+        activeModelBadge = nil
         step = .idle
     }
 
     public func handleSelectedImage(_ image: UIImage, source: ZTAutofillImageSource = .library) {
         selectedImage = image
         ocrText = ""
+        activeModelBadge = .appleVisionOCR
         extractionTask?.cancel()
         onAnalyticsEvent?("AI_AUTOFILL_SOURCE_PHOTO", ["source": source == .camera ? "camera" : "library"])
         sourceLabel = Self.localizedLabel("lbl_autofill_source_photo", fallback: "Read from the photo.")
@@ -135,6 +139,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     public func selectSpeak() {
         extractionTask?.cancel()
         onAnalyticsEvent?("AI_AUTOFILL_SOURCE_AUDIO", [:])
+        activeModelBadge = .appleSpeechAnalyzer
         sourceLabel = Self.localizedLabel("lbl_autofill_source_voice", fallback: "Heard from your dictation.")
         liveTranscript = ""
         previewCandidates = []
@@ -182,6 +187,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         extractionTask?.cancel()
         speechBridge.cancel()
         sourceLabel = Self.localizedLabel("lbl_autofill_source_voice", fallback: "Heard from your dictation.")
+        activeModelBadge = .appleSpeechAnalyzer
         liveTranscript = text
         previewCandidates = mapNonEmptyCandidates(from: text, fallbackText: text)
         extractionTask = Task { [weak self] in
@@ -205,6 +211,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         ocrText = ""
         liveTranscript = ""
         sourceLabel = ""
+        activeModelBadge = nil
         step = .idle
         isSheetPresented = false
     }
@@ -219,6 +226,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         sourceLabel = ""
         selectedImage = nil
         ocrText = ""
+        activeModelBadge = nil
         step = .picking
     }
 
@@ -265,11 +273,13 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     }
 
     private func extractCandidates(from text: String, allowsRetry: Bool) async throws -> [ZTAutofillCandidate] {
+        activeModelBadge = .appleFoundationModels
         let result = try await textAIService.structuredExtract(
             text: text,
             preferredLanguage: resolvedLanguage(),
             documentType: documentType
         )
+        activeModelBadge = ZTAIModelBadgeKind(provider: result.provider)
         if Task.isCancelled { return [] }
 
         let nonEmpty = mapNonEmptyCandidates(from: result.outputText, fallbackText: text)

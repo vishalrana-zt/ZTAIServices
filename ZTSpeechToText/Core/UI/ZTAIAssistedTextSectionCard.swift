@@ -131,6 +131,7 @@ public struct ZTAIAssistedTextSectionHostView: View {
             isSpeechToTextSheetPresented: coordinator.isSpeechToTextSheetPresented,
             isSpeechRecordingActive: coordinator.isSpeechRecordingActive,
             livePreviewText: coordinator.livePreviewText,
+            activeModelBadge: coordinator.activeModelBadge,
             onMicTap: {
                 coordinator.handleMicTap(
                     isReadOnly: isReadOnly,
@@ -236,6 +237,7 @@ public struct ZTAIAssistedTextSectionCard: View {
     public var isSpeechToTextSheetPresented: Bool = false
     public var isSpeechRecordingActive: Bool = false
     public var livePreviewText: String = ""
+    public var activeModelBadge: ZTAIModelBadgeKind? = nil
     public var onMicTap: (() -> Void)?
     public var onDisappear: (() -> Void)?
     public var onAIMenuOpenChanged: ((Bool) -> Void)?
@@ -270,6 +272,10 @@ public struct ZTAIAssistedTextSectionCard: View {
     private var shouldShowHeaderRow: Bool {
         let hasTitle = showTitle && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return hasTitle || (canUseAIFeatures && showButtonsInHeader)
+    }
+
+    private var resolvedModelBadge: ZTAIModelBadgeKind? {
+        activeModelBadge ?? aiController.activeModelBadge
     }
 
     private var characterCountText: String {
@@ -324,6 +330,7 @@ public struct ZTAIAssistedTextSectionCard: View {
         isSpeechToTextSheetPresented: Bool = false,
         isSpeechRecordingActive: Bool = false,
         livePreviewText: String = "",
+        activeModelBadge: ZTAIModelBadgeKind? = nil,
         onMicTap: (() -> Void)? = nil,
         onDisappear: (() -> Void)? = nil,
         onAIMenuOpenChanged: ((Bool) -> Void)? = nil,
@@ -360,6 +367,7 @@ public struct ZTAIAssistedTextSectionCard: View {
         self.isSpeechToTextSheetPresented = isSpeechToTextSheetPresented
         self.isSpeechRecordingActive = isSpeechRecordingActive
         self.livePreviewText = livePreviewText
+        self.activeModelBadge = activeModelBadge
         self.onMicTap = onMicTap
         self.onDisappear = onDisappear
         self.onAIMenuOpenChanged = onAIMenuOpenChanged
@@ -375,6 +383,9 @@ public struct ZTAIAssistedTextSectionCard: View {
                         SwiftUI.Text(title)
                             .font(titleFont)
                             .foregroundStyle(titleColor)
+                    }
+                    if let badge = resolvedModelBadge {
+                        ZTAIModelBadge(kind: badge)
                     }
                     Spacer()
                     if canUseAIFeatures && showButtonsInHeader {

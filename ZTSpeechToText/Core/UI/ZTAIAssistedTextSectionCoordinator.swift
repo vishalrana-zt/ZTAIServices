@@ -11,6 +11,7 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
     @Published public var isSpeechRecordingActive = false
     @Published public private(set) var livePreviewText = ""
     @Published public var isAIMenuOpen: Bool = false
+    @Published public var activeModelBadge: ZTAIModelBadgeKind?
 
     public var onAnalyticsEvent: AnalyticsEventHandler?
 
@@ -68,6 +69,7 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
     public func handleSheetPresentationChanged(_ isPresented: Bool) {
         guard !isPresented else { return }
         isSpeechRecordingActive = false
+        activeModelBadge = nil
         attachBackendStatusCallback()
         resetLiveDraftState()
     }
@@ -83,11 +85,13 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
     public func stopRecordingAndDismissSheet() {
         isSpeechRecordingActive = false
         isSpeechToTextSheetPresented = false
+        activeModelBadge = nil
         resetLiveDraftState()
     }
 
     public func handleSectionDisappear() {
         isSpeechToTextSheetPresented = false
+        activeModelBadge = nil
         resetLiveDraftState()
     }
 
@@ -106,6 +110,7 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
             await MainActor.run {
                 isOnDeviceLiveStreamingAvailable = isLiveCapable
                 isSpeechRecordingActive = false
+                activeModelBadge = .appleSpeechAnalyzer
                 resetLiveDraftState()
             }
 
