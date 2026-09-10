@@ -41,6 +41,6 @@ public extension SupportedLanguage {
     }
 
     static func defaultFromPreferredLocale() -> SupportedLanguage {
-        from(languageCode: Locale.preferredLanguages.first)
+        ZTAIServiceLocalizer.resolvedSupportedLanguage()
     }
 }

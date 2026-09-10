@@ -500,10 +500,7 @@ public final class ZTAIAssistantController: ObservableObject {
     }
 
     private func preferredLanguage() -> SupportedLanguage {
-        let languageCode = (ZTAIServiceLocalizer.currentLanguageCode ?? Locale.preferredLanguages.first ?? "en").lowercased()
-        if languageCode.hasPrefix("es") { return .spanish }
-        if languageCode.hasPrefix("fr") { return .french }
-        return .english
+        ZTAIServiceLocalizer.resolvedSupportedLanguage()
     }
 
     private func presentToast(title: String, badge: String?, style: ZTAIToastStyle = .success) {

@@ -14,6 +14,10 @@ public enum ZTAIServiceLocalizer {
         }
     }
 
+    public static func resolvedSupportedLanguage() -> SupportedLanguage {
+        SupportedLanguage.from(languageCode: resolvedLanguageCode())
+    }
+
     public static func localized(_ key: String) -> String {
         let bundle = localizationBundle(for: resolvedLanguageCode()) ?? baseBundle
         return NSLocalizedString(key, bundle: bundle, comment: "")
@@ -51,8 +55,17 @@ public enum ZTAIServiceLocalizer {
         if let raw = currentLanguageCode, !raw.isEmpty {
             return normalizedLanguageCode(raw)
         }
-        if let language = Locale.preferredLanguages.first, !language.isEmpty {
-            return normalizedLanguageCode(language)
+        // Check all preferred languages so a secondary non-English preference is found
+        // even when the primary system language is English.
+        for language in Locale.preferredLanguages where !language.isEmpty {
+            let normalized = normalizedLanguageCode(language)
+            if normalized != "en" { return normalized }
+        }
+        // Last-resort: ask Bundle.main what language it prefers (respects the
+        // AppleLanguages UserDefaults key used by many in-app language switchers).
+        for locale in Bundle.main.preferredLocalizations where !locale.isEmpty {
+            let normalized = normalizedLanguageCode(locale)
+            if normalized != "en" { return normalized }
         }
         return "en"
     }

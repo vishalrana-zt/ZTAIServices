@@ -297,10 +297,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     }
 
     private func resolvedLanguage() -> SupportedLanguage {
-        let code = (ZTAIServiceLocalizer.currentLanguageCode ?? Locale.preferredLanguages.first ?? "en").lowercased()
-        if code.hasPrefix("es") { return .spanish }
-        if code.hasPrefix("fr") { return .french }
-        return .english
+        ZTAIServiceLocalizer.resolvedSupportedLanguage()
     }
 
     private func isOffline(_ error: Error) -> Bool {
