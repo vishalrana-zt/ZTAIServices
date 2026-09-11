@@ -7,18 +7,24 @@ public struct LiveAwareTextView: UIViewRepresentable {
     public let shouldShowLiveCaret: Bool
     public let textStyle: UIFont.TextStyle
     public let onEditingChanged: (Bool) -> Void
+    /// Set to false when an external keyboard manager (e.g. IQKeyboardManager) already
+    /// provides a Done button — the built-in toolbar conflicts with IQKeyboardManager's
+    /// keyboard-frame calculations, causing the view to scroll 44 px short of the keyboard.
+    public let showDoneToolbar: Bool
 
     public init(
         text: Binding<String>,
         shouldAutoScrollLiveInsertion: Bool,
         shouldShowLiveCaret: Bool,
         textStyle: UIFont.TextStyle = .callout,
+        showDoneToolbar: Bool = true,
         onEditingChanged: @escaping (Bool) -> Void = { _ in }
     ) {
         self._text = text
         self.shouldAutoScrollLiveInsertion = shouldAutoScrollLiveInsertion
         self.shouldShowLiveCaret = shouldShowLiveCaret
         self.textStyle = textStyle
+        self.showDoneToolbar = showDoneToolbar
         self.onEditingChanged = onEditingChanged
     }
 
@@ -37,7 +43,7 @@ public struct LiveAwareTextView: UIViewRepresentable {
         textView.alwaysBounceVertical = true
         textView.keyboardDismissMode = .interactive
         textView.textContainerInset = UIEdgeInsets(top: 8, left: 4, bottom: 8, right: 4)
-        textView.inputAccessoryView = context.coordinator.makeKeyboardAccessoryToolbar()
+        textView.inputAccessoryView = showDoneToolbar ? context.coordinator.makeKeyboardAccessoryToolbar() : nil
         textView.text = text
         context.coordinator.attach(textView: textView)
         return textView

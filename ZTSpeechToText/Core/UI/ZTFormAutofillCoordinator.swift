@@ -357,8 +357,11 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     }
 
     private func buildStructuredOCRContext(punchDetections: [PunchHoleDetectionResult]) -> String? {
+        // Only grid-cell detections (year/month) are reliable enough to send as visualSelections.
+        // Option-list detections (agent type checkboxes) have unpredictable punch positions
+        // and confound the AI — the AI reasons better from OCR text alone for those.
         let selections = punchDetections
-            .filter { $0.selected }
+            .filter { $0.selected && $0.strategy == .gridCell }
             .map { StructuredVisualSelection(label: $0.lineText, selected: true, confidence: $0.confidence) }
 
         guard !selections.isEmpty else { return nil }

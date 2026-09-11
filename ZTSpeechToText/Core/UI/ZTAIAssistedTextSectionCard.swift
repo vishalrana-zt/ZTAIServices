@@ -32,6 +32,9 @@ public struct ZTAIAssistedTextSectionHostView: View {
     public var aiMenuOffset: CGSize? = nil
     public var topPadding: CGFloat? = nil
     public var bottomPadding: CGFloat? = nil
+    /// Set to false when an external keyboard manager (IQKeyboardManager) is active on the
+    /// host screen — the built-in Done toolbar conflicts with IQKeyboardManager's scroll calc.
+    public var showDoneToolbar: Bool = true
     public var dismissKeyboard: () -> Void
     public var onDisappear: (() -> Void)? = nil
 
@@ -64,6 +67,7 @@ public struct ZTAIAssistedTextSectionHostView: View {
         aiMenuOffset: CGSize? = nil,
         topPadding: CGFloat? = nil,
         bottomPadding: CGFloat? = nil,
+        showDoneToolbar: Bool = true,
         dismissKeyboard: @escaping () -> Void,
         onDisappear: (() -> Void)? = nil
     ) {
@@ -95,6 +99,7 @@ public struct ZTAIAssistedTextSectionHostView: View {
         self.aiMenuOffset = aiMenuOffset
         self.topPadding = topPadding
         self.bottomPadding = bottomPadding
+        self.showDoneToolbar = showDoneToolbar
         self.dismissKeyboard = dismissKeyboard
         self.onDisappear = onDisappear
     }
@@ -150,7 +155,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
             },
             onSummarizeAnalyticsTap: { style in
                 coordinator.reportSummarizeTapped(style: style)
-            }
+            },
+            showDoneToolbar: showDoneToolbar
         )
     }
 }
@@ -243,6 +249,7 @@ public struct ZTAIAssistedTextSectionCard: View {
     public var onAIMenuOpenChanged: ((Bool) -> Void)?
     public var onCleanupAnalyticsTap: (() -> Void)?
     public var onSummarizeAnalyticsTap: ((ZTAISummaryStyle) -> Void)?
+    public var showDoneToolbar: Bool = true
 
     @StateObject private var aiController = ZTAIAssistantController()
     @State private var editorText: String = ""
@@ -335,7 +342,8 @@ public struct ZTAIAssistedTextSectionCard: View {
         onDisappear: (() -> Void)? = nil,
         onAIMenuOpenChanged: ((Bool) -> Void)? = nil,
         onCleanupAnalyticsTap: (() -> Void)? = nil,
-        onSummarizeAnalyticsTap: ((ZTAISummaryStyle) -> Void)? = nil
+        onSummarizeAnalyticsTap: ((ZTAISummaryStyle) -> Void)? = nil,
+        showDoneToolbar: Bool = true
     ) {
         self.title = title
         self.placeholder = placeholder
@@ -373,6 +381,7 @@ public struct ZTAIAssistedTextSectionCard: View {
         self.onAIMenuOpenChanged = onAIMenuOpenChanged
         self.onCleanupAnalyticsTap = onCleanupAnalyticsTap
         self.onSummarizeAnalyticsTap = onSummarizeAnalyticsTap
+        self.showDoneToolbar = showDoneToolbar
     }
 
     public var body: some View {
@@ -421,7 +430,8 @@ public struct ZTAIAssistedTextSectionCard: View {
                             text: $editorText,
                             shouldAutoScrollLiveInsertion: isSpeechToTextSheetPresented,
                             shouldShowLiveCaret: shouldShowLiveCaret,
-                            textStyle: editorTextStyle
+                            textStyle: editorTextStyle,
+                            showDoneToolbar: showDoneToolbar
                         )
                         .frame(minHeight: editorMinHeight, maxHeight: editorMaxHeight)
                         .padding(.horizontal, editorHorizontalPadding)

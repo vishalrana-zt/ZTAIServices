@@ -1,15 +1,24 @@
 import UIKit
 import CoreGraphics
 
+public enum PunchHoleDetectionStrategy: Sendable {
+    /// Hole punched through a year or month grid cell — reliable, consistent position.
+    case gridCell
+    /// Hole punched through an option-list checkbox — unreliable, position varies by tag design.
+    case optionList
+}
+
 public struct PunchHoleDetectionResult: Sendable {
     public let lineText: String
     public let selected: Bool
     public let confidence: Float
+    public let strategy: PunchHoleDetectionStrategy
 
-    public init(lineText: String, selected: Bool, confidence: Float) {
+    public init(lineText: String, selected: Bool, confidence: Float, strategy: PunchHoleDetectionStrategy) {
         self.lineText = lineText
         self.selected = selected
         self.confidence = confidence
+        self.strategy = strategy
     }
 }
 
@@ -106,12 +115,13 @@ public struct PunchHoleDetector {
                         ? min(0.95, 0.50 + 0.45 * ((item.score - mean) / range))
                         : 0
                     results[item.text] = PunchHoleDetectionResult(
-                        lineText: item.text, selected: isSelected, confidence: confidence)
+                        lineText: item.text, selected: isSelected, confidence: confidence,
+                        strategy: .optionList)
                 }
             } else {
                 for item in circleScores {
                     results[item.text] = PunchHoleDetectionResult(
-                        lineText: item.text, selected: false, confidence: 0)
+                        lineText: item.text, selected: false, confidence: 0, strategy: .optionList)
                 }
             }
         }
@@ -150,13 +160,15 @@ public struct PunchHoleDetector {
                     ? min(0.95, 0.50 + 0.45 * ((cell.score - mean) / range))
                     : 0
                 results[cell.line.text] = PunchHoleDetectionResult(
-                    lineText: cell.line.text, selected: isSelected, confidence: confidence)
+                    lineText: cell.line.text, selected: isSelected, confidence: confidence,
+                    strategy: .gridCell)
             }
         }
 
         // Return in original OCR order
         return ocrResult.lines.map { line in
-            results[line.text] ?? PunchHoleDetectionResult(lineText: line.text, selected: false, confidence: 0)
+            results[line.text] ?? PunchHoleDetectionResult(
+                lineText: line.text, selected: false, confidence: 0, strategy: .optionList)
         }
     }
 
