@@ -20,6 +20,45 @@ public enum ImageOCRError: LocalizedError {
     }
 }
 
+// MARK: - Detailed OCR Models
+
+public struct OCRBoundingBox: Sendable {
+    public let x: Double
+    public let y: Double
+    public let width: Double
+    public let height: Double
+
+    public init(x: Double, y: Double, width: Double, height: Double) {
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+    }
+}
+
+public struct OCRLine: Sendable {
+    public let text: String
+    /// Vision normalized rectangle in image coordinates.
+    public let boundingBox: OCRBoundingBox
+    public let confidence: Float
+
+    public init(text: String, boundingBox: OCRBoundingBox, confidence: Float) {
+        self.text = text
+        self.boundingBox = boundingBox
+        self.confidence = confidence
+    }
+}
+
+public struct OCRResult: Sendable {
+    public let fullText: String
+    public let lines: [OCRLine]
+
+    public init(fullText: String, lines: [OCRLine]) {
+        self.fullText = fullText
+        self.lines = lines
+    }
+}
+
 // MARK: - Engine
 
 // Local, on-device text extraction using Apple Vision.
@@ -29,13 +68,13 @@ public struct ImageOCREngine {
     public init() {}
     private final class OCRContinuation {
         private let lock = NSLock()
-        private var continuation: CheckedContinuation<String, Error>?
+        private var continuation: CheckedContinuation<OCRResult, Error>?
 
-        init(_ continuation: CheckedContinuation<String, Error>) {
+        init(_ continuation: CheckedContinuation<OCRResult, Error>) {
             self.continuation = continuation
         }
 
-        func resume(returning value: String) {
+        func resume(returning value: OCRResult) {
             lock.lock()
             guard let continuation else {
                 lock.unlock()
@@ -78,8 +117,8 @@ public struct ImageOCREngine {
 
     // Recognizes all readable text in the given image.
     // languageHints: BCP-47 codes (e.g. "en-US") improve accuracy but are optional.
-    // Returns the full extracted text with lines joined by newlines.
-    public func recognizeText(in image: UIImage, languageHints: [String] = []) async throws -> String {
+    // Returns full text plus per-line Vision metadata for downstream layout analysis.
+    public func recognizeDetailedText(in image: UIImage, languageHints: [String] = []) async throws -> OCRResult {
         let input = resizedForOCR(image)
         let source: VisionImageSource
         if let cgImage = input.cgImage {
@@ -99,11 +138,25 @@ public struct ImageOCREngine {
                         return
                     }
                     let observations = request.results as? [VNRecognizedTextObservation] ?? []
-                    let lines = observations.compactMap { $0.topCandidates(1).first?.string }
+                    let lines: [OCRLine] = observations.compactMap { observation in
+                        guard let best = observation.topCandidates(1).first else { return nil }
+                        let box = observation.boundingBox
+                        return OCRLine(
+                            text: best.string,
+                            boundingBox: OCRBoundingBox(
+                                x: Double(box.origin.x),
+                                y: Double(box.origin.y),
+                                width: Double(box.size.width),
+                                height: Double(box.size.height)
+                            ),
+                            confidence: best.confidence
+                        )
+                    }
                     if lines.isEmpty {
                         resumable.resume(throwing: ImageOCRError.noTextFound)
                     } else {
-                        resumable.resume(returning: lines.joined(separator: "\n"))
+                        let fullText = lines.map(\.text).joined(separator: "\n")
+                        resumable.resume(returning: OCRResult(fullText: fullText, lines: lines))
                     }
                 }
 
@@ -127,5 +180,11 @@ public struct ImageOCREngine {
                 }
             }
         }
+    }
+
+    // Backward-compatible convenience API used by existing callers.
+    public func recognizeText(in image: UIImage, languageHints: [String] = []) async throws -> String {
+        let detailed = try await recognizeDetailedText(in: image, languageHints: languageHints)
+        return detailed.fullText
     }
 }

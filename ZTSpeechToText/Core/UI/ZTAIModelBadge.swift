@@ -75,9 +75,9 @@ public struct ZTAIModelBadge: View {
     public var body: some View {
         iconView
             .frame(width: 24, height: 24)
-            .padding(6)
+            .padding(4)
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(Color.black.opacity(0.15), lineWidth: 0.5)
             )
             .accessibilityElement(children: .ignore)

@@ -219,7 +219,7 @@ public struct ZTFormAutofillBottomPanel: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
-        .blur(radius: showSpeechSheet ? 6 : 0)
+        .blur(radius: showSpeechSheet ? 4 : 0)
         .allowsHitTesting(!showSpeechSheet)
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.hidden)
@@ -465,7 +465,7 @@ public struct ZTFormAutofillBottomPanel: View {
             VStack(spacing: 10) {
                 HStack(spacing: 10) {
                     ZTSparklesIcon()
-                        .frame(width: 32, height: 32)
+                        .frame(width: 36, height: 36)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(ZTAutofillStrings.extracting)
                             .font(.headline)
