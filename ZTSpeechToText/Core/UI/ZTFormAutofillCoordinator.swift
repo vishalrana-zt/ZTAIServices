@@ -77,7 +77,8 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     // MARK: - Public actions
 
-    public func openSheet() {
+    public func openSheet(preferCloudForStructuredExtraction: Bool = false) {
+        CloudAPIConfiguration.preferCloudForStructuredExtraction = preferCloudForStructuredExtraction
         candidates = []
         previewCandidates = []
         liveTranscript = ""
@@ -124,9 +125,17 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                 if self.documentType == .fireEquipment {
                     let ocrResult = try await self.ocrEngine.recognizeDetailedText(in: image, languageHints: [])
                     text = ocrResult.fullText
+                    #if DEBUG
+                    let punchStart = Date()
+                    #endif
                     let punchDetections = await Task.detached(priority: .userInitiated) {
                         PunchHoleDetector().detectSelections(in: image, ocrResult: ocrResult)
                     }.value
+                    #if DEBUG
+                    if CloudAPIConfiguration.isLoggingEnabled {
+                        print("[AUTOFILL_TIMING] PunchDetection: \(String(format: "%.2f", Date().timeIntervalSince(punchStart)))s, selections=\(punchDetections.count)")
+                    }
+                    #endif
                     supplementalContext = self.buildStructuredOCRContext(punchDetections: punchDetections)
                 } else {
                     text = try await self.ocrEngine.recognizeText(in: image, languageHints: [])
@@ -142,10 +151,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                     self.ocrText = text
                     self.previewCandidates = self.mapNonEmptyCandidates(from: text, fallbackText: text)
                 }
-                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    try? await Task.sleep(nanoseconds: 200_000_000)
-                    if Task.isCancelled { return }
-                }
+                if Task.isCancelled { return }
                 await self.runExtraction(from: text, supplementalContext: supplementalContext)
             } catch {
                 if Task.isCancelled { return }
@@ -264,7 +270,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             #if DEBUG
             let extractStart = Date()
             #endif
-            let nonEmpty = try await extractCandidates(from: trimmed, supplementalContext: supplementalContext, allowsRetry: true)
+            let nonEmpty = try await extractCandidates(from: trimmed, supplementalContext: supplementalContext, allowsRetry: true, attempt: 1)
             #if DEBUG
             if CloudAPIConfiguration.isLoggingEnabled {
                 print("[AUTOFILL_TIMING] Extraction: \(String(format: "%.2f", Date().timeIntervalSince(extractStart)))s, \(nonEmpty.count) candidates")
@@ -302,14 +308,28 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         }
     }
 
-    private func extractCandidates(from text: String, supplementalContext: String?, allowsRetry: Bool) async throws -> [ZTAutofillCandidate] {
-        activeModelBadge = .appleFoundationModels
+    private func extractCandidates(from text: String, supplementalContext: String?, allowsRetry: Bool, attempt: Int) async throws -> [ZTAutofillCandidate] {
+        if CloudAPIConfiguration.preferCloudForStructuredExtraction {
+            activeModelBadge = nil
+        } else if ZTAIModelBadgeKind.isAppleFoundationModelsAvailable {
+            activeModelBadge = .appleFoundationModels
+        } else {
+            activeModelBadge = nil
+        }
+        #if DEBUG
+        let requestStart = Date()
+        #endif
         let result = try await textAIService.structuredExtract(
             text: text,
             preferredLanguage: resolvedLanguage(),
             documentType: documentType,
             supplementalContext: supplementalContext
         )
+        #if DEBUG
+        if CloudAPIConfiguration.isLoggingEnabled {
+            print("[AUTOFILL_TIMING] structuredExtract attempt=\(attempt) provider=\(result.provider.rawValue) duration=\(String(format: "%.2f", Date().timeIntervalSince(requestStart)))s")
+        }
+        #endif
         activeModelBadge = ZTAIModelBadgeKind(provider: result.provider)
         if Task.isCancelled { return [] }
 
@@ -323,9 +343,13 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         // Structured extraction can occasionally return an unmappable payload on the first attempt.
         // Retry once automatically before surfacing an error state to the user.
         if nonEmpty.isEmpty, allowsRetry {
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            #if DEBUG
+            if CloudAPIConfiguration.isLoggingEnabled {
+                print("[AUTOFILL_TIMING] structuredExtract retry triggered after attempt=\(attempt) dueTo=empty_candidates")
+            }
+            #endif
             if Task.isCancelled { return [] }
-            return try await extractCandidates(from: text, supplementalContext: supplementalContext, allowsRetry: false)
+            return try await extractCandidates(from: text, supplementalContext: supplementalContext, allowsRetry: false, attempt: attempt + 1)
         }
 
         return nonEmpty

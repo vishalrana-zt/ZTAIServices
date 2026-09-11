@@ -297,6 +297,8 @@ public actor TextAIService {
 
     private func process(_ request: TextAIRequest) async throws -> TextAIExecutionResult {
         try Task.checkCancellation()
+        let isStructuredExtraction = request.operation == .structuredExtraction
+        let processStartedAt = Date()
 
         let trimmed = request.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -333,8 +335,38 @@ public actor TextAIService {
         )
 
         let resolution = await resolver.resolveProvider(for: normalizedRequest)
+        if isStructuredExtraction {
+            TextAILogger.logAutofillTiming("TextAI process provider=\(resolution.provider.id.rawValue)")
+        }
+
+        let preferCloudForStructuredExtraction: Bool = await MainActor.run {
+            CloudAPIConfiguration.preferCloudForStructuredExtraction
+        }
+
+        if isStructuredExtraction,
+           preferCloudForStructuredExtraction,
+           resolution.provider.id == .appleFoundationModels {
+            TextAILogger.logAutofillTiming("Apple structuredExtraction skipped by config: using direct cloud")
+            let cloud = await resolver.cloudFallbackProvider(reason: "structuredExtractionPrefersCloud")
+            let fallbackStartedAt = Date()
+            let providerResult = try await cloud.process(normalizedRequest)
+            let fallbackDuration = Date().timeIntervalSince(fallbackStartedAt)
+            TextAILogger.logAutofillTiming("TextAI structuredExtraction direct cloud provider=\(cloud.id.rawValue) duration=\(String(format: "%.2f", fallbackDuration))s")
+
+            guard providerResult.status == .success else {
+                throw TextAIError.unusableModelOutput
+            }
+            let trimmedOutput = providerResult.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedOutput.isEmpty else {
+                throw TextAIError.unusableModelOutput
+            }
+            let totalDuration = Date().timeIntervalSince(processStartedAt)
+            TextAILogger.logAutofillTiming("TextAI process total=\(String(format: "%.2f", totalDuration))s (direct cloud)")
+            return TextAIExecutionResult(provider: cloud.id, outputText: trimmedOutput)
+        }
 
         do {
+            let providerStartedAt = Date()
             let providerResult: ProviderTextResult
             if resolution.provider.id == .appleFoundationModels {
                 providerResult = try await withTimeout(seconds: appleProviderTimeoutSeconds) {
@@ -342,6 +374,10 @@ public actor TextAIService {
                 }
             } else {
                 providerResult = try await resolution.provider.process(normalizedRequest)
+            }
+            if isStructuredExtraction {
+                let providerDuration = Date().timeIntervalSince(providerStartedAt)
+                TextAILogger.logAutofillTiming("TextAI provider=\(resolution.provider.id.rawValue) duration=\(String(format: "%.2f", providerDuration))s")
             }
 
             guard providerResult.status == .success else {
@@ -351,13 +387,23 @@ public actor TextAIService {
             guard !trimmedOutput.isEmpty else {
                 throw TextAIError.unusableModelOutput
             }
+            if isStructuredExtraction {
+                let totalDuration = Date().timeIntervalSince(processStartedAt)
+                TextAILogger.logAutofillTiming("TextAI process total=\(String(format: "%.2f", totalDuration))s")
+            }
             return TextAIExecutionResult(provider: resolution.provider.id, outputText: trimmedOutput)
         } catch {
             if resolution.provider.id == .appleFoundationModels {
+                TextAILogger.logAutofillTiming("Apple provider failed reason=\(error.localizedDescription)")
                 // Apple failed → cloud API
                 let cloud = await resolver.cloudFallbackProvider(reason: "appleInferenceFailed")
                 do {
+                    let fallbackStartedAt = Date()
                     let providerResult = try await cloud.process(normalizedRequest)
+                    if isStructuredExtraction {
+                        let fallbackDuration = Date().timeIntervalSince(fallbackStartedAt)
+                        TextAILogger.logAutofillTiming("TextAI fallback provider=\(cloud.id.rawValue) duration=\(String(format: "%.2f", fallbackDuration))s")
+                    }
                     guard providerResult.status == .success else {
                         throw TextAIError.unusableModelOutput
                     }
@@ -365,10 +411,22 @@ public actor TextAIService {
                     guard !trimmedOutput.isEmpty else {
                         throw TextAIError.unusableModelOutput
                     }
+                    if isStructuredExtraction {
+                        let totalDuration = Date().timeIntervalSince(processStartedAt)
+                        TextAILogger.logAutofillTiming("TextAI process total=\(String(format: "%.2f", totalDuration))s (with fallback)")
+                    }
                     return TextAIExecutionResult(provider: cloud.id, outputText: trimmedOutput)
                 } catch {
+                    if isStructuredExtraction {
+                        let totalDuration = Date().timeIntervalSince(processStartedAt)
+                        TextAILogger.logAutofillTiming("TextAI process failed after \(String(format: "%.2f", totalDuration))s error=\(error.localizedDescription)")
+                    }
                     throw mapProviderError(error)
                 }
+            }
+            if isStructuredExtraction {
+                let totalDuration = Date().timeIntervalSince(processStartedAt)
+                TextAILogger.logAutofillTiming("TextAI process failed after \(String(format: "%.2f", totalDuration))s error=\(error.localizedDescription)")
             }
             throw mapProviderError(error)
         }
@@ -729,7 +787,7 @@ nonisolated private func structuredExtractionSchemaTemplate(for documentType: St
     if pages.contains(.invoiceEstimate) { sections.append(invoiceEstimatePageSchema()) }
 
     let pageSectionsJoined = sections.joined(separator: ",\n")
-    let targetPagesJSON = pages.map { "\"\($0.rawValue)\"" }.joined(separator: ", ")
+    let targetPagesJSON = pages.map { "\($0.rawValue)" }.joined(separator: ", ")
 
     return """
     {
@@ -797,13 +855,20 @@ actor CloudTextProvider: TextModelProvider {
 
     func process(_ request: TextAIRequest) async throws -> ProviderTextResult {
         try Task.checkCancellation()
+        let isStructuredExtraction = request.operation == .structuredExtraction
+        let providerStartedAt = Date()
         let (provider, apiKey): (CloudAPIConfiguration.Provider, String?) = await MainActor.run {
             (CloudAPIConfiguration.provider, CloudAPIConfiguration.activeAPIKey)
         }
         guard let apiKey, !apiKey.isEmpty else {
             throw TextAIError.providerUnavailable(reason: "No cloud API key configured")
         }
+        let promptBuildStartedAt = Date()
         let parts = await buildPromptParts(for: request)
+        if isStructuredExtraction {
+            let promptBuildDuration = Date().timeIntervalSince(promptBuildStartedAt)
+            TextAILogger.logAutofillTiming("PromptBuild provider=\(provider) duration=\(String(format: "%.2f", promptBuildDuration))s")
+        }
         do {
             let rawResult: ProviderTextResult
             switch provider {
@@ -847,6 +912,10 @@ actor CloudTextProvider: TextModelProvider {
                     maxTokens: maxOutputTokens(for: request)
                 )
             }
+            if isStructuredExtraction {
+                let modelCallDuration = Date().timeIntervalSince(providerStartedAt)
+                TextAILogger.logAutofillTiming("CloudProvider provider=\(provider) modelCall=\(String(format: "%.2f", modelCallDuration))s")
+            }
             guard rawResult.status == .success else {
                 return rawResult
             }
@@ -861,11 +930,16 @@ actor CloudTextProvider: TextModelProvider {
             if request.operation == .structuredExtraction,
                request.documentType == .fireEquipment,
                (!isValidStructuredJSONObject(result) || isNearEmptyStructuredResult(result)) {
+                let fallbackStartedAt = Date()
                 let fallbackResult = try? await callStructuredExtractionFallback(
                     originalText: request.text,
                     provider: provider,
                     apiKey: apiKey
                 )
+                if isStructuredExtraction {
+                    let fallbackDuration = Date().timeIntervalSince(fallbackStartedAt)
+                    TextAILogger.logAutofillTiming("StructuredFallback provider=\(provider) duration=\(String(format: "%.2f", fallbackDuration))s used=\(fallbackResult != nil)")
+                }
                 let candidate = fallbackResult ?? result
                 let normalized = ensuredFireStickerMinimumStructuredOutput(candidate, originalOCRText: request.text)
                 return ProviderTextResult(text: normalized, status: .success)
@@ -1261,13 +1335,15 @@ actor CloudTextProvider: TextModelProvider {
         maxRetries: Int,
         maxTokens: Int
     ) async throws -> ProviderTextResult {
+        let isStructuredExtraction = operation == .structuredExtraction
         var lastError: Error = TextAIError.inferenceFailed(reason: "OpenAI request failed")
         let maxAttempts = max(1, maxRetries + 1)
 
         for attempt in 1...maxAttempts {
+            let attemptStartedAt = Date()
             do {
                 TextAILogger.log("openAI_attempt=\(attempt)/\(maxAttempts) operation=\(operation.rawValue)")
-                return try await callOpenAI(
+                let result = try await callOpenAI(
                     system: system,
                     user: user,
                     apiKey: apiKey,
@@ -1276,10 +1352,19 @@ actor CloudTextProvider: TextModelProvider {
                     timeout: timeout,
                     maxTokens: maxTokens
                 )
+                if isStructuredExtraction {
+                    let attemptDuration = Date().timeIntervalSince(attemptStartedAt)
+                    TextAILogger.logAutofillTiming("OpenAI attempt=\(attempt)/\(maxAttempts) success duration=\(String(format: "%.2f", attemptDuration))s")
+                }
+                return result
             } catch {
                 lastError = error
                 let retryable = isRetryableOpenAIError(error)
                 TextAILogger.log("openAI_attempt_failed=\(attempt) retryable=\(retryable) error=\(error.localizedDescription)")
+                if isStructuredExtraction {
+                    let attemptDuration = Date().timeIntervalSince(attemptStartedAt)
+                    TextAILogger.logAutofillTiming("OpenAI attempt=\(attempt)/\(maxAttempts) failed duration=\(String(format: "%.2f", attemptDuration))s retryable=\(retryable)")
+                }
                 guard retryable, attempt < maxAttempts else { break }
                 // Rate limit (429) needs a longer back-off; other errors use linear back-off.
                 let isRateLimit: Bool
@@ -1291,6 +1376,10 @@ actor CloudTextProvider: TextModelProvider {
                 let delayNanos = isRateLimit
                     ? UInt64(2_000_000_000)                    // 2 s for rate limits
                     : UInt64(500_000_000 * attempt)            // 0.5 s × attempt otherwise
+                if isStructuredExtraction {
+                    let delaySeconds = Double(delayNanos) / 1_000_000_000
+                    TextAILogger.logAutofillTiming("OpenAI retry delay=\(String(format: "%.2f", delaySeconds))s")
+                }
                 try? await Task.sleep(nanoseconds: delayNanos)
             }
         }
@@ -1307,6 +1396,7 @@ actor CloudTextProvider: TextModelProvider {
         timeout: TimeInterval,
         maxTokens: Int
     ) async throws -> ProviderTextResult {
+        let isStructuredExtraction = operation == .structuredExtraction
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         var body: [String: Any] = [
             "model": model,
@@ -1335,9 +1425,20 @@ actor CloudTextProvider: TextModelProvider {
         req.allowsExpensiveNetworkAccess = true
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        let serializationStartedAt = Date()
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        if isStructuredExtraction {
+            let serializationDuration = Date().timeIntervalSince(serializationStartedAt)
+            let bodySizeBytes = req.httpBody?.count ?? 0
+            TextAILogger.logAutofillTiming("OpenAI request serialization=\(String(format: "%.3f", serializationDuration))s bodyKB=\(String(format: "%.1f", Double(bodySizeBytes) / 1024.0))")
+        }
 
+        let networkStartedAt = Date()
         let (data, response) = try await CloudTextProvider.session.data(for: req)
+        if isStructuredExtraction {
+            let networkDuration = Date().timeIntervalSince(networkStartedAt)
+            TextAILogger.logAutofillTiming("OpenAI network duration=\(String(format: "%.2f", networkDuration))s bytes=\(data.count)")
+        }
         guard let http = response as? HTTPURLResponse else {
             throw TextAIError.inferenceFailed(reason: "Invalid OpenAI response")
         }
@@ -1362,7 +1463,12 @@ actor CloudTextProvider: TextModelProvider {
             }
         }
 
+        let decodeStartedAt = Date()
         let decoded = try JSONDecoder().decode(Response.self, from: data)
+        if isStructuredExtraction {
+            let decodeDuration = Date().timeIntervalSince(decodeStartedAt)
+            TextAILogger.logAutofillTiming("OpenAI decode duration=\(String(format: "%.3f", decodeDuration))s status=\(http.statusCode)")
+        }
         let firstChoice = decoded.choices.first
         let refusalText = firstChoice?.message.refusal?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let finishReason = firstChoice?.finishReason?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
@@ -1459,6 +1565,7 @@ actor CloudTextProvider: TextModelProvider {
         operation: TextAIOperation,
         maxTokens: Int
     ) async throws -> ProviderTextResult {
+        let isStructuredExtraction = operation == .structuredExtraction
         let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)")!
         var body: [String: Any] = [
             "systemInstruction": ["parts": [["text": system]]],
@@ -1476,9 +1583,20 @@ actor CloudTextProvider: TextModelProvider {
         req.httpMethod = "POST"
         req.timeoutInterval = 30
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let serializationStartedAt = Date()
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        if isStructuredExtraction {
+            let serializationDuration = Date().timeIntervalSince(serializationStartedAt)
+            let bodySizeBytes = req.httpBody?.count ?? 0
+            TextAILogger.logAutofillTiming("Gemini request serialization=\(String(format: "%.3f", serializationDuration))s bodyKB=\(String(format: "%.1f", Double(bodySizeBytes) / 1024.0))")
+        }
 
+        let networkStartedAt = Date()
         let (data, response) = try await CloudTextProvider.session.data(for: req)
+        if isStructuredExtraction {
+            let networkDuration = Date().timeIntervalSince(networkStartedAt)
+            TextAILogger.logAutofillTiming("Gemini network duration=\(String(format: "%.2f", networkDuration))s bytes=\(data.count)")
+        }
         guard let http = response as? HTTPURLResponse else {
             throw TextAIError.inferenceFailed(reason: "Invalid Gemini response")
         }
@@ -1505,7 +1623,12 @@ actor CloudTextProvider: TextModelProvider {
             }
         }
 
+        let decodeStartedAt = Date()
         let decoded = try JSONDecoder().decode(Resp.self, from: data)
+        if isStructuredExtraction {
+            let decodeDuration = Date().timeIntervalSince(decodeStartedAt)
+            TextAILogger.logAutofillTiming("Gemini decode duration=\(String(format: "%.3f", decodeDuration))s status=\(http.statusCode)")
+        }
         if let blockReason = decoded.promptFeedback?.blockReason,
            !blockReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             TextAILogger.log("gemini_prompt_blocked=\(blockReason)")
@@ -1827,6 +1950,13 @@ private enum TextAILogger {
             clipped = normalized
         }
         print("[TEXT_AI] \(label)=\(clipped)")
+        #endif
+    }
+
+    nonisolated static func logAutofillTiming(_ message: String) {
+        guard CloudAPIConfiguration.isLoggingEnabled else { return }
+        #if DEBUG
+        print("[AUTOFILL_TIMING] \(message)")
         #endif
     }
 }

@@ -29,6 +29,8 @@ public enum CloudAPIConfiguration {
     nonisolated(unsafe) public static var geminiUploadMaxRetries: Int = 2
 
     nonisolated(unsafe) public static var isLoggingEnabled: Bool = false
+    // When true, structured extraction bypasses Apple Foundation Models and goes directly to cloud provider.
+    nonisolated(unsafe) public static var preferCloudForStructuredExtraction: Bool = false
 
     public static var activeAPIKey: String? {
         switch provider {

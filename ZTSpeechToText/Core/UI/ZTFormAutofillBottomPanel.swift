@@ -475,8 +475,8 @@ public struct ZTFormAutofillBottomPanel: View {
                             .foregroundStyle(Color(hex: "#5a6070"))
                     }
                     Spacer()
-                    if ZTAIModelBadgeKind.isAppleFoundationModelsAvailable {
-                        ZTAIModelBadge(kind: .appleFoundationModels)
+                    if let badge = coordinator.activeModelBadge {
+                        ZTAIModelBadge(kind: badge)
                     }
                 }
                 ZTAutofillShimmerBar()
