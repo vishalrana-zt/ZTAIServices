@@ -14,9 +14,9 @@ private enum ZTAutofillStrings {
     static var scanPhoto: String       { localized("lbl_autofill_scan_photo",           fallback: "Photo") }
     static var camera: String          { localized("btn_camera",                        fallback: "Camera") }
     static var photoLibrary: String    { localized("btn_photo_library",                 fallback: "Photo Library") }
-    static var scanPhotoSub: String    { localized("lbl_autofill_scan_photo_subtitle",   fallback: "Business card, work order, or label") }
     static var speak: String           { localized("lbl_autofill_speak",                 fallback: "Speak") }
     static var speakSub: String        { localized("lbl_autofill_speak_subtitle",         fallback: "Say the details in any order") }
+    static var tagScanMode: String     { localized("lbl_autofill_tag_scan_mode",          fallback: "Fire inspection tag") }
     static var readingPhoto: String    { localized("lbl_autofill_reading_photo",          fallback: "Reading the photo…") }
     static var pullingDetails: String  { localized("lbl_autofill_pulling_details",        fallback: "Finding text in the image") }
     static var extracting: String      { localized("lbl_autofill_extracting_details",     fallback: "Extracting details…") }
@@ -41,7 +41,6 @@ private enum ZTAutofillStrings {
     static var extractionAlertMessage: String { localized("lbl_autofill_extraction_alert_message", fallback: "Details are still being extracted. Do you want to stop and discard this autofill?") }
     static var extractionAlertContinue: String { localized("lbl_autofill_extraction_alert_continue", fallback: "Continue") }
     static var extractionAlertStopDiscard: String { localized("lbl_autofill_extraction_alert_stop_discard", fallback: "Stop & Discard") }
-
     static func foundDetails(_ n: Int) -> String {
         String(format: localized("lbl_autofill_found_details", fallback: "Found %d details"), n)
     }
@@ -191,6 +190,7 @@ public struct ZTFormAutofillBottomPanel: View {
     @State private var showExtractionDismissAlert = false
     @State private var showSpeechSheet = false
 
+
     public init(coordinator: ZTFormAutofillCoordinator, title: String = "Autofill details") {
         self.coordinator = coordinator
         self.title = title
@@ -247,8 +247,12 @@ public struct ZTFormAutofillBottomPanel: View {
             Button(ZTAutofillStrings.discard, role: .cancel) {}
         }
         .sheet(isPresented: $showCameraPicker) {
-            ZTInlineCameraPickerView { image in coordinator.handleSelectedImage(image, source: .camera) }
-                .ignoresSafeArea()
+            ZTInlineCameraPickerView(
+                hint: coordinator.tagScanModeEnabled ? coordinator.cameraGuidanceHint : nil
+            ) { image in
+                coordinator.handleSelectedImage(image, source: .camera)
+            }
+            .ignoresSafeArea()
         }
         .photosPicker(isPresented: $showPhotoLibraryPicker, selection: $selectedPhotoItem, matching: .images)
         .onChange(of: selectedPhotoItem) { item in
@@ -320,7 +324,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     }
                 }
                 Text(ZTAutofillStrings.pickerDescription)
-                    .font(.subheadline)
+                    .font(.footnote)
                     .foregroundStyle(Color(hex: "#5a6070"))
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -328,15 +332,7 @@ public struct ZTFormAutofillBottomPanel: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
 
-            Button { showPhotoSourceDialog = true } label: {
-                pickerRow(
-                    icon: "camera",
-                    title: ZTAutofillStrings.scanPhoto,
-                    subtitle: ZTAutofillStrings.scanPhotoSub,
-                    trailingBadge: photoRowBadge
-                )
-            }
-            .buttonStyle(.plain)
+            photoPickerCard
 
             Button { showSpeechSheet = true } label: {
                 pickerRow(
@@ -350,42 +346,101 @@ public struct ZTFormAutofillBottomPanel: View {
 
             cancelButton
         }
-        .frame(maxWidth: .infinity, alignment: .top)
         .padding(16)
+        .frame(maxWidth: .infinity, alignment: .top)
         .background(Color.white)
     }
 
-    private func pickerRow(icon: String, title: String, subtitle: String, trailingBadge: ZTAIModelBadgeKind? = nil) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Color(hex: "#0B6BEF"))
-                .frame(width: 38, height: 38)
-                .background(Color(hex: "#e8f1ff"))
-                .clipShape(RoundedRectangle(cornerRadius: 11))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(Color(hex: "#10121A"))
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(Color(hex: "#6c7079"))
+    private var photoPickerCard: some View {
+        VStack(spacing: 0) {
+            // Photo action row — full row is tappable
+            Button { showPhotoSourceDialog = true } label: {
+                pickerRowContent(
+                    icon: "camera",
+                    title: ZTAutofillStrings.scanPhoto,
+                    subtitle: coordinator.photoActionSubtitle,
+                    trailingBadge: photoRowBadge
+                )
+                .padding(10)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
-            Spacer()
+            if coordinator.supportsTagScan {
+                Divider()
+                    .overlay(Color.black.opacity(0.08))
+                    .padding(.horizontal, 10)
 
-            if let trailingBadge {
-                ZTAIModelBadge(kind: trailingBadge)
+                // Toggle row — tapping icon/text area also triggers photo action.
+                // Toggle absorbs its own touch (UIKit control) — does not trigger the photo action.
+                HStack(spacing: 6) {
+                    Image(systemName: coordinator.tagScanModeEnabled ? "tag.fill" : "tag")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(coordinator.tagScanModeEnabled ? Color(hex: "#0B6BEF") : Color(hex: "#8a8f9e"))
+                    Text(ZTAutofillStrings.tagScanMode)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color(hex: "#5a6070"))
+                    Spacer()
+                    Toggle("", isOn: $coordinator.tagScanModeEnabled)
+                        .labelsHidden()
+                        .tint(Color(hex: "#0B6BEF"))
+                        .scaleEffect(0.8)
+                }
+                .padding(.leading, 50)
+                .padding([.trailing, .vertical], 10)
+                .contentShape(Rectangle())
+                .onTapGesture { showPhotoSourceDialog = true }
             }
         }
-        .padding(10)
         .background(Color(hex: "#f5f7fb"))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
                 .strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5)
         )
+    }
+
+    private func pickerRow(icon: String, title: String, subtitle: String, trailingBadge: ZTAIModelBadgeKind? = nil) -> some View {
+        pickerRowContent(icon: icon, title: title, subtitle: subtitle, trailingBadge: trailingBadge)
+            .padding(10)
+            .background(Color(hex: "#f5f7fb"))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5)
+            )
+    }
+
+    private func pickerRowContent(icon: String, title: String, subtitle: String, trailingBadge: ZTAIModelBadgeKind? = nil) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(Color(hex: "#0B6BEF"))
+                .frame(width: 38, height: 38)
+                .background(Color(hex: "#e8f1ff"))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(maxHeight: .infinity, alignment: .center)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(Color(hex: "#10121A"))
+                Text(subtitle)
+                    .font(.footnote)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(trailingBadge == nil ? 1 : 2)
+                    .minimumScaleFactor(trailingBadge == nil ? 0.90 : 1.0)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundStyle(Color(hex: "#6c7079"))
+            }
+            .layoutPriority(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let trailingBadge {
+                Spacer(minLength: 8)
+                ZTAIModelBadge(kind: trailingBadge)
+            }
+        }
     }
 
     // MARK: - Scanning photo
@@ -400,7 +455,7 @@ public struct ZTFormAutofillBottomPanel: View {
                             .font(.headline)
                             .foregroundStyle(Color(hex: "#10121A"))
                         Text(ZTAutofillStrings.pullingDetails)
-                            .font(.subheadline)
+                            .font(.footnote)
                             .foregroundStyle(Color(hex: "#5a6070"))
                         ZTAutofillShimmerBar()
                     }
@@ -471,7 +526,7 @@ public struct ZTFormAutofillBottomPanel: View {
                             .font(.headline)
                             .foregroundStyle(Color(hex: "#10121A"))
                         Text(ZTAutofillStrings.matchingFields)
-                            .font(.subheadline)
+                            .font(.footnote)
                             .foregroundStyle(Color(hex: "#5a6070"))
                     }
                     Spacer()
@@ -511,7 +566,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Color(hex: "#10121A"))
                 Text("\(coordinator.sourceLabel) \(ZTAutofillStrings.reviewSubtitle)")
-                    .font(.subheadline)
+                    .font(.footnote)
                     .foregroundStyle(Color(hex: "#5a6070"))
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -674,11 +729,13 @@ public struct ZTFormAutofillBottomPanel: View {
         UIDevice.current.userInterfaceIdiom == .pad ? 32 : 16
     }
 
+
     private var pickerPanelHeight: CGFloat {
-        if UIDevice.current.userInterfaceIdiom == .phone{
-            return 400
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        if coordinator.supportsTagScan {
+            return isPad ? 380 : 420
         }
-        return 350
+        return isPad ? 348 : 400
     }
 
     private var reviewPanelHeight: CGFloat {
@@ -808,6 +865,7 @@ struct ZTWaveBarView: View {
 // MARK: - Camera picker (UIKit bridge)
 
 struct ZTInlineCameraPickerView: UIViewControllerRepresentable {
+    let hint: String?   // nil = no framing overlay
     let onImagePicked: (UIImage) -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -815,6 +873,11 @@ struct ZTInlineCameraPickerView: UIViewControllerRepresentable {
         let picker = UIImagePickerController()
         picker.sourceType = .camera
         picker.delegate = context.coordinator
+        if let hint {
+            let overlay = CameraTagFramingOverlay(hint: hint)
+            overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            picker.cameraOverlayView = overlay
+        }
         return picker
     }
 
@@ -835,6 +898,61 @@ struct ZTInlineCameraPickerView: UIViewControllerRepresentable {
         }
     }
 }
+// MARK: - Camera framing guide overlay
+
+private final class CameraTagFramingOverlay: UIView {
+    private let hint: String
+
+    init(hint: String) {
+        self.hint = hint
+        super.init(frame: .zero)
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func draw(_ rect: CGRect) {
+        let hInset: CGFloat = 40
+        let vInset: CGFloat = 120
+        let bracketLen: CGFloat = 28
+        let lineWidth: CGFloat = 3
+        let guideRect = rect.insetBy(dx: hInset, dy: 0)
+            .inset(by: UIEdgeInsets(top: vInset, left: 0, bottom: vInset + 80, right: 0))
+
+        UIColor.white.withAlphaComponent(0.8).setStroke()
+        let path = UIBezierPath()
+        path.lineWidth = lineWidth
+        path.lineCapStyle = .round
+
+        // Top-left
+        path.move(to: CGPoint(x: guideRect.minX, y: guideRect.minY + bracketLen))
+        path.addLine(to: CGPoint(x: guideRect.minX, y: guideRect.minY))
+        path.addLine(to: CGPoint(x: guideRect.minX + bracketLen, y: guideRect.minY))
+        // Top-right
+        path.move(to: CGPoint(x: guideRect.maxX - bracketLen, y: guideRect.minY))
+        path.addLine(to: CGPoint(x: guideRect.maxX, y: guideRect.minY))
+        path.addLine(to: CGPoint(x: guideRect.maxX, y: guideRect.minY + bracketLen))
+        // Bottom-right
+        path.move(to: CGPoint(x: guideRect.maxX, y: guideRect.maxY - bracketLen))
+        path.addLine(to: CGPoint(x: guideRect.maxX, y: guideRect.maxY))
+        path.addLine(to: CGPoint(x: guideRect.maxX - bracketLen, y: guideRect.maxY))
+        // Bottom-left
+        path.move(to: CGPoint(x: guideRect.minX + bracketLen, y: guideRect.maxY))
+        path.addLine(to: CGPoint(x: guideRect.minX, y: guideRect.maxY))
+        path.addLine(to: CGPoint(x: guideRect.minX, y: guideRect.maxY - bracketLen))
+        path.stroke()
+
+        let label = hint as NSString
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 13, weight: .medium),
+            .foregroundColor: UIColor.white.withAlphaComponent(0.85)
+        ]
+        let labelSize = label.size(withAttributes: attrs)
+        let labelOrigin = CGPoint(x: guideRect.midX - labelSize.width / 2, y: guideRect.maxY + 10)
+        label.draw(at: labelOrigin, withAttributes: attrs)
+    }
+}
+
 // MARK: - Scan sweep overlay (animated line)
 
 struct ZTScanSweepOverlay: View {
@@ -926,7 +1044,7 @@ struct ZTSparklesIcon: View {
 #if DEBUG
 @MainActor
 private func makeAutofillPickerPreviewCoordinator() -> ZTFormAutofillCoordinator {
-    let coordinator = ZTFormAutofillCoordinator(documentType: .customer, fieldMapper: { _ in [] })
+    let coordinator = ZTFormAutofillCoordinator(documentType: .fireEquipment, fieldMapper: { _ in [] })
     coordinator.openSheet()
     return coordinator
 }
@@ -944,7 +1062,7 @@ private func makeAutofillReadingPreviewCoordinator() -> ZTFormAutofillCoordinato
 
 @MainActor
 private func makeAutofillExtractingPreviewCoordinator() -> ZTFormAutofillCoordinator {
-    let coordinator = ZTFormAutofillCoordinator(documentType: .customer, fieldMapper: { _ in [] })
+    let coordinator = ZTFormAutofillCoordinator(documentType: .fireEquipment, fieldMapper: { _ in [] })
     coordinator.openSheet()
     coordinator.debugSetState(step: .extracting)
     return coordinator

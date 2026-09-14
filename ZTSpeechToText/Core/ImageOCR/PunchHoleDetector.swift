@@ -37,7 +37,9 @@ public struct PunchHoleDetector {
 
     private let maxAnalysisDimension: CGFloat = 900
 
-    private static let monthAbbreviations: Set<String> = [
+    // Ordered canonical 3-letter prefixes. hasPrefix matching handles all OCR variants:
+    // "JAN", "JANUARY", "FEB", "FEBRUARY", "JUNE"→JUN, "JULY"→JUL, "SEPT"/"SEPTEMBER"→SEP, etc.
+    private static let monthPrefixes = [
         "JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"
     ]
 
@@ -154,8 +156,13 @@ public struct PunchHoleDetector {
             let mean     = vals.reduce(0, +) / Float(vals.count)
             let floor: Float = 0.025
             let range = maxScore - mean
-            for cell in cellScores {
-                let isSelected = cell.score >= floor && (range < 0.003 || cell.score >= mean + range * 0.60)
+            // A physical tag has exactly one punch per row — only the single darkest cell wins.
+            // Allowing all above-threshold cells causes false positives when neighboring cells
+            // have similar darkness (e.g. heavy ink on an unselected year or month).
+            let winnerIdx = cellScores.indices.max { cellScores[$0].score < cellScores[$1].score }
+            for (idx, cell) in cellScores.enumerated() {
+                let isWinner = idx == winnerIdx
+                let isSelected = isWinner && cell.score >= floor && (range < 0.003 || cell.score >= mean + range * 0.60)
                 let confidence: Float = isSelected && range > 0
                     ? min(0.95, 0.50 + 0.45 * ((cell.score - mean) / range))
                     : 0
@@ -177,7 +184,7 @@ public struct PunchHoleDetector {
     private func isYearOrMonth(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         if t.count == 4, let year = Int(t), year >= 1990, year <= 2040 { return true }
-        return Self.monthAbbreviations.contains(t)
+        return Self.monthPrefixes.contains { t.range(of: $0, options: [.caseInsensitive, .anchored]) != nil }
     }
 
     /// Groups option lines into same-section, same-column clusters.
@@ -223,15 +230,20 @@ public struct PunchHoleDetector {
     }
 
     /// Groups OCR lines into horizontal rows by clustering their Y-centre positions.
+    /// Uses an adaptive threshold (80% of median line height) so the grouping scales
+    /// correctly whether the tag fills the frame or is small within a larger image.
     private func groupByRow(_ lines: [OCRLine]) -> [[OCRLine]] {
         guard !lines.isEmpty else { return [] }
-        let sorted = lines.sorted { $0.boundingBox.y > $1.boundingBox.y } // top to bottom (Vision Y flipped)
+        let sorted = lines.sorted { $0.boundingBox.y > $1.boundingBox.y }
+        let heights = sorted.map { $0.boundingBox.height }.sorted()
+        let medianHeight = heights[heights.count / 2]
+        let rowThreshold = max(0.01, medianHeight * 0.8)
         var groups: [[OCRLine]] = []
         var current: [OCRLine] = [sorted[0]]
         for line in sorted.dropFirst() {
             let prevY = current.last!.boundingBox.y + current.last!.boundingBox.height / 2
             let currY = line.boundingBox.y + line.boundingBox.height / 2
-            if abs(prevY - currY) < 0.04 { // within 4% of image height = same row
+            if abs(prevY - currY) < rowThreshold {
                 current.append(line)
             } else {
                 groups.append(current)

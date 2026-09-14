@@ -52,6 +52,12 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     @Published public private(set) var ocrText: String = ""
     @Published public private(set) var previewCandidates: [ZTAutofillCandidate] = []
     @Published public var activeModelBadge: ZTAIModelBadgeKind? = nil
+    /// When true, perspective correction is applied before OCR and the camera shows a
+    /// framing guide overlay. Only relevant for fireEquipment document type. Default: false.
+    @Published public var tagScanModeEnabled: Bool = false
+
+    /// True when this coordinator supports tag-scan mode (i.e. document type is fireEquipment).
+    public var supportsTagScan: Bool { documentType == .fireEquipment }
 
     public var onApply: (([ZTAutofillCandidate]) -> Void)?
     public var onUndo: (() -> Void)?
@@ -76,6 +82,30 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     }
 
     // MARK: - Public actions
+
+    /// Localized hint shown in the camera framing overlay. Varies by document type.
+    public var cameraGuidanceHint: String {
+        switch documentType {
+        case .fireEquipment:
+            return Self.localizedLabel("lbl_camera_guide_fire_tag",      fallback: "Fill frame with tag")
+        case .customer:
+            return Self.localizedLabel("lbl_camera_guide_business_card", fallback: "Fill frame with card")
+        case .bill:
+            return Self.localizedLabel("lbl_camera_guide_document",      fallback: "Fill frame with document")
+        }
+    }
+
+    /// Localized subtitle shown under the photo action in the picker. Varies by document type.
+    public var photoActionSubtitle: String {
+        switch documentType {
+        case .fireEquipment:
+            return Self.localizedLabel("lbl_autofill_scan_photo_subtitle_fire_equipment", fallback: "Fire inspection tag, equipment label, or nameplate")
+        case .customer:
+            return Self.localizedLabel("lbl_autofill_scan_photo_subtitle_customer", fallback: "Business card, work order, or label")
+        case .bill:
+            return Self.localizedLabel("lbl_autofill_scan_photo_subtitle_bill", fallback: "Invoice, work order, or receipt")
+        }
+    }
 
     public func openSheet(preferCloudForStructuredExtraction: Bool = false) {
         CloudAPIConfiguration.preferCloudForStructuredExtraction = preferCloudForStructuredExtraction
@@ -123,23 +153,71 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                 let text: String
                 let supplementalContext: String?
                 if self.documentType == .fireEquipment {
-                    let ocrResult = try await self.ocrEngine.recognizeDetailedText(in: image, languageHints: [])
-                    text = ocrResult.fullText
-                    #if DEBUG
-                    let punchStart = Date()
-                    #endif
-                    let punchDetections = await Task.detached(priority: .userInitiated) {
-                        PunchHoleDetector().detectSelections(in: image, ocrResult: ocrResult)
-                    }.value
-                    #if DEBUG
-                    if CloudAPIConfiguration.isLoggingEnabled {
-                        print("[AUTOFILL_TIMING] PunchDetection: \(String(format: "%.2f", Date().timeIntervalSince(punchStart)))s, selections=\(punchDetections.count)")
+                    let workImage: UIImage
+                    // Perspective correction only applies to camera shots (angled captures).
+                    // Library photos are already composed by the user — skip the correction.
+                    if self.tagScanModeEnabled && source == .camera {
+                        #if DEBUG
+                        let perspStart = Date()
+                        #endif
+                        workImage = await self.ocrEngine.perspectiveCorrected(image)
+                        #if DEBUG
+                        if CloudAPIConfiguration.isLoggingEnabled {
+                            print("[AUTOFILL_TIMING] PerspectiveCorrection: \(String(format: "%.2f", Date().timeIntervalSince(perspStart)))s input=\(Int(image.size.width))x\(Int(image.size.height)) output=\(Int(workImage.size.width))x\(Int(workImage.size.height))")
+                        }
+                        #endif
+                    } else {
+                        workImage = image
                     }
-                    #endif
-                    supplementalContext = self.buildStructuredOCRContext(punchDetections: punchDetections)
+                    let ocrResult = try await self.ocrEngine.recognizeDetailedText(in: workImage, languageHints: [])
+                    text = ocrResult.fullText
+
+                    // Punch-hole detection and visual-selection context are only meaningful
+                    // when tag-scan mode is on — the user has confirmed they're scanning
+                    // an inspection tag with a hole-punch date/type grid. For regular
+                    // equipment photos (labels, nameplates) the pixel analysis produces
+                    // unreliable results and the supplemental context is omitted.
+                    if self.tagScanModeEnabled {
+                        #if DEBUG
+                        let punchStart = Date()
+                        #endif
+                        let punchDetections = await Task.detached(priority: .userInitiated) {
+                            PunchHoleDetector().detectSelections(in: workImage, ocrResult: ocrResult)
+                        }.value
+                        #if DEBUG
+                        if CloudAPIConfiguration.isLoggingEnabled {
+                            print("[AUTOFILL_TIMING] PunchDetection: \(String(format: "%.2f", Date().timeIntervalSince(punchStart)))s, selections=\(punchDetections.count)")
+                            let allSelected = punchDetections.filter { $0.selected }
+                            let gridSelected = allSelected.filter { $0.strategy == .gridCell }
+                            let optionSelected = allSelected.filter { $0.strategy == .optionList }
+                            print("[AUTOFILL_PUNCH] selected=\(allSelected.count)/\(punchDetections.count) gridCell=[\(gridSelected.map { "\($0.lineText)@\(String(format: "%.2f", $0.confidence))" }.joined(separator: ", "))] optionList=[\(optionSelected.map { $0.lineText }.joined(separator: ", "))]")
+                            print("[AUTOFILL_OCR] lines=\(ocrResult.lines.count) text=\(text.prefix(800).replacingOccurrences(of: "\n", with: " | "))")
+                        }
+                        #endif
+                        let supplementalCtx = self.buildStructuredOCRContext(punchDetections: punchDetections)
+                        #if DEBUG
+                        if CloudAPIConfiguration.isLoggingEnabled {
+                            print("[AUTOFILL_PUNCH] supplementalContext=\(supplementalCtx ?? "nil")")
+                        }
+                        #endif
+                        supplementalContext = supplementalCtx
+                    } else {
+                        #if DEBUG
+                        if CloudAPIConfiguration.isLoggingEnabled {
+                            print("[AUTOFILL_OCR] lines=\(ocrResult.lines.count) text=\(text.prefix(800).replacingOccurrences(of: "\n", with: " | "))")
+                        }
+                        #endif
+                        supplementalContext = nil
+                    }
                 } else {
                     text = try await self.ocrEngine.recognizeText(in: image, languageHints: [])
                     supplementalContext = nil
+                    #if DEBUG
+                    if CloudAPIConfiguration.isLoggingEnabled {
+                        let lineCount = text.split(whereSeparator: \.isNewline).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
+                        print("[AUTOFILL_OCR] docType=\(self.documentType.rawValue) lines=\(lineCount) text=\(text.prefix(800).replacingOccurrences(of: "\n", with: " | "))")
+                    }
+                    #endif
                 }
                 #if DEBUG
                 if CloudAPIConfiguration.isLoggingEnabled {
@@ -380,23 +458,75 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         let confidence: Float
     }
 
+    // Ordered canonical 3-letter prefixes. hasPrefix matching handles all OCR variants:
+    // "JAN"/"JANUARY", "JUN"/"JUNE", "JUL"/"JULY", "SEP"/"SEPT"/"SEPTEMBER", etc.
+    private static let canonicalMonthPrefixes = [
+        "JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"
+    ]
+
+    /// Returns the canonical 3-letter month abbreviation for an OCR line text, or nil if not a month.
+    private static func canonicalMonth(for text: String) -> String? {
+        let t = text.trimmingCharacters(in: .whitespaces).uppercased()
+        return canonicalMonthPrefixes.first { t.range(of: $0, options: [.caseInsensitive, .anchored]) != nil }
+    }
+
     private func buildStructuredOCRContext(punchDetections: [PunchHoleDetectionResult]) -> String? {
-        // Only grid-cell detections (year/month) are reliable enough to send as visualSelections.
-        // Option-list detections (agent type checkboxes) have unpredictable punch positions
-        // and confound the AI — the AI reasons better from OCR text alone for those.
-        let selections = punchDetections
-            .filter { $0.selected && $0.strategy == .gridCell }
-            .map { StructuredVisualSelection(label: $0.lineText, selected: true, confidence: $0.confidence) }
+        let gridSelected = punchDetections.filter { $0.selected && $0.strategy == .gridCell }
 
-        guard !selections.isEmpty else { return nil }
+        // Include the single best optionList selection only when exactly one item passes
+        // and it is clearly dominant (confidence ≥ 0.80). When multiple items are selected
+        // the detection is ambiguous and we send nothing — wrong agent type misleads the AI
+        // more than silence. Only affects punch-tag scans.
+        let optionSelected = punchDetections.filter { $0.selected && $0.strategy == .optionList }
+        let topOptionHint: PunchHoleDetectionResult? = {
+            guard optionSelected.count == 1, let top = optionSelected.first, top.confidence >= 0.80 else { return nil }
+            return top
+        }()
 
-        let payload = ["visualSelections": selections]
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.withoutEscapingSlashes]
-        guard let data = try? encoder.encode(payload),
-              let json = String(data: data, encoding: .utf8) else {
-            return nil
+        let selectedYears = gridSelected.filter { t in
+            let s = t.lineText.trimmingCharacters(in: .whitespaces)
+            return s.count == 4 && Int(s).map { $0 >= 1990 && $0 <= 2040 } == true
         }
+        let selectedMonths = gridSelected.filter {
+            Self.canonicalMonth(for: $0.lineText) != nil
+        }
+
+        // Months completely absent from OCR may have been punched through — the hole
+        // destroys the printed text making it unreadable. Surfacing these to the AI lets
+        // it infer the likely punched month from the gap in the sequence.
+        let ocrMonthsPresent = Set(punchDetections.compactMap { Self.canonicalMonth(for: $0.lineText) })
+        let monthsAbsentFromOCR = Set(Self.canonicalMonthPrefixes).subtracting(ocrMonthsPresent).sorted()
+
+        guard !gridSelected.isEmpty || !monthsAbsentFromOCR.isEmpty || topOptionHint != nil else { return nil }
+
+        var payload: [String: Any] = [:]
+
+        var allSelections = gridSelected.map {
+            ["label": $0.lineText, "selected": true, "confidence": $0.confidence] as [String: Any]
+        }
+        if let hint = topOptionHint {
+            allSelections.append(["label": hint.lineText, "selected": true, "confidence": hint.confidence, "hint": "lowConfidence"] as [String: Any])
+        }
+        if !allSelections.isEmpty {
+            payload["visualSelections"] = allSelections
+        }
+
+        // Only derive a date when exactly 1 year and 1 month are unambiguously detected.
+        // When multiple years or months compete, omit derivedServiceDate and let the AI
+        // use context clues — a wrong derivedServiceDate misleads the AI more than silence.
+        if selectedYears.count == 1, selectedMonths.count == 1,
+           let y = selectedYears.first, let m = selectedMonths.first {
+            let canonMonth = Self.canonicalMonth(for: m.lineText) ?? m.lineText
+            payload["derivedServiceDate"] = "\(canonMonth) \(y.lineText)"
+        }
+
+        if !monthsAbsentFromOCR.isEmpty {
+            payload["possiblyPunchedAbsentFromOCR"] = monthsAbsentFromOCR
+        }
+
+        guard !payload.isEmpty,
+              let data = try? JSONSerialization.data(withJSONObject: payload, options: []),
+              let json = String(data: data, encoding: .utf8) else { return nil }
         return json
     }
 

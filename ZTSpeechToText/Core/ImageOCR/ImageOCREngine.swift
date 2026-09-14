@@ -1,5 +1,6 @@
 import Vision
 import UIKit
+import CoreImage
 
 // MARK: - Errors
 
@@ -186,5 +187,46 @@ public struct ImageOCREngine {
     public func recognizeText(in image: UIImage, languageHints: [String] = []) async throws -> String {
         let detailed = try await recognizeDetailedText(in: image, languageHints: languageHints)
         return detailed.fullText
+    }
+
+    // Detects the largest rectangular document in the image and applies perspective
+    // correction to produce a flat, axis-aligned crop. Falls back to the original
+    // image if no clear rectangle covering ≥15% of the frame is found.
+    public func perspectiveCorrected(_ image: UIImage) async -> UIImage {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                guard let cgImage = image.cgImage else {
+                    continuation.resume(returning: image)
+                    return
+                }
+                var result: UIImage = image
+                let request = VNDetectRectanglesRequest { req, _ in
+                    guard let observations = req.results as? [VNRectangleObservation],
+                          let best = observations.first,
+                          best.boundingBox.width * best.boundingBox.height >= 0.15 else { return }
+                    let ciImage = CIImage(cgImage: cgImage)
+                    let w = CGFloat(cgImage.width), h = CGFloat(cgImage.height)
+                    func pt(_ p: CGPoint) -> CIVector { CIVector(x: p.x * w, y: p.y * h) }
+                    guard let filter = CIFilter(name: "CIPerspectiveCorrection") else { return }
+                    filter.setValue(ciImage,               forKey: kCIInputImageKey)
+                    filter.setValue(pt(best.topLeft),      forKey: "inputTopLeft")
+                    filter.setValue(pt(best.topRight),     forKey: "inputTopRight")
+                    filter.setValue(pt(best.bottomLeft),   forKey: "inputBottomLeft")
+                    filter.setValue(pt(best.bottomRight),  forKey: "inputBottomRight")
+                    guard let output = filter.outputImage else { return }
+                    let ctx = CIContext(options: [.useSoftwareRenderer: false])
+                    guard let corrected = ctx.createCGImage(output, from: output.extent) else { return }
+                    result = UIImage(cgImage: corrected)
+                }
+                request.minimumAspectRatio    = 0.2   // tags are taller than wide
+                request.maximumAspectRatio    = 1.0
+                request.minimumSize           = 0.15  // must cover ≥15% of image area
+                request.quadratureTolerance   = 30    // allow up to 30° of skew
+                request.maximumObservations   = 1
+                let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+                try? handler.perform([request])
+                continuation.resume(returning: result)
+            }
+        }
     }
 }

@@ -95,7 +95,9 @@
 // MARK: - Autofill Panel
 "lbl_autofill_picker_description" = "Prenez une photo avec Caméra ou choisissez-en une dans Photothèque. Le texte est extrait, associé aux champs et affiché pour vérification avant tout remplissage.";
 "lbl_autofill_scan_photo" = "Photo";
-"lbl_autofill_scan_photo_subtitle" = "Carte professionnelle, bon de travail ou étiquette";
+"lbl_autofill_scan_photo_subtitle_customer" = "Carte professionnelle, bon de travail ou étiquette";
+"lbl_autofill_scan_photo_subtitle_fire_equipment" = "Étiquette d'inspection incendie, étiquette d'équipement ou plaque signalétique";
+"lbl_autofill_scan_photo_subtitle_bill" = "Facture, bon de travail ou reçu";
 "lbl_autofill_speak" = "Parler";
 "lbl_autofill_speak_subtitle" = "Dites les détails dans n'importe quel ordre";
 "lbl_autofill_reading_photo" = "Lecture de la photo…";
