@@ -16,7 +16,7 @@ private enum ZTAutofillStrings {
     static var photoLibrary: String    { localized("btn_photo_library",                 fallback: "Photo Library") }
     static var speak: String           { localized("lbl_autofill_speak",                 fallback: "Speak") }
     static var speakSub: String        { localized("lbl_autofill_speak_subtitle",         fallback: "Say the details in any order") }
-    static var tagScanMode: String     { localized("lbl_autofill_tag_scan_mode",          fallback: "Fire inspection tag") }
+    static var tagScanMode: String     { localized("lbl_autofill_tag_scan_mode",          fallback: "Inspection tag has hole-punched grid") }
     static var readingPhoto: String    { localized("lbl_autofill_reading_photo",          fallback: "Reading the photo…") }
     static var pullingDetails: String  { localized("lbl_autofill_pulling_details",        fallback: "Finding text in the image") }
     static var extracting: String      { localized("lbl_autofill_extracting_details",     fallback: "Extracting details…") }
@@ -380,14 +380,15 @@ public struct ZTFormAutofillBottomPanel: View {
                     Text(ZTAutofillStrings.tagScanMode)
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(Color(hex: "#5a6070"))
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(2)
+                    Spacer(minLength: 4)
                     Toggle("", isOn: $coordinator.tagScanModeEnabled)
                         .labelsHidden()
                         .tint(Color(hex: "#0B6BEF"))
                         .scaleEffect(0.8)
                 }
-                .padding(.leading, 50)
-                .padding([.trailing, .vertical], 10)
+                .padding(.all, 10)
                 .contentShape(Rectangle())
                 .onTapGesture { showPhotoSourceDialog = true }
             }
