@@ -673,7 +673,6 @@ public struct ZTFormAutofillBottomPanel: View {
                 .font(.body)
                 .foregroundStyle(Color(hex: "#5a6070"))
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 20)
             HStack(spacing: 12) {
                 Button(ZTAutofillStrings.tryAgain) { coordinator.retryFromPicker() }
                     .font(.headline)
@@ -692,7 +691,6 @@ public struct ZTFormAutofillBottomPanel: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 20)
         }
         .padding(.top, 32)
         .padding(.horizontal, 16)
@@ -726,9 +724,7 @@ public struct ZTFormAutofillBottomPanel: View {
             .buttonStyle(.plain)
     }
 
-    private var panelHorizontalPadding: CGFloat {
-        UIDevice.current.userInterfaceIdiom == .pad ? 32 : 16
-    }
+    private var panelHorizontalPadding: CGFloat { 16 }
 
 
     private var pickerPanelHeight: CGFloat {

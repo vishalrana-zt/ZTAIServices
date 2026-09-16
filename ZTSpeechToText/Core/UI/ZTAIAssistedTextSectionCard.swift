@@ -35,6 +35,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
     /// Set to false when an external keyboard manager (IQKeyboardManager) is active on the
     /// host screen — the built-in Done toolbar conflicts with IQKeyboardManager's scroll calc.
     public var showDoneToolbar: Bool = true
+    public var showMicButton: Bool = true
+    public var showCleanupButton: Bool = true
     public var dismissKeyboard: () -> Void
     public var onDisappear: (() -> Void)? = nil
 
@@ -68,6 +70,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
         topPadding: CGFloat? = nil,
         bottomPadding: CGFloat? = nil,
         showDoneToolbar: Bool = true,
+        showMicButton: Bool = true,
+        showCleanupButton: Bool = true,
         dismissKeyboard: @escaping () -> Void,
         onDisappear: (() -> Void)? = nil
     ) {
@@ -100,6 +104,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
         self.topPadding = topPadding
         self.bottomPadding = bottomPadding
         self.showDoneToolbar = showDoneToolbar
+        self.showMicButton = showMicButton
+        self.showCleanupButton = showCleanupButton
         self.dismissKeyboard = dismissKeyboard
         self.onDisappear = onDisappear
     }
@@ -156,7 +162,9 @@ public struct ZTAIAssistedTextSectionHostView: View {
             onSummarizeAnalyticsTap: { style in
                 coordinator.reportSummarizeTapped(style: style)
             },
-            showDoneToolbar: showDoneToolbar
+            showDoneToolbar: showDoneToolbar,
+            showMicButton: showMicButton,
+            showCleanupButton: showCleanupButton
         )
     }
 }
@@ -250,6 +258,8 @@ public struct ZTAIAssistedTextSectionCard: View {
     public var onCleanupAnalyticsTap: (() -> Void)?
     public var onSummarizeAnalyticsTap: ((ZTAISummaryStyle) -> Void)?
     public var showDoneToolbar: Bool = true
+    public var showMicButton: Bool = true
+    public var showCleanupButton: Bool = true
 
     @StateObject private var aiController = ZTAIAssistantController()
     @State private var editorText: String = ""
@@ -259,7 +269,7 @@ public struct ZTAIAssistedTextSectionCard: View {
     private var cardVerticalPadding: CGFloat { showBorder ? 16 : 8 }
     private var cardHorizontalPadding: CGFloat { (showBorder || showShadow) ? 16 : 0 }
 
-    private var canUseAIFeatures: Bool { !isReadOnly }
+    private var canUseAIFeatures: Bool { !isReadOnly && (showMicButton || showCleanupButton) }
 
     private var resolvedAIMenuOffset: CGSize {
         if let aiMenuOffset { return aiMenuOffset }
@@ -343,7 +353,9 @@ public struct ZTAIAssistedTextSectionCard: View {
         onAIMenuOpenChanged: ((Bool) -> Void)? = nil,
         onCleanupAnalyticsTap: (() -> Void)? = nil,
         onSummarizeAnalyticsTap: ((ZTAISummaryStyle) -> Void)? = nil,
-        showDoneToolbar: Bool = true
+        showDoneToolbar: Bool = true,
+        showMicButton: Bool = true,
+        showCleanupButton: Bool = true
     ) {
         self.title = title
         self.placeholder = placeholder
@@ -382,6 +394,8 @@ public struct ZTAIAssistedTextSectionCard: View {
         self.onCleanupAnalyticsTap = onCleanupAnalyticsTap
         self.onSummarizeAnalyticsTap = onSummarizeAnalyticsTap
         self.showDoneToolbar = showDoneToolbar
+        self.showMicButton = showMicButton
+        self.showCleanupButton = showCleanupButton
     }
 
     public var body: some View {
@@ -407,7 +421,9 @@ public struct ZTAIAssistedTextSectionCard: View {
                             },
                             onAITap: { aiController.toggleMenu() },
                             isRecordingOverride: isSpeechRecordingActive,
-                            aiButtonDisabled: isSpeechToTextSheetPresented
+                            aiButtonDisabled: isSpeechToTextSheetPresented,
+                            showMicButton: showMicButton,
+                            showCleanupButton: showCleanupButton
                         )
                     }
                 }
@@ -462,7 +478,9 @@ public struct ZTAIAssistedTextSectionCard: View {
                                         },
                                         onAITap: { aiController.toggleMenu() },
                                         isRecordingOverride: isSpeechRecordingActive,
-                                        aiButtonDisabled: isSpeechToTextSheetPresented
+                                        aiButtonDisabled: isSpeechToTextSheetPresented,
+                                        showMicButton: showMicButton,
+                                        showCleanupButton: showCleanupButton
                                     )
                                 }
                             }

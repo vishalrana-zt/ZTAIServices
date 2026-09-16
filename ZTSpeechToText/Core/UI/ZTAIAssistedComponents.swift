@@ -535,19 +535,25 @@ public struct ZTAIAssistantButtonRow: View {
     public let onAITap: () -> Void
     public var isRecordingOverride: Bool? = nil
     public var aiButtonDisabled: Bool = false
+    public var showMicButton: Bool = true
+    public var showCleanupButton: Bool = true
 
     public init(
         controller: ZTAIAssistantController,
         onMicTap: @escaping () -> Void,
         onAITap: @escaping () -> Void,
         isRecordingOverride: Bool? = nil,
-        aiButtonDisabled: Bool = false
+        aiButtonDisabled: Bool = false,
+        showMicButton: Bool = true,
+        showCleanupButton: Bool = true
     ) {
         self.controller = controller
         self.onMicTap = onMicTap
         self.onAITap = onAITap
         self.isRecordingOverride = isRecordingOverride
         self.aiButtonDisabled = aiButtonDisabled
+        self.showMicButton = showMicButton
+        self.showCleanupButton = showCleanupButton
     }
 
     private var isRecording: Bool {
@@ -568,42 +574,45 @@ public struct ZTAIAssistantButtonRow: View {
 
     public var body: some View {
         HStack(spacing: buttonSpacing) {
-            Button(action: {
-                dismissKeyboardIfNeeded()
-                onMicTap()
-            }) {
-                ZStack {
-                    if isRecording {
-                        PulseRings(color: Color(hex: "#E0364C"))
-                            .frame(width: buttonSize, height: buttonSize)
-                    }
+            if showMicButton {
+                Button(action: {
+                    dismissKeyboardIfNeeded()
+                    onMicTap()
+                }) {
                     ZStack {
                         if isRecording {
-                            RecordingWaveformIcon(isAnimated: true)
-                        } else {
-                            Image(systemName: "mic")
-                                .font(iconFont)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(Color(hex: "#0B6BEF"))
+                            PulseRings(color: Color(hex: "#E0364C"))
+                                .frame(width: buttonSize, height: buttonSize)
                         }
+                        ZStack {
+                            if isRecording {
+                                RecordingWaveformIcon(isAnimated: true)
+                            } else {
+                                Image(systemName: "mic")
+                                    .font(iconFont)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color(hex: "#0B6BEF"))
+                            }
+                        }
+                        .frame(width: buttonSize, height: buttonSize)
+                        .background(isRecording ? Color(hex: "#E0364C") : Color(hex: "#E8F1FF"))
+                        .clipShape(Circle())
+                        .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 1)
                     }
-                    .frame(width: buttonSize, height: buttonSize)
-                    .background(isRecording ? Color(hex: "#E0364C") : Color(hex: "#E8F1FF"))
-                    .clipShape(Circle())
-                    .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 1)
                 }
+                .buttonStyle(.plain)
+                .disabled(controller.isRunningAI)
             }
-            .buttonStyle(.plain)
-            .disabled(controller.isRunningAI)
 
-            Button(action: {
-                dismissKeyboardIfNeeded()
-                switch controller.aiGlyphPhase {
-                case .idle:   onAITap()
-                case .working: break
-                case .cancellable: controller.cancelAIOperation()
-                }
-            }) {
+            if showCleanupButton {
+                Button(action: {
+                    dismissKeyboardIfNeeded()
+                    switch controller.aiGlyphPhase {
+                    case .idle:   onAITap()
+                    case .working: break
+                    case .cancellable: controller.cancelAIOperation()
+                    }
+                }) {
                 ZStack {
                     if controller.isRunningAI {
                         PulseRings(color: Color(hex: "#0B6BEF"))
@@ -632,10 +641,11 @@ public struct ZTAIAssistantButtonRow: View {
                     .animation(.easeOut(duration: 0.18), value: controller.aiGlyphPhase)
                 }
             }
-            .buttonStyle(.plain)
-            .disabled(isAIButtonBlocked)
-            .opacity(isAIButtonBlocked ? 0.4 : 1.0)
-            .accessibilityLabel(controller.aiGlyphPhase == .cancellable ? "Cancel" : "AI actions")
+                .buttonStyle(.plain)
+                .disabled(isAIButtonBlocked)
+                .opacity(isAIButtonBlocked ? 0.4 : 1.0)
+                .accessibilityLabel(controller.aiGlyphPhase == .cancellable ? "Cancel" : "AI actions")
+            }
         }
     }
 }
