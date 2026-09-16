@@ -37,6 +37,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
     public var showDoneToolbar: Bool = true
     public var showMicButton: Bool = true
     public var showCleanupButton: Bool = true
+    public var reserveBottomActionSpaceWhenButtonsHidden: Bool = false
+    public var useFixedEditorHeight: Bool = false
     public var dismissKeyboard: () -> Void
     public var onDisappear: (() -> Void)? = nil
 
@@ -72,6 +74,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
         showDoneToolbar: Bool = true,
         showMicButton: Bool = true,
         showCleanupButton: Bool = true,
+        reserveBottomActionSpaceWhenButtonsHidden: Bool = false,
+        useFixedEditorHeight: Bool = false,
         dismissKeyboard: @escaping () -> Void,
         onDisappear: (() -> Void)? = nil
     ) {
@@ -106,6 +110,8 @@ public struct ZTAIAssistedTextSectionHostView: View {
         self.showDoneToolbar = showDoneToolbar
         self.showMicButton = showMicButton
         self.showCleanupButton = showCleanupButton
+        self.reserveBottomActionSpaceWhenButtonsHidden = reserveBottomActionSpaceWhenButtonsHidden
+        self.useFixedEditorHeight = useFixedEditorHeight
         self.dismissKeyboard = dismissKeyboard
         self.onDisappear = onDisappear
     }
@@ -162,10 +168,31 @@ public struct ZTAIAssistedTextSectionHostView: View {
             onSummarizeAnalyticsTap: { style in
                 coordinator.reportSummarizeTapped(style: style)
             },
+            onAIFeedbackAnalyticsEvent: coordinator.onAnalyticsEvent,
             showDoneToolbar: showDoneToolbar,
             showMicButton: showMicButton,
-            showCleanupButton: showCleanupButton
+            showCleanupButton: showCleanupButton,
+            reserveBottomActionSpaceWhenButtonsHidden: reserveBottomActionSpaceWhenButtonsHidden,
+            useFixedEditorHeight: useFixedEditorHeight
         )
+        .overlay(alignment: .bottom) {
+            if let toast = coordinator.feedbackToastState {
+                ZTAIFeedbackCapsuleView(
+                    title: toast.title,
+                    onFeedbackTap: { liked in
+                        coordinator.onAnalyticsEvent?("AI_FEEDBACK_SUBMITTED", [
+                            "action": toast.feedbackAction ?? "stt",
+                            "rating": liked ? "liked" : "disliked"
+                        ])
+                        coordinator.clearFeedbackToast()
+                    }
+                )
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: coordinator.feedbackToastState != nil)
     }
 }
 
@@ -257,9 +284,12 @@ public struct ZTAIAssistedTextSectionCard: View {
     public var onAIMenuOpenChanged: ((Bool) -> Void)?
     public var onCleanupAnalyticsTap: (() -> Void)?
     public var onSummarizeAnalyticsTap: ((ZTAISummaryStyle) -> Void)?
+    public var onAIFeedbackAnalyticsEvent: ((String, [String: Any]) -> Void)?
     public var showDoneToolbar: Bool = true
     public var showMicButton: Bool = true
     public var showCleanupButton: Bool = true
+    public var reserveBottomActionSpaceWhenButtonsHidden: Bool = false
+    public var useFixedEditorHeight: Bool = false
 
     @StateObject private var aiController = ZTAIAssistantController()
     @State private var editorText: String = ""
@@ -270,6 +300,9 @@ public struct ZTAIAssistedTextSectionCard: View {
     private var cardHorizontalPadding: CGFloat { (showBorder || showShadow) ? 16 : 0 }
 
     private var canUseAIFeatures: Bool { !isReadOnly && (showMicButton || showCleanupButton) }
+    private var shouldReserveBottomActionSpace: Bool {
+        !showButtonsInHeader && (canUseAIFeatures || reserveBottomActionSpaceWhenButtonsHidden)
+    }
 
     private var resolvedAIMenuOffset: CGSize {
         if let aiMenuOffset { return aiMenuOffset }
@@ -353,9 +386,12 @@ public struct ZTAIAssistedTextSectionCard: View {
         onAIMenuOpenChanged: ((Bool) -> Void)? = nil,
         onCleanupAnalyticsTap: (() -> Void)? = nil,
         onSummarizeAnalyticsTap: ((ZTAISummaryStyle) -> Void)? = nil,
+        onAIFeedbackAnalyticsEvent: ((String, [String: Any]) -> Void)? = nil,
         showDoneToolbar: Bool = true,
         showMicButton: Bool = true,
-        showCleanupButton: Bool = true
+        showCleanupButton: Bool = true,
+        reserveBottomActionSpaceWhenButtonsHidden: Bool = false,
+        useFixedEditorHeight: Bool = false
     ) {
         self.title = title
         self.placeholder = placeholder
@@ -393,9 +429,12 @@ public struct ZTAIAssistedTextSectionCard: View {
         self.onAIMenuOpenChanged = onAIMenuOpenChanged
         self.onCleanupAnalyticsTap = onCleanupAnalyticsTap
         self.onSummarizeAnalyticsTap = onSummarizeAnalyticsTap
+        self.onAIFeedbackAnalyticsEvent = onAIFeedbackAnalyticsEvent
         self.showDoneToolbar = showDoneToolbar
         self.showMicButton = showMicButton
         self.showCleanupButton = showCleanupButton
+        self.reserveBottomActionSpaceWhenButtonsHidden = reserveBottomActionSpaceWhenButtonsHidden
+        self.useFixedEditorHeight = useFixedEditorHeight
     }
 
     public var body: some View {
@@ -449,10 +488,11 @@ public struct ZTAIAssistedTextSectionCard: View {
                             textStyle: editorTextStyle,
                             showDoneToolbar: showDoneToolbar
                         )
-                        .frame(minHeight: editorMinHeight, maxHeight: editorMaxHeight)
+                        .frame(height: useFixedEditorHeight ? editorMaxHeight : nil)
+                        .frame(minHeight: useFixedEditorHeight ? nil : editorMinHeight, maxHeight: editorMaxHeight)
                         .padding(.horizontal, editorHorizontalPadding)
                         .padding(.top, 8)
-                        .padding(.bottom, canUseAIFeatures && !showButtonsInHeader ? 56 : 8)
+                        .padding(.bottom, shouldReserveBottomActionSpace ? 56 : 8)
                         .disabled(isEditorDisabled)
 
                         if editorText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -545,12 +585,16 @@ public struct ZTAIAssistedTextSectionCard: View {
                         }
                     }
                 )
-                .allowsHitTesting(aiController.isMenuOpen || aiController.toastState != nil)
+                .allowsHitTesting(aiController.isMenuOpen || aiController.toastState != nil || aiController.feedbackToastState != nil)
                 .zIndex(10_000)
             }
         }
         .onAppear {
             if editorText != text { editorText = text }
+            aiController.onAnalyticsEvent = { event, props in
+                guard event == "AI_FEEDBACK_SUBMITTED" else { return }
+                onAIFeedbackAnalyticsEvent?(event, props)
+            }
         }
         .onChange(of: editorText) { newValue in
             if newValue != text { text = newValue }

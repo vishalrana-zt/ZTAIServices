@@ -12,8 +12,11 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
     @Published public private(set) var livePreviewText = ""
     @Published public var isAIMenuOpen: Bool = false
     @Published public var activeModelBadge: ZTAIModelBadgeKind?
+    @Published public var feedbackToastState: ZTAIToastState?
 
     public var onAnalyticsEvent: AnalyticsEventHandler?
+
+    private var feedbackDismissTask: Task<Void, Never>?
 
     private var isOnDeviceLiveStreamingAvailable = false
     private var liveSessionID: UUID?
@@ -175,6 +178,25 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
         let base = (sessionID == liveSessionID) ? liveDraftBaseText : currentText()
         applyText(merge(base, with: committed))
         resetLiveDraftState()
+        presentFeedbackToast(action: "stt")
+    }
+
+    public func presentFeedbackToast(action: String) {
+        let key = "lbl_ai_toast_transcribed"
+        let raw = ZTAIServiceLocalizer.localized(key)
+        let title = raw == key ? "Transcribed" : raw
+        feedbackDismissTask?.cancel()
+        feedbackToastState = ZTAIToastState(title: title, badge: nil, style: .success, feedbackAction: action)
+        feedbackDismissTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            await MainActor.run { self?.feedbackToastState = nil }
+        }
+    }
+
+    public func clearFeedbackToast() {
+        feedbackDismissTask?.cancel()
+        feedbackDismissTask = nil
+        feedbackToastState = nil
     }
 
     private func resetLiveDraftState() {

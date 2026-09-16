@@ -52,6 +52,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     @Published public private(set) var ocrText: String = ""
     @Published public private(set) var previewCandidates: [ZTAutofillCandidate] = []
     @Published public var activeModelBadge: ZTAIModelBadgeKind? = nil
+    @Published public var feedbackToastState: ZTAIToastState?
     /// When true, perspective correction is applied before OCR and the camera shows a
     /// framing guide overlay. Only relevant for fireEquipment document type. Default: false.
     @Published public var tagScanModeEnabled: Bool = false
@@ -69,6 +70,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     private let textAIService = TextAIService()
     private let speechBridge = SpeechToTextFlowBridge()
     private var extractionTask: Task<Void, Never>?
+    private var feedbackDismissTask: Task<Void, Never>?
     public init(
         documentType: StructuredDocumentType = .customer,
         fieldMapper: @escaping @Sendable (String) -> [ZTAutofillCandidate],
@@ -133,6 +135,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         selectedImage = nil
         ocrText = ""
         activeModelBadge = nil
+        clearFeedbackToast()
         step = .idle
     }
 
@@ -317,6 +320,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         activeModelBadge = nil
         step = .idle
         isSheetPresented = false
+        presentFeedbackToast(action: "autofill")
     }
 
     public func retryFromPicker() {
@@ -330,6 +334,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         selectedImage = nil
         ocrText = ""
         activeModelBadge = nil
+        clearFeedbackToast()
         step = .picking
     }
 
@@ -528,6 +533,24 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
               let data = try? JSONSerialization.data(withJSONObject: payload, options: []),
               let json = String(data: data, encoding: .utf8) else { return nil }
         return json
+    }
+
+    private func presentFeedbackToast(action: String) {
+        clearFeedbackToast()
+        let key = "lbl_ai_feedback_prompt_ai_output"
+        let raw = ZTAIServiceLocalizer.localized(key)
+        let title = raw == key ? "Was this AI output helpful?" : raw
+        feedbackToastState = ZTAIToastState(title: title, badge: nil, style: .success, feedbackAction: action)
+        feedbackDismissTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            await MainActor.run { self?.feedbackToastState = nil }
+        }
+    }
+
+    public func clearFeedbackToast() {
+        feedbackDismissTask?.cancel()
+        feedbackDismissTask = nil
+        feedbackToastState = nil
     }
 
     private static func localizedLabel(_ key: String, fallback: String) -> String {

@@ -782,11 +782,31 @@ private extension UIViewController {
     }
 }
 
-// MARK: - Applied banner (retained for API compatibility; no longer shown)
+// MARK: - Applied feedback capsule
 
 public struct ZTFormAutofillAppliedBannerView: View {
-    public init(coordinator: ZTFormAutofillCoordinator) {}
-    public var body: some View { EmptyView() }
+    @ObservedObject private var coordinator: ZTFormAutofillCoordinator
+
+    public init(coordinator: ZTFormAutofillCoordinator) {
+        self.coordinator = coordinator
+    }
+
+    public var body: some View {
+        Group {
+            if let feedbackToast = coordinator.feedbackToastState {
+                ZTAIFeedbackCapsuleView(
+                    title: feedbackToast.title,
+                    onFeedbackTap: { liked in
+                        coordinator.onAnalyticsEvent?("AI_FEEDBACK_SUBMITTED", [
+                            "action": feedbackToast.feedbackAction ?? "autofill",
+                            "rating": liked ? "liked" : "disliked"
+                        ])
+                        coordinator.clearFeedbackToast()
+                    }
+                )
+            }
+        }
+    }
 }
 
 // MARK: - Shimmer animation bar

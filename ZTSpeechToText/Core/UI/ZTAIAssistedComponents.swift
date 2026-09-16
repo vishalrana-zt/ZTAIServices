@@ -28,6 +28,10 @@ private enum ZTAIStrings {
     static var toastCleanedUp: String { localized("lbl_ai_toast_cleaned_up", fallback: "Cleaned up") }
     static var toastSummarized: String { localized("lbl_ai_toast_summarized", fallback: "Summarized") }
     static var toastNoText: String { localized("lbl_ai_toast_no_text", fallback: "No text found") }
+    static var toastTranscribed: String { localized("lbl_ai_toast_transcribed", fallback: "Transcribed") }
+    static var feedbackPromptAIOutput: String { localized("lbl_ai_feedback_prompt_ai_output", fallback: "Was this AI output helpful?") }
+    static var feedbackHelpful: String { localized("lbl_ai_feedback_helpful", fallback: "Helpful") }
+    static var feedbackNotHelpful: String { localized("lbl_ai_feedback_not_helpful", fallback: "Not helpful") }
 }
 
 public enum ZTAIAssistedLocalization {
@@ -185,11 +189,15 @@ public struct ZTAIToastState: Equatable {
     public let title: String
     public let badge: String?
     public let style: ZTAIToastStyle
+    /// Non-nil when the toast should show thumbs up/down feedback buttons.
+    /// Value is the action key sent with the analytics event, e.g. "cleanup", "summarize", "stt".
+    public let feedbackAction: String?
 
-    public init(title: String, badge: String?, style: ZTAIToastStyle) {
+    public init(title: String, badge: String?, style: ZTAIToastStyle, feedbackAction: String? = nil) {
         self.title = title
         self.badge = badge
         self.style = style
+        self.feedbackAction = feedbackAction
     }
 }
 
@@ -267,6 +275,7 @@ public final class ZTAIAssistantController: ObservableObject {
     @Published public private(set) var aiGlyphPhase: AIGlyphPhase = .idle
     @Published public var isMenuOpen = false
     @Published public var toastState: ZTAIToastState?
+    @Published public var feedbackToastState: ZTAIToastState?
     @Published public var errorMessage: String?
     @Published public var activeModelBadge: ZTAIModelBadgeKind?
     public var onAnalyticsEvent: ((String, [String: Any]) -> Void)?
@@ -278,6 +287,7 @@ public final class ZTAIAssistantController: ObservableObject {
     private var preRunSnapshot = ""
     private var recordingBaseText = ""
     private var toastDismissTask: Task<Void, Never>?
+    private var feedbackToastTask: Task<Void, Never>?
     private var aiTask: Task<Void, Never>?
     private var aiCancelTimerTask: Task<Void, Never>?
     private var cancelApplyText: ((String) -> Void)?
@@ -317,10 +327,19 @@ public final class ZTAIAssistantController: ObservableObject {
         isMenuOpen = false
     }
 
+    public func dismissToast() {
+        clearToast()
+    }
+
+    public func dismissFeedbackToast() {
+        clearFeedbackToast()
+    }
+
     public func toggleRecording(currentText: @escaping () -> String, applyText: @escaping (String) -> Void) {
         guard !isRunningAI else { return }
         errorMessage = nil
         clearToast()
+        clearFeedbackToast()
         isMenuOpen = false
 
         if isRecording {
@@ -345,6 +364,7 @@ public final class ZTAIAssistantController: ObservableObject {
         guard !preRunSnapshot.isEmpty || !(toastState?.title.isEmpty ?? true) else { return }
         applyText(preRunSnapshot)
         clearToast()
+        clearFeedbackToast()
     }
 
     public func cancelAIOperation() {
@@ -375,6 +395,7 @@ public final class ZTAIAssistantController: ObservableObject {
         activeModelBadge = nil
         closeMenu()
         toastDismissTask?.cancel()
+        clearFeedbackToast()
     }
 
     public func clearError() {
@@ -446,6 +467,7 @@ public final class ZTAIAssistantController: ObservableObject {
         }
 
         clearToast()
+        clearFeedbackToast()
         errorMessage = nil
         preRunSnapshot = currentText()
         cancelApplyText = applyText
@@ -488,8 +510,10 @@ public final class ZTAIAssistantController: ObservableObject {
                     switch action {
                     case .cleaningUp:
                         self.presentToast(title: ZTAIStrings.toastCleanedUp, badge: nil)
+                        self.scheduleFeedbackToast(title: ZTAIStrings.feedbackPromptAIOutput, action: "cleanup", delay: 5_000_000_000)
                     case let .summarizing(style):
                         self.presentToast(title: ZTAIStrings.toastSummarized, badge: style.title)
+                        self.scheduleFeedbackToast(title: ZTAIStrings.feedbackPromptAIOutput, action: "summarize", delay: 5_000_000_000)
                     case .idle:
                         break
                     }
@@ -513,11 +537,12 @@ public final class ZTAIAssistantController: ObservableObject {
         ZTAIServiceLocalizer.resolvedSupportedLanguage()
     }
 
-    private func presentToast(title: String, badge: String?, style: ZTAIToastStyle = .success) {
+    private func presentToast(title: String, badge: String?, style: ZTAIToastStyle = .success, feedbackAction: String? = nil) {
         toastDismissTask?.cancel()
-        toastState = ZTAIToastState(title: title, badge: badge, style: style)
+        toastState = ZTAIToastState(title: title, badge: badge, style: style, feedbackAction: feedbackAction)
+        let delay: UInt64 = feedbackAction != nil ? 10_000_000_000 : 5_000_000_000
         toastDismissTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            try? await Task.sleep(nanoseconds: delay)
             await MainActor.run { self?.toastState = nil }
         }
     }
@@ -526,6 +551,28 @@ public final class ZTAIAssistantController: ObservableObject {
         toastDismissTask?.cancel()
         toastDismissTask = nil
         toastState = nil
+    }
+
+    private func scheduleFeedbackToast(title: String, action: String, delay: UInt64) {
+        clearFeedbackToast()
+        feedbackToastTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delay)
+            await MainActor.run {
+                guard let self else { return }
+                guard self.toastState == nil else { return }
+                self.feedbackToastState = ZTAIToastState(title: title, badge: nil, style: .success, feedbackAction: action)
+            }
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            await MainActor.run { [weak self] in
+                self?.feedbackToastState = nil
+            }
+        }
+    }
+
+    private func clearFeedbackToast() {
+        feedbackToastTask?.cancel()
+        feedbackToastTask = nil
+        feedbackToastState = nil
     }
 }
 
@@ -647,6 +694,75 @@ public struct ZTAIAssistantButtonRow: View {
                 .accessibilityLabel(controller.aiGlyphPhase == .cancellable ? "Cancel" : "AI actions")
             }
         }
+    }
+}
+
+/// Standalone capsule toast used for STT feedback overlay on the note card.
+public struct ZTAIFeedbackCapsuleView: View {
+    public let title: String
+    public let onFeedbackTap: (Bool) -> Void
+    @State private var feedbackGiven = false
+
+    private func triggerFeedbackHaptic(isPositive: Bool) {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(isPositive ? .success : .warning)
+    }
+
+    public init(title: String, onFeedbackTap: @escaping (Bool) -> Void) {
+        self.title = title
+        self.onFeedbackTap = onFeedbackTap
+    }
+
+    public var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark")
+                .font(.subheadline).fontWeight(.bold)
+                .foregroundStyle(Color(red: 0.114, green: 0.643, blue: 0.353))
+
+            SwiftUI.Text(title)
+                .font(.subheadline).fontWeight(.medium)
+                .foregroundStyle(Color(red: 0.227, green: 0.239, blue: 0.271))
+
+            if !feedbackGiven {
+                Divider().frame(height: 18)
+
+                Button {
+                    feedbackGiven = true
+                    triggerFeedbackHaptic(isPositive: true)
+                    onFeedbackTap(true)
+                } label: {
+                    Image(systemName: "hand.thumbsup.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Color(hex: "#2db55d"))
+                        .frame(minWidth: 36, minHeight: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(ZTAIStrings.feedbackHelpful)
+                .padding(.trailing, 2)
+
+                Button {
+                    feedbackGiven = true
+                    triggerFeedbackHaptic(isPositive: false)
+                    onFeedbackTap(false)
+                } label: {
+                    Image(systemName: "hand.thumbsdown.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Color(hex: "#E0364C"))
+                        .frame(minWidth: 36, minHeight: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(ZTAIStrings.feedbackNotHelpful)
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
+        .padding(.vertical, 10)
+        .background(Capsule().fill(Color.white.opacity(0.94)))
+        .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 0.5))
+        .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
     }
 }
 
@@ -812,14 +928,41 @@ public struct ZTAIAssistantMenuOverlay: View {
             }
 
             if let toast = controller.toastState {
-                ZTAIAssistantToastView(toast: toast, onUndoTap: onUndoTap)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, 12)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                ZTAIAssistantToastView(
+                    toast: toast,
+                    onUndoTap: onUndoTap,
+                    onFeedbackTap: toast.feedbackAction != nil ? { liked in
+                        controller.onAnalyticsEvent?("AI_FEEDBACK_SUBMITTED", [
+                            "action": toast.feedbackAction ?? "",
+                            "rating": liked ? "liked" : "disliked"
+                        ])
+                        controller.dismissToast()
+                    } : nil
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, 12)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            if let feedbackToast = controller.feedbackToastState {
+                ZTAIFeedbackCapsuleView(
+                    title: feedbackToast.title,
+                    onFeedbackTap: { liked in
+                        controller.onAnalyticsEvent?("AI_FEEDBACK_SUBMITTED", [
+                            "action": feedbackToast.feedbackAction ?? "",
+                            "rating": liked ? "liked" : "disliked"
+                        ])
+                        controller.dismissFeedbackToast()
+                    }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, 12)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.easeInOut(duration: 0.2), value: controller.isMenuOpen)
         .animation(.easeInOut(duration: 0.2), value: controller.toastState)
+        .animation(.easeInOut(duration: 0.2), value: controller.feedbackToastState)
     }
 
     private var menuCard: some View {
@@ -923,6 +1066,14 @@ public struct ZTAIAssistantMenuOverlay: View {
 private struct ZTAIAssistantToastView: View {
     let toast: ZTAIToastState
     let onUndoTap: () -> Void
+    let onFeedbackTap: ((Bool) -> Void)?
+    @State private var feedbackGiven = false
+
+    private func triggerFeedbackHaptic(isPositive: Bool) {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(isPositive ? .success : .warning)
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -952,6 +1103,39 @@ private struct ZTAIAssistantToastView: View {
                     .foregroundStyle(Color(hex: "#0B6BEF"))
                     .padding(.horizontal, 10).padding(.vertical, 4)
                     .buttonStyle(.plain)
+            }
+
+            if let onFeedbackTap, toast.feedbackAction != nil, !feedbackGiven {
+                Divider().frame(height: 18)
+
+                Button {
+                    feedbackGiven = true
+                    triggerFeedbackHaptic(isPositive: true)
+                    onFeedbackTap(true)
+                } label: {
+                    Image(systemName: "hand.thumbsup.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Color(hex: "#2db55d"))
+                        .frame(minWidth: 36, minHeight: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(ZTAIStrings.feedbackHelpful)
+                .padding(.trailing, 2)
+
+                Button {
+                    feedbackGiven = true
+                    triggerFeedbackHaptic(isPositive: false)
+                    onFeedbackTap(false)
+                } label: {
+                    Image(systemName: "hand.thumbsdown.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Color(hex: "#E0364C"))
+                        .frame(minWidth: 36, minHeight: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(ZTAIStrings.feedbackNotHelpful)
             }
         }
         .padding(.leading, 16)
