@@ -125,3 +125,25 @@
 "lbl_autofill_source_voice" = "Entendu depuis votre dictée.";
 "err_autofill_no_internet" = "Aucune connexion internet. Connectez-vous à internet et réessayez.";
 "err_autofill_no_details_extracted" = "Aucun détail n'a pu être extrait de l'entrée fournie.";
+
+// MARK: - AI Feedback Toast
+"lbl_ai_toast_transcribed" = "Transcrit";
+"lbl_ai_feedback_helpful" = "Utile";
+"lbl_ai_feedback_not_helpful" = "Pas utile";
+"lbl_ai_feedback_prompt_ai_output" = "Était-ce utile?";
+
+// MARK: - AI Onboarding Panel
+"lbl_ai_onboarding_mic_title" = "Parler";
+"lbl_ai_onboarding_mic_subtitle" = "Touchez le micro pour dicter vos notes par la voix.";
+"lbl_ai_onboarding_cleanup_title" = "Nettoyer et résumer";
+"lbl_ai_onboarding_cleanup_subtitle" = "Améliorez votre texte ou condensez-le — court, standard ou détaillé.";
+"lbl_ai_onboarding_autofill_title" = "Remplissage auto";
+"lbl_ai_onboarding_autofill_subtitle" = "Capturez les détails depuis une photo ou en les dictant avec votre voix. Nous les associons aux champs correspondants pour vous permettre de réviser et d’enregistrer plus rapidement.";
+"lbl_ai_onboarding_got_it" = "Compris!";
+"lbl_ai_onboarding_next" = "Suivant";
+"lbl_ai_onboarding_skip" = "Ignorer";
+"lbl_ai_onboarding_pill_cleanup" = "Nettoyer";
+"lbl_ai_onboarding_pill_short" = "Court";
+"lbl_ai_onboarding_pill_standard" = "Standard";
+"lbl_ai_onboarding_pill_detailed" = "Détaillé";
+"lbl_ai_onboarding_apple_badge_note" = "Le badge Apple Foundation Models indique que cette action IA utilise des modèles Apple sur l’appareil et peut fonctionner hors ligne lorsqu’ils sont disponibles.";

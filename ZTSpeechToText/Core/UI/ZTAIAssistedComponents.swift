@@ -626,6 +626,7 @@ public struct ZTAIAssistantButtonRow: View {
                     dismissKeyboardIfNeeded()
                     onMicTap()
                 }) {
+
                     ZStack {
                         if isRecording {
                             PulseRings(color: Color(hex: "#E0364C"))
@@ -649,6 +650,9 @@ public struct ZTAIAssistantButtonRow: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(controller.isRunningAI)
+                .background(
+                    ZTAIWindowFrameReporter(notificationName: .ztAIMicButtonFrame)
+                )
             }
 
             if showCleanupButton {
@@ -692,7 +696,73 @@ public struct ZTAIAssistantButtonRow: View {
                 .disabled(isAIButtonBlocked)
                 .opacity(isAIButtonBlocked ? 0.4 : 1.0)
                 .accessibilityLabel(controller.aiGlyphPhase == .cancellable ? "Cancel" : "AI actions")
+                .background(
+                    ZTAIWindowFrameReporter(notificationName: .ztAICleanupButtonFrame)
+                )
             }
+        }
+    }
+}
+
+private struct ZTAIWindowFrameReporter: UIViewRepresentable {
+    let notificationName: Notification.Name
+
+    func makeUIView(context: Context) -> ReporterView {
+        let view = ReporterView()
+        view.notificationName = notificationName
+        return view
+    }
+
+    func updateUIView(_ uiView: ReporterView, context: Context) {
+        uiView.notificationName = notificationName
+        uiView.scheduleReports()
+    }
+
+    final class ReporterView: UIView {
+        var notificationName: Notification.Name = .ztAIMicButtonFrame
+        private var scheduledItems: [DispatchWorkItem] = []
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            scheduleReports()
+        }
+
+        override func didMoveToSuperview() {
+            super.didMoveToSuperview()
+            scheduleReports()
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            reportFrame()
+        }
+
+        deinit {
+            cancelScheduledReports()
+        }
+
+        func scheduleReports() {
+            cancelScheduledReports()
+            let delays: [TimeInterval] = [0.0, 0.3, 0.7, 1.2]
+            for delay in delays {
+                let item = DispatchWorkItem { [weak self] in
+                    self?.reportFrame()
+                }
+                scheduledItems.append(item)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+            }
+        }
+
+        private func cancelScheduledReports() {
+            scheduledItems.forEach { $0.cancel() }
+            scheduledItems.removeAll()
+        }
+
+        private func reportFrame() {
+            guard let window else { return }
+            let frame = convert(bounds, to: window)
+            guard frame != .zero else { return }
+            NotificationCenter.default.post(name: notificationName, object: nil, userInfo: ["frame": frame])
         }
     }
 }

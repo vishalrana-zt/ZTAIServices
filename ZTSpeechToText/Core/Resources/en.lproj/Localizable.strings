@@ -125,3 +125,25 @@
 "lbl_autofill_source_voice" = "Heard from your dictation.";
 "err_autofill_no_internet" = "No internet connection. Connect to the internet and try again.";
 "err_autofill_no_details_extracted" = "No details could be extracted from the provided input.";
+
+// MARK: - AI Feedback Toast
+"lbl_ai_toast_transcribed" = "Transcribed";
+"lbl_ai_feedback_helpful" = "Helpful";
+"lbl_ai_feedback_not_helpful" = "Not helpful";
+"lbl_ai_feedback_prompt_ai_output" = "Was this helpful?";
+
+// MARK: - AI Onboarding Panel
+"lbl_ai_onboarding_mic_title" = "Speak";
+"lbl_ai_onboarding_mic_subtitle" = "Tap the mic to dictate your notes. We convert your speech into editable text.";
+"lbl_ai_onboarding_cleanup_title" = "Clean Up & Summarize";
+"lbl_ai_onboarding_cleanup_subtitle" = "Polish your text with Clean Up or summarize it. Choose Short for key points, Standard for a balanced summary, or Detailed for full context.";
+"lbl_ai_onboarding_autofill_title" = "Auto Fill";
+"lbl_ai_onboarding_autofill_subtitle" = "Capture details from a photo or by dictating with your speech. We map them to matching fields so you can review and save faster.";
+"lbl_ai_onboarding_got_it" = "Done";
+"lbl_ai_onboarding_next" = "Next";
+"lbl_ai_onboarding_skip" = "Skip";
+"lbl_ai_onboarding_pill_cleanup" = "Clean Up";
+"lbl_ai_onboarding_pill_short" = "Short";
+"lbl_ai_onboarding_pill_standard" = "Standard";
+"lbl_ai_onboarding_pill_detailed" = "Detailed";
+"lbl_ai_onboarding_apple_badge_note" = "Apple Foundation Models badge indicates, this AI action uses on-device Apple models and can work offline when available.";

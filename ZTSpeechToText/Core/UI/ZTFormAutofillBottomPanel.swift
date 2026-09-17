@@ -174,6 +174,24 @@ public struct ZTFormAutofillSheetHostView: View {
                 }
             }
             .animation(.interactiveSpring(response: 0.30, dampingFraction: 0.90, blendDuration: 0.10), value: coordinator.isSheetPresented)
+            .overlay(alignment: .bottom) {
+                if let toast = coordinator.feedbackToastState {
+                    ZTAIFeedbackCapsuleView(
+                        title: toast.title,
+                        onFeedbackTap: { liked in
+                            coordinator.onAnalyticsEvent?("AI_FEEDBACK_SUBMITTED", [
+                                "action": toast.feedbackAction ?? "autofill",
+                                "rating": liked ? "liked" : "disliked"
+                            ])
+                            coordinator.clearFeedbackToast()
+                        }
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: coordinator.feedbackToastState != nil)
     }
 }
 

@@ -125,3 +125,25 @@
 "lbl_autofill_source_voice" = "Escuchado desde su dictado.";
 "err_autofill_no_internet" = "No hay conexión a internet. Conéctate a internet y vuelve a intentarlo.";
 "err_autofill_no_details_extracted" = "No se pudieron extraer detalles de la entrada proporcionada.";
+
+// MARK: - AI Feedback Toast
+"lbl_ai_toast_transcribed" = "Transcrito";
+"lbl_ai_feedback_helpful" = "Útil";
+"lbl_ai_feedback_not_helpful" = "No útil";
+"lbl_ai_feedback_prompt_ai_output" = "¿Fue útil?";
+
+// MARK: - AI Onboarding Panel
+"lbl_ai_onboarding_mic_title" = "Hablar";
+"lbl_ai_onboarding_mic_subtitle" = "Toca el micrófono para dictar tus notas por voz.";
+"lbl_ai_onboarding_cleanup_title" = "Mejorar y resumir";
+"lbl_ai_onboarding_cleanup_subtitle" = "Mejora tu texto o condénsalo: corto, estándar o detallado.";
+"lbl_ai_onboarding_autofill_title" = "Autocompletar";
+"lbl_ai_onboarding_autofill_subtitle" = "Captura detalles desde una foto o dictándolos con tu voz. Los asociamos a los campos correspondientes para que puedas revisar y guardar más rápido.";
+"lbl_ai_onboarding_got_it" = "¡Entendido!";
+"lbl_ai_onboarding_next" = "Siguiente";
+"lbl_ai_onboarding_skip" = "Omitir";
+"lbl_ai_onboarding_pill_cleanup" = "Mejorar";
+"lbl_ai_onboarding_pill_short" = "Corto";
+"lbl_ai_onboarding_pill_standard" = "Estándar";
+"lbl_ai_onboarding_pill_detailed" = "Detallado";
+"lbl_ai_onboarding_apple_badge_note" = "La insignia de Apple Foundation Models indica que esta acción de IA usa modelos de Apple en el dispositivo y puede funcionar sin conexión cuando estén disponibles.";
