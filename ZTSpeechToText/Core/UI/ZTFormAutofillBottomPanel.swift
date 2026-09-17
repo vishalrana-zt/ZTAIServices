@@ -174,24 +174,6 @@ public struct ZTFormAutofillSheetHostView: View {
                 }
             }
             .animation(.interactiveSpring(response: 0.30, dampingFraction: 0.90, blendDuration: 0.10), value: coordinator.isSheetPresented)
-            .overlay(alignment: .bottom) {
-                if let toast = coordinator.feedbackToastState {
-                    ZTAIFeedbackCapsuleView(
-                        title: toast.title,
-                        onFeedbackTap: { liked in
-                            coordinator.onAnalyticsEvent?("AI_FEEDBACK_SUBMITTED", [
-                                "action": toast.feedbackAction ?? "autofill",
-                                "rating": liked ? "liked" : "disliked"
-                            ])
-                            coordinator.clearFeedbackToast()
-                        }
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .animation(.easeInOut(duration: 0.2), value: coordinator.feedbackToastState != nil)
     }
 }
 
@@ -233,7 +215,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     .frame(height: reviewPanelHeight, alignment: .top)
             case .error(let message):
                 errorView(message)
-                    .frame(height: 260, alignment: .top)
+                    .frame(height: errorPanelContentHeight(for: message), alignment: .top)
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
@@ -266,7 +248,7 @@ public struct ZTFormAutofillBottomPanel: View {
         }
         .sheet(isPresented: $showCameraPicker) {
             ZTInlineCameraPickerView(
-                hint: coordinator.tagScanModeEnabled ? coordinator.cameraGuidanceHint : nil
+                hint: coordinator.cameraHint
             ) { image in
                 coordinator.handleSelectedImage(image, source: .camera)
             }
@@ -683,14 +665,21 @@ public struct ZTFormAutofillBottomPanel: View {
     // MARK: - Error
 
     private func errorView(_ message: String) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.largeTitle)
                 .foregroundStyle(Color(hex: "#E0364C"))
+                .padding(.top, 28)
+
             Text(message)
-                .font(.body)
+                .font(.subheadline)
                 .foregroundStyle(Color(hex: "#5a6070"))
                 .multilineTextAlignment(.center)
+                .lineLimit(6)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, 16)
+
             HStack(spacing: 12) {
                 Button(ZTAutofillStrings.tryAgain) { coordinator.retryFromPicker() }
                     .font(.headline)
@@ -709,10 +698,10 @@ public struct ZTFormAutofillBottomPanel: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)
+            .padding(.bottom, 24)
         }
-        .padding(.top, 32)
         .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: - Helpers
@@ -744,6 +733,19 @@ public struct ZTFormAutofillBottomPanel: View {
 
     private var panelHorizontalPadding: CGFloat { 16 }
 
+    private func errorPanelContentHeight(for message: String) -> CGFloat {
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        let baseHeight: CGFloat = 240
+        let charsPerLine: CGFloat = isPad ? 95 : 42
+        let estimatedLines = max(1, ceil(CGFloat(message.count) / charsPerLine))
+        let extraHeight = max(0, estimatedLines - 3) * 18
+        let maxHeight: CGFloat = 300
+        return min(baseHeight + extraHeight, maxHeight)
+    }
+
+    private func errorPanelDetentHeight(for message: String) -> CGFloat {
+        errorPanelContentHeight(for: message) + 40
+    }
 
     private var pickerPanelHeight: CGFloat {
         let isPad = UIDevice.current.userInterfaceIdiom == .pad
@@ -788,7 +790,7 @@ public struct ZTFormAutofillBottomPanel: View {
         case .review:                      return [.medium, .large]
         case .scanningPhoto:               return [progressDetent]
         case .extracting, .listening:      return [progressDetent]
-        case .error:                       return [.height(300)]
+        case .error(let message):          return [.height(errorPanelDetentHeight(for: message))]
         default:                           return [.medium]
         }
     }

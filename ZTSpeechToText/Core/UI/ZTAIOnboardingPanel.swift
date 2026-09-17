@@ -24,6 +24,7 @@ private enum ZTAIOnboardingStrings {
     static var cleanupPillStandard: String { localized("lbl_ai_onboarding_pill_standard", fallback: "Standard") }
     static var cleanupPillDetailed: String { localized("lbl_ai_onboarding_pill_detailed", fallback: "Detailed") }
     static var appleBadgeNote: String { localized("lbl_ai_onboarding_apple_badge_note", fallback: "Apple Foundation Models badge indicates, this AI action uses on-device Apple models and can work offline when available.") }
+    static var outputDisclaimer: String { localized("lbl_ai_onboarding_output_disclaimer", fallback: "It can make mistakes. Please review before using.") }
 }
 
 // MARK: - Notification names (buttons post their window frames here)
@@ -404,6 +405,11 @@ public struct ZTAIOnboardingHostView: View {
             }
             
             badgeInfoRow(accent: step.color)
+
+            Text(ZTAIOnboardingStrings.outputDisclaimer)
+                .font(.caption)
+                .foregroundStyle(Color(hex: "#6b7280"))
+                .fixedSize(horizontal: false, vertical: true)
 
             // Skip (left) + Next/Done pill (right)
             HStack {

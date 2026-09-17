@@ -97,6 +97,7 @@
 "lbl_autofill_scan_photo" = "Photo";
 "lbl_autofill_scan_photo_subtitle_customer" = "Business card, work order, or label";
 "lbl_autofill_scan_photo_subtitle_fire_equipment" = "Fire inspection tag, equipment label, or nameplate";
+"lbl_camera_guide_fire_nameplate" = "Fill frame with equipment nameplate";
 "lbl_autofill_scan_photo_subtitle_bill" = "Invoice, work order, or receipt";
 "lbl_autofill_speak" = "Speak";
 "lbl_autofill_speak_subtitle" = "Say the details in any order";
@@ -125,6 +126,12 @@
 "lbl_autofill_source_voice" = "Heard from your dictation.";
 "err_autofill_no_internet" = "No internet connection. Connect to the internet and try again.";
 "err_autofill_no_details_extracted" = "No details could be extracted from the provided input.";
+"err_autofill_reason_unusable_response" = "The extracted response did not include usable field values for this form.";
+"err_autofill_reason_doc_type_mismatch" = "Detected document type '%@' instead of fire equipment details.";
+"err_autofill_reason_equipment_empty" = "Extracted output did not include equipment field values to map into this form.";
+"err_autofill_reason_notice_type" = "This looks like a '%@' inspection tag, which usually contains status/compliance data rather than editable asset fields.";
+"err_autofill_reason_enable_tag_scan" = "If this is a punched inspection tag, enable Tag Scan mode for better extraction.";
+"err_autofill_reason_no_reliable_values" = "The detected text did not have reliable values that match this form's fields.";
 
 // MARK: - AI Feedback Toast
 "lbl_ai_toast_transcribed" = "Transcribed";
@@ -147,3 +154,4 @@
 "lbl_ai_onboarding_pill_standard" = "Standard";
 "lbl_ai_onboarding_pill_detailed" = "Detailed";
 "lbl_ai_onboarding_apple_badge_note" = "Apple Foundation Models badge indicates, this AI action uses on-device Apple models and can work offline when available.";
+"lbl_ai_onboarding_output_disclaimer" = "It can make mistakes. Please review before using.";

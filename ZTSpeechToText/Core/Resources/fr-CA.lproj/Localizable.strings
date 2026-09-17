@@ -97,6 +97,7 @@
 "lbl_autofill_scan_photo" = "Photo";
 "lbl_autofill_scan_photo_subtitle_customer" = "Carte professionnelle, bon de travail ou étiquette";
 "lbl_autofill_scan_photo_subtitle_fire_equipment" = "Étiquette d'inspection incendie, étiquette d'équipement ou plaque signalétique";
+"lbl_camera_guide_fire_nameplate" = "Cadrer la plaque signalétique";
 "lbl_autofill_scan_photo_subtitle_bill" = "Facture, bon de travail ou reçu";
 "lbl_autofill_speak" = "Parler";
 "lbl_autofill_speak_subtitle" = "Dites les détails dans n'importe quel ordre";
@@ -125,6 +126,12 @@
 "lbl_autofill_source_voice" = "Entendu depuis votre dictée.";
 "err_autofill_no_internet" = "Aucune connexion internet. Connectez-vous à internet et réessayez.";
 "err_autofill_no_details_extracted" = "Aucun détail n'a pu être extrait de l'entrée fournie.";
+"err_autofill_reason_unusable_response" = "La réponse extraite ne contenait pas de valeurs de champs exploitables pour ce formulaire.";
+"err_autofill_reason_doc_type_mismatch" = "Le type de document '%@' a été détecté au lieu de détails d'équipement incendie.";
+"err_autofill_reason_equipment_empty" = "La sortie extraite ne contenait pas de valeurs de champs d'équipement à mapper dans ce formulaire.";
+"err_autofill_reason_notice_type" = "Cela ressemble à une étiquette d'inspection '%@', qui contient généralement des données d'état/conformité plutôt que des champs d'actif modifiables.";
+"err_autofill_reason_enable_tag_scan" = "S'il s'agit d'une étiquette d'inspection perforée, activez le mode Scan d'étiquette pour améliorer l'extraction.";
+"err_autofill_reason_no_reliable_values" = "Le texte détecté ne contenait pas de valeurs fiables correspondant aux champs de ce formulaire.";
 
 // MARK: - AI Feedback Toast
 "lbl_ai_toast_transcribed" = "Transcrit";
@@ -147,3 +154,4 @@
 "lbl_ai_onboarding_pill_standard" = "Standard";
 "lbl_ai_onboarding_pill_detailed" = "Détaillé";
 "lbl_ai_onboarding_apple_badge_note" = "Le badge Apple Foundation Models indique que cette action IA utilise des modèles Apple sur l’appareil et peut fonctionner hors ligne lorsqu’ils sont disponibles.";
+"lbl_ai_onboarding_output_disclaimer" = "Il peut faire des erreurs. Veuillez vérifier avant utilisation.";

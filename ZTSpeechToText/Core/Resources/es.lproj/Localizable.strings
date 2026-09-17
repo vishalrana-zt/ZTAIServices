@@ -97,6 +97,7 @@
 "lbl_autofill_scan_photo" = "Foto";
 "lbl_autofill_scan_photo_subtitle_customer" = "Tarjeta de presentación, orden de trabajo o etiqueta";
 "lbl_autofill_scan_photo_subtitle_fire_equipment" = "Etiqueta de inspección contra incendios, etiqueta de equipo o placa";
+"lbl_camera_guide_fire_nameplate" = "Encuadra la placa del equipo";
 "lbl_autofill_scan_photo_subtitle_bill" = "Factura, orden de trabajo o recibo";
 "lbl_autofill_speak" = "Hablar";
 "lbl_autofill_speak_subtitle" = "Di los detalles en cualquier orden";
@@ -125,6 +126,12 @@
 "lbl_autofill_source_voice" = "Escuchado desde su dictado.";
 "err_autofill_no_internet" = "No hay conexión a internet. Conéctate a internet y vuelve a intentarlo.";
 "err_autofill_no_details_extracted" = "No se pudieron extraer detalles de la entrada proporcionada.";
+"err_autofill_reason_unusable_response" = "La respuesta extraída no incluyó valores de campo utilizables para este formulario.";
+"err_autofill_reason_doc_type_mismatch" = "Se detectó el tipo de documento '%@' en lugar de detalles de equipo contra incendios.";
+"err_autofill_reason_equipment_empty" = "La salida extraída no incluyó valores de campos de equipo para mapear en este formulario.";
+"err_autofill_reason_notice_type" = "Esto parece una etiqueta de inspección '%@', que normalmente contiene datos de estado/cumplimiento en lugar de campos editables del activo.";
+"err_autofill_reason_enable_tag_scan" = "Si esta es una etiqueta de inspección perforada, habilita el modo Escaneo de etiqueta para mejorar la extracción.";
+"err_autofill_reason_no_reliable_values" = "El texto detectado no tenía valores confiables que coincidan con los campos de este formulario.";
 
 // MARK: - AI Feedback Toast
 "lbl_ai_toast_transcribed" = "Transcrito";
@@ -147,3 +154,4 @@
 "lbl_ai_onboarding_pill_standard" = "Estándar";
 "lbl_ai_onboarding_pill_detailed" = "Detallado";
 "lbl_ai_onboarding_apple_badge_note" = "La insignia de Apple Foundation Models indica que esta acción de IA usa modelos de Apple en el dispositivo y puede funcionar sin conexión cuando estén disponibles.";
+"lbl_ai_onboarding_output_disclaimer" = "Puede cometer errores. Por favor, revísalo antes de usarlo.";

@@ -71,6 +71,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     private let speechBridge = SpeechToTextFlowBridge()
     private var extractionTask: Task<Void, Never>?
     private var feedbackDismissTask: Task<Void, Never>?
+    private var lastEmptyCandidateReason: String?
     public init(
         documentType: StructuredDocumentType = .customer,
         fieldMapper: @escaping @Sendable (String) -> [ZTAutofillCandidate],
@@ -85,7 +86,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     // MARK: - Public actions
 
-    /// Localized hint shown in the camera framing overlay. Varies by document type.
+    /// Localized hint shown in the camera framing overlay when tag scan mode is active.
     public var cameraGuidanceHint: String {
         switch documentType {
         case .fireEquipment:
@@ -94,6 +95,23 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             return Self.localizedLabel("lbl_camera_guide_business_card", fallback: "Fill frame with card")
         case .bill:
             return Self.localizedLabel("lbl_camera_guide_document",      fallback: "Fill frame with document")
+        }
+    }
+
+    /// Hint always shown on the camera overlay — message depends on document type and scan mode.
+    /// Never nil: the camera frame overlay is shown for every scan to guide the user.
+    public var cameraHint: String {
+        switch documentType {
+        case .customer:
+            return Self.localizedLabel("lbl_camera_guide_business_card", fallback: "Fill frame with card")
+        case .bill:
+            return Self.localizedLabel("lbl_camera_guide_document", fallback: "Fill frame with document")
+        case .fireEquipment:
+            if tagScanModeEnabled {
+                return Self.localizedLabel("lbl_camera_guide_fire_tag", fallback: "Fill frame with tag")
+            } else {
+                return Self.localizedLabel("lbl_camera_guide_fire_nameplate", fallback: "Fill frame with equipment nameplate")
+            }
         }
     }
 
@@ -120,7 +138,6 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         activeModelBadge = nil
         step = .picking
         isSheetPresented = true
-        onAnalyticsEvent?("AI_AUTOFILL_OPENED", ["document_type": documentType.rawValue])
     }
 
     public func dismiss() {
@@ -144,7 +161,6 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         ocrText = ""
         activeModelBadge = .appleVisionOCR
         extractionTask?.cancel()
-        onAnalyticsEvent?("AI_AUTOFILL_SOURCE_PHOTO", ["source": source == .camera ? "camera" : "library"])
         sourceLabel = Self.localizedLabel("lbl_autofill_source_photo", fallback: "Read from the photo.")
         step = .scanningPhoto
         extractionTask = Task { [weak self] in
@@ -244,7 +260,6 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     public func selectSpeak() {
         extractionTask?.cancel()
-        onAnalyticsEvent?("AI_AUTOFILL_SOURCE_AUDIO", [:])
         activeModelBadge = .appleSpeechAnalyzer
         sourceLabel = Self.localizedLabel("lbl_autofill_source_voice", fallback: "Heard from your dictation.")
         liveTranscript = ""
@@ -309,7 +324,6 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     public func applySelected() {
         let selected = candidates.filter { $0.isSelected }
-        onAnalyticsEvent?("AI_AUTOFILL_APPLIED", ["candidate_count": selected.count])
         onApply?(selected)
         candidates = []
         previewCandidates = []
@@ -342,6 +356,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     private func runExtraction(from text: String, supplementalContext: String? = nil) async {
         step = .extracting
+        lastEmptyCandidateReason = nil
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         previewCandidates = mapNonEmptyCandidates(from: trimmed, fallbackText: trimmed)
         guard !trimmed.isEmpty else {
@@ -362,10 +377,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             if Task.isCancelled { return }
 
             if nonEmpty.isEmpty {
-                step = .error(Self.localizedLabel(
-                    "err_autofill_no_details_extracted",
-                    fallback: "No details could be extracted from the provided input."
-                ))
+                step = .error(emptyCandidateMessage())
             } else {
                 candidates = nonEmpty
                 previewCandidates = nonEmpty
@@ -383,6 +395,11 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                         fallback: "No internet connection. Connect to the internet and try again."
                     ))
                 }
+                return
+            }
+
+            if let reason = lastEmptyCandidateReason, !reason.isEmpty {
+                step = .error(emptyCandidateMessage())
                 return
             }
 
@@ -417,9 +434,17 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         if Task.isCancelled { return [] }
 
         let nonEmpty = mapNonEmptyCandidates(from: result.outputText, fallbackText: text)
+        if nonEmpty.isEmpty {
+            lastEmptyCandidateReason = buildEmptyCandidateReason(from: result.outputText)
+        } else {
+            lastEmptyCandidateReason = nil
+        }
         #if DEBUG
         if CloudAPIConfiguration.isLoggingEnabled {
             print("[AUTOFILL_DEBUG] provider=\(result.provider.rawValue) candidates=\(nonEmpty.count) output=\(result.outputText)")
+            if let lastEmptyCandidateReason {
+                print("[AUTOFILL_DEBUG] emptyCandidateReason=\(lastEmptyCandidateReason)")
+            }
         }
         #endif
 
@@ -560,6 +585,71 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     private func resolvedLanguage() -> SupportedLanguage {
         ZTAIServiceLocalizer.resolvedSupportedLanguage()
+    }
+
+    private func emptyCandidateMessage() -> String {
+        if let reason = lastEmptyCandidateReason, !reason.isEmpty {
+            return reason
+        }
+        return Self.localizedLabel(
+            "err_autofill_no_details_extracted",
+            fallback: "No matching form fields were found from this input."
+        )
+    }
+
+    private func buildEmptyCandidateReason(from outputText: String) -> String? {
+        let formatReason: (_ key: String, _ fallback: String, _ value: String) -> String = { key, fallback, value in
+            let template = Self.localizedLabel(key, fallback: fallback)
+            return String(format: template, value)
+        }
+
+        guard let data = outputText.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data, options: []),
+              let json = object as? [String: Any] else {
+            return nil
+        }
+
+        let documentType = (json["documentType"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let noticeType = (json["noticeType"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let equipmentCount = (json["equipment"] as? [Any])?.count ?? 0
+
+        var reasons: [String] = []
+
+        if let documentType, !documentType.isEmpty, documentType.caseInsensitiveCompare("fireEquipment") != .orderedSame {
+            reasons.append(formatReason(
+                "err_autofill_reason_doc_type_mismatch",
+                "Detected document type '%@' instead of fire equipment details.",
+                documentType
+            ))
+        }
+
+        if equipmentCount == 0 {
+            reasons.append(Self.localizedLabel(
+                "err_autofill_reason_equipment_empty",
+                fallback: "Extracted output did not include equipment field values to map into this form."
+            ))
+        }
+
+        if let noticeType, ["nonCompliance", "recharge"].contains(where: { $0.caseInsensitiveCompare(noticeType) == .orderedSame }) {
+            reasons.append(formatReason(
+                "err_autofill_reason_notice_type",
+                "This looks like a '%@' inspection tag, which usually contains status/compliance data rather than editable asset fields.",
+                noticeType
+            ))
+        }
+
+        if supportsTagScan && !tagScanModeEnabled {
+            reasons.append(Self.localizedLabel(
+                "err_autofill_reason_enable_tag_scan",
+                fallback: "If this is a punched inspection tag, enable Tag Scan mode for better extraction."
+            ))
+        }
+
+        if reasons.isEmpty {
+            return nil
+        }
+
+        return reasons.joined(separator: " ")
     }
 
     private func isOffline(_ error: Error) -> Bool {
