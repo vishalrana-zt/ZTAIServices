@@ -154,4 +154,4 @@
 "lbl_ai_onboarding_pill_standard" = "Estándar";
 "lbl_ai_onboarding_pill_detailed" = "Detallado";
 "lbl_ai_onboarding_apple_badge_note" = "La insignia de Apple Foundation Models indica que esta acción de IA usa modelos de Apple en el dispositivo y puede funcionar sin conexión cuando estén disponibles.";
-"lbl_ai_onboarding_output_disclaimer" = "Puede cometer errores. Por favor, revísalo antes de usarlo.";
+"lbl_ai_onboarding_output_disclaimer" = "La IA puede cometer errores; utiliza tu propio criterio antes de usarlo.";
