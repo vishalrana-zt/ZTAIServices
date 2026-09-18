@@ -1,11 +1,11 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 5.9
 import PackageDescription
 
 let package = Package(
     name: "ZTAIServices",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v18)
+        .iOS(.v16)
     ],
     products: [
         .library(
