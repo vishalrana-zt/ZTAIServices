@@ -5,7 +5,7 @@ let package = Package(
     name: "ZTAIServices",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v16)
+        .iOS(.v18)
     ],
     products: [
         .library(
