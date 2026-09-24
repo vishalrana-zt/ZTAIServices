@@ -11,6 +11,7 @@ private enum ZTAutofillStrings {
     }
 
     static var pickerDescription: String { localized("lbl_autofill_picker_description", fallback: "Take a photo with Camera or choose one from Photo Library. The text is extracted, matched to the fields, and shown for review before anything is filled.") }
+    static var pickerDescriptionSpeechOnly: String { localized("lbl_autofill_picker_description_speech_only", fallback: "Say the details out loud. They're matched to the fields and shown for review before anything is filled.") }
     static var scanPhoto: String       { localized("lbl_autofill_scan_photo",           fallback: "Photo") }
     static var camera: String          { localized("btn_camera",                        fallback: "Camera") }
     static var photoLibrary: String    { localized("btn_photo_library",                 fallback: "Photo Library") }
@@ -323,7 +324,7 @@ public struct ZTFormAutofillBottomPanel: View {
                         ZTAIModelBadge(kind: headerBadge)
                     }
                 }
-                Text(ZTAutofillStrings.pickerDescription)
+                Text(coordinator.allowsPhotoCapture ? ZTAutofillStrings.pickerDescription : ZTAutofillStrings.pickerDescriptionSpeechOnly)
                     .font(.footnote)
                     .foregroundStyle(Color(hex: "#5a6070"))
                     .lineSpacing(2)
@@ -332,7 +333,9 @@ public struct ZTFormAutofillBottomPanel: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
 
-            photoPickerCard
+            if coordinator.allowsPhotoCapture {
+                photoPickerCard
+            }
 
             Button { showSpeechSheet = true } label: {
                 pickerRow(

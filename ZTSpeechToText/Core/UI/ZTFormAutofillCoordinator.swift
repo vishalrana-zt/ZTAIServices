@@ -64,6 +64,20 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     public var onUndo: (() -> Void)?
     public var onAnalyticsEvent: ((String, [String: Any]) -> Void)?
 
+    /// Extra context threaded into the extraction prompt's `<context>` block for the
+    /// SPEECH path (`selectSpeak`/`stopListening` and `handleSpokenText`). The OCR/photo
+    /// path builds its own supplemental context internally and ignores this property.
+    /// Callers with a runtime-defined field set (e.g. FPForm's `.fpFormSection`) set this
+    /// before starting a capture, describing the labels/options currently in scope; nil by
+    /// default, so existing Customer/Asset/Equipment callers are unaffected.
+    public var supplementalFieldContext: String?
+
+    /// When false, the picker step (`ZTFormAutofillBottomPanel.pickerView`) hides the
+    /// Camera/Photo Library option and shows only "Speak" — for callers with no photo/OCR
+    /// path at all (e.g. FPForm section autofill). Default true preserves the existing
+    /// Customer/Asset/Equipment picker exactly as-is.
+    @Published public var allowsPhotoCapture: Bool = true
+
     private let documentType: StructuredDocumentType
     private let fieldMapper: @Sendable (String) -> [ZTAutofillCandidate]
     private let ocrEngine = ImageOCREngine()
@@ -296,7 +310,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                !final.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 text = final
             }
-            await self.runExtraction(from: text)
+            await self.runExtraction(from: text, supplementalContext: self.supplementalFieldContext)
         }
     }
 
@@ -313,7 +327,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         previewCandidates = mapNonEmptyCandidates(from: text, fallbackText: text)
         extractionTask = Task { [weak self] in
             guard let self else { return }
-            await self.runExtraction(from: text)
+            await self.runExtraction(from: text, supplementalContext: self.supplementalFieldContext)
         }
     }
 
