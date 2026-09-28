@@ -584,12 +584,15 @@ nonisolated private func pageFieldFocus(_ page: UITargetPage, documentType: Stru
         - Customer page focus:
           customer.name, customer.companyName, customer.contactPerson, customer.additionalName,
           customer.phones (each with label, number, and ext when an extension is stated),
-          customer.emails, customer.address, customer.notes.\(optionalNote)
+          customer.emails, customer.address, customer.territory, customer.paymentTerm, customer.notes.\(optionalNote)
           - `additionalName` is a distinct field from name/contactPerson — populate it only when the speech
             explicitly calls out an "additional name" (e.g. a second contact, nickname, or "also known as"
             name); never split it out of the primary name.
           - A spoken phone extension (e.g. "extension 123", "ext 123") goes in that phone's `ext` field, never
             appended to `number`.
+          - `territory` and `paymentTerm` are only populated when the speech explicitly names one (e.g. "territory
+            North Zone", "payment term Net 30") — the app matches the spoken text against its own list of
+            options, so extract it verbatim rather than paraphrasing or abbreviating it.
         """
     case .equipmentAsset:
         // Fire tags are dense, short, physically marked (hole-punched/checked),
@@ -762,6 +765,8 @@ nonisolated private func customerPageSchema() -> String {
       "phones": [{"label": "", "number": "", "ext": ""}],
       "emails": [{"label": "", "value": ""}],
       "address": {"street1": "", "street2": "", "city": "", "state": "", "postalCode": "", "country": "", "full": ""},
+      "territory": "",
+      "paymentTerm": "",
       "notes": ""
     }
     """
