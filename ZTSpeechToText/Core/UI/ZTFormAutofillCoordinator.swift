@@ -623,43 +623,53 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             return nil
         }
 
-        let documentType = (json["documentType"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let noticeType = (json["noticeType"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let equipmentCount = (json["equipment"] as? [Any])?.count ?? 0
-
         var reasons: [String] = []
 
-        if let documentType, !documentType.isEmpty, documentType.caseInsensitiveCompare("fireEquipment") != .orderedSame {
-            reasons.append(formatReason(
-                "err_autofill_reason_doc_type_mismatch",
-                "Detected document type '%@' instead of fire equipment details.",
-                documentType
-            ))
-        }
+        // The checks below are specific to the fire-equipment tag-extraction flow (document type
+        // mismatch, equipment array emptiness, notice-type heuristics, tag scan mode) and do not
+        // apply to other forms (e.g. Customer), which have no `equipment`/`noticeType` concepts of
+        // their own — running them unconditionally produced misleading messages like "Detected
+        // document type 'customer' instead of fire equipment details" on the Customer form.
+        if documentType == .fireEquipment {
+            let detectedDocumentType = (json["documentType"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let noticeType = (json["noticeType"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let equipmentCount = (json["equipment"] as? [Any])?.count ?? 0
 
-        if equipmentCount == 0 {
-            reasons.append(Self.localizedLabel(
-                "err_autofill_reason_equipment_empty",
-                fallback: "Extracted output did not include equipment field values to map into this form."
-            ))
-        }
+            if let detectedDocumentType, !detectedDocumentType.isEmpty, detectedDocumentType.caseInsensitiveCompare("fireEquipment") != .orderedSame {
+                reasons.append(formatReason(
+                    "err_autofill_reason_doc_type_mismatch",
+                    "Detected document type '%@' instead of fire equipment details.",
+                    detectedDocumentType
+                ))
+            }
 
-        if let noticeType, ["nonCompliance", "recharge"].contains(where: { $0.caseInsensitiveCompare(noticeType) == .orderedSame }) {
-            reasons.append(formatReason(
-                "err_autofill_reason_notice_type",
-                "This looks like a '%@' inspection tag, which usually contains status/compliance data rather than editable asset fields.",
-                noticeType
-            ))
-        }
+            if equipmentCount == 0 {
+                reasons.append(Self.localizedLabel(
+                    "err_autofill_reason_equipment_empty",
+                    fallback: "Extracted output did not include equipment field values to map into this form."
+                ))
+            }
 
-        if supportsTagScan && !tagScanModeEnabled {
-            reasons.append(Self.localizedLabel(
-                "err_autofill_reason_enable_tag_scan",
-                fallback: "If this is a punched inspection tag, enable Tag Scan mode for better extraction."
-            ))
+            if let noticeType, ["nonCompliance", "recharge"].contains(where: { $0.caseInsensitiveCompare(noticeType) == .orderedSame }) {
+                reasons.append(formatReason(
+                    "err_autofill_reason_notice_type",
+                    "This looks like a '%@' inspection tag, which usually contains status/compliance data rather than editable asset fields.",
+                    noticeType
+                ))
+            }
+
+            if supportsTagScan && !tagScanModeEnabled {
+                reasons.append(Self.localizedLabel(
+                    "err_autofill_reason_enable_tag_scan",
+                    fallback: "If this is a punched inspection tag, enable Tag Scan mode for better extraction."
+                ))
+            }
         }
 
         if reasons.isEmpty {
+            // Falls through to the generic `err_autofill_no_details_extracted` message in
+            // emptyCandidateMessage() — accurate for non-fire-equipment forms (e.g. Customer),
+            // where none of the document-specific heuristics above apply.
             return nil
         }
 

@@ -582,8 +582,14 @@ nonisolated private func pageFieldFocus(_ page: UITargetPage, documentType: Stru
             : ""
         return """
         - Customer page focus:
-          customer.name, customer.companyName, customer.contactPerson,
-          customer.phones, customer.emails, customer.address, customer.notes.\(optionalNote)
+          customer.name, customer.companyName, customer.contactPerson, customer.additionalName,
+          customer.phones (each with label, number, and ext when an extension is stated),
+          customer.emails, customer.address, customer.notes.\(optionalNote)
+          - `additionalName` is a distinct field from name/contactPerson — populate it only when the speech
+            explicitly calls out an "additional name" (e.g. a second contact, nickname, or "also known as"
+            name); never split it out of the primary name.
+          - A spoken phone extension (e.g. "extension 123", "ext 123") goes in that phone's `ext` field, never
+            appended to `number`.
         """
     case .equipmentAsset:
         // Fire tags are dense, short, physically marked (hole-punched/checked),
@@ -681,7 +687,10 @@ nonisolated private func structuredExtractionRules(for documentType: StructuredD
 
     switch documentType {
     case .customer:
-        return shared
+        return """
+        \(shared)
+        - When the speaker names the field before dictating its value (e.g. "Address line 1, block no. 40" or "Address line 2 - Suite 200"), extract ONLY the value that follows (e.g. "block no. 40", "Suite 200") — never include the spoken field label/name itself, or the separator between the label and the value, in the extracted string.
+        """
 
     case .bill:
         return """
@@ -749,7 +758,8 @@ nonisolated private func customerPageSchema() -> String {
       "name": "",
       "companyName": "",
       "contactPerson": "",
-      "phones": [{"label": "", "number": ""}],
+      "additionalName": "",
+      "phones": [{"label": "", "number": "", "ext": ""}],
       "emails": [{"label": "", "value": ""}],
       "address": {"street1": "", "street2": "", "city": "", "state": "", "postalCode": "", "country": "", "full": ""},
       "notes": ""
