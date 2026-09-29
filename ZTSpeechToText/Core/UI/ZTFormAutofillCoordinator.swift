@@ -107,7 +107,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             return Self.localizedLabel("lbl_camera_guide_fire_tag",      fallback: "Fill frame with tag")
         case .customer:
             return Self.localizedLabel("lbl_camera_guide_business_card", fallback: "Fill frame with card")
-        case .bill:
+        case .bill, .fpFormSection:
             return Self.localizedLabel("lbl_camera_guide_document",      fallback: "Fill frame with document")
         }
     }
@@ -118,7 +118,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         switch documentType {
         case .customer:
             return Self.localizedLabel("lbl_camera_guide_business_card", fallback: "Fill frame with card")
-        case .bill:
+        case .bill, .fpFormSection:
             return Self.localizedLabel("lbl_camera_guide_document", fallback: "Fill frame with document")
         case .fireEquipment:
             if tagScanModeEnabled {
@@ -136,7 +136,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             return Self.localizedLabel("lbl_autofill_scan_photo_subtitle_fire_equipment", fallback: "Fire inspection tag, equipment label, or nameplate")
         case .customer:
             return Self.localizedLabel("lbl_autofill_scan_photo_subtitle_customer", fallback: "Business card, work order, or label")
-        case .bill:
+        case .bill, .fpFormSection:
             return Self.localizedLabel("lbl_autofill_scan_photo_subtitle_bill", fallback: "Invoice, work order, or receipt")
         }
     }
