@@ -57,6 +57,12 @@ public struct ZTAIOnboardingHostView: View {
     public let pendingStepKeys: Set<String>
     public let frameDebounceDelay: Double
     public let revealDelay: Double
+    /// Overrides the "autofill" step's body text (title stays the same everywhere by
+    /// design) — for a caller whose autofill has no photo/OCR path at all (e.g. FPForm's
+    /// row/table autofill), the shared "Capture details from a photo or by dictating with
+    /// your voice..." copy is simply wrong: there's no photo option to capture from.
+    /// Defaults to nil, which keeps Customer/Asset/Equipment's existing copy unchanged.
+    public let autofillSubtitleOverride: String?
     /// Called when user explicitly completes the tour (Skip / Done) with visible step keys.
     public let onDismiss: ([String]) -> Void
     /// Called when the tour is abandoned silently (timeout / VC dismissed) → does NOT mark done.
@@ -68,6 +74,7 @@ public struct ZTAIOnboardingHostView: View {
         pendingStepKeys: [String] = ["mic", "cleanup", "autofill"],
         frameDebounceDelay: Double = 0.15,
         revealDelay: Double = 0.65,
+        autofillSubtitleOverride: String? = nil,
         onDismiss: @escaping ([String]) -> Void,
         onAbandon: @escaping () -> Void = {}
     ) {
@@ -76,6 +83,7 @@ public struct ZTAIOnboardingHostView: View {
         self.pendingStepKeys = Set(pendingStepKeys)
         self.frameDebounceDelay = frameDebounceDelay
         self.revealDelay = revealDelay
+        self.autofillSubtitleOverride = autofillSubtitleOverride
         self.onDismiss = onDismiss
         self.onAbandon = onAbandon
     }
@@ -125,7 +133,7 @@ public struct ZTAIOnboardingHostView: View {
                 stepKey: "autofill",
                 highlightFrame: autofillFrame,
                 title: ZTAIOnboardingStrings.autofillTitle,
-                body: ZTAIOnboardingStrings.autofillSubtitle,
+                body: autofillSubtitleOverride ?? ZTAIOnboardingStrings.autofillSubtitle,
                 pills: [],
                 icon: "plus.circle.fill",
                 color: Color(hex: "#0B6BEF")
@@ -376,12 +384,17 @@ public struct ZTAIOnboardingHostView: View {
 
                 Spacer()
 
-                HStack(spacing: 6) {
-                    ForEach(0..<stepCount, id: \.self) { i in
-                        Circle()
-                            .fill(i == stepIndex ? step.color : Color(hex: "#d1d5db"))
-                            .frame(width: i == stepIndex ? 8 : 8, height: i == stepIndex ? 8 : 4)
-                            .animation(.easeInOut(duration: 0.2), value: stepIndex)
+                // A single-step tour (e.g. a screen with only the "autofill" step, no
+                // mic/cleanup) has nothing for a dot to indicate progress through — showing
+                // one lone dot reads as an unexplained blue mark, not a page indicator.
+                if stepCount > 1 {
+                    HStack(spacing: 6) {
+                        ForEach(0..<stepCount, id: \.self) { i in
+                            Circle()
+                                .fill(i == stepIndex ? step.color : Color(hex: "#d1d5db"))
+                                .frame(width: i == stepIndex ? 8 : 8, height: i == stepIndex ? 8 : 4)
+                                .animation(.easeInOut(duration: 0.2), value: stepIndex)
+                        }
                     }
                 }
             }

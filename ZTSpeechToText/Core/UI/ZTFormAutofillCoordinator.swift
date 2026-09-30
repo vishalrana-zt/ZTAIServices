@@ -107,6 +107,13 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     /// Customer/Asset/Equipment picker exactly as-is.
     @Published public var allowsPhotoCapture: Bool = true
 
+    /// Overrides the picker's speech-only description text (shown when
+    /// `allowsPhotoCapture == false`) — the shared "Describe this section out loud..."
+    /// wording is wrong for a caller whose scope isn't a "section" (e.g. FPForm's row/table
+    /// autofill, where it should say "row"/"columns"). Defaults to nil, which keeps the
+    /// existing shared wording.
+    @Published public var speechOnlyPickerDescription: String?
+
     private let documentType: StructuredDocumentType
     private let fieldMapper: @Sendable (String) -> [ZTAutofillCandidate]
     private let ocrEngine = ImageOCREngine()

@@ -325,7 +325,7 @@ public struct ZTFormAutofillBottomPanel: View {
                         ZTAIModelBadge(kind: headerBadge)
                     }
                 }
-                Text(coordinator.allowsPhotoCapture ? ZTAutofillStrings.pickerDescription : ZTAutofillStrings.pickerDescriptionSpeechOnly)
+                Text(coordinator.allowsPhotoCapture ? ZTAutofillStrings.pickerDescription : (coordinator.speechOnlyPickerDescription ?? ZTAutofillStrings.pickerDescriptionSpeechOnly))
                     .font(.footnote)
                     .foregroundStyle(Color(hex: "#5a6070"))
                     .lineSpacing(2)
