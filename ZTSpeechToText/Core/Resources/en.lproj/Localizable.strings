@@ -94,6 +94,8 @@
 
 // MARK: - Autofill Panel
 "lbl_autofill_picker_description" = "Take a photo with Camera or choose one from Photo Library. The text is extracted, matched to the fields, and shown for review before anything is filled.";
+"lbl_autofill_picker_description_speech_only" = "Describe this section out loud — we'll match what you say to its fields and show it to you for review before anything is saved.";
+"lbl_autofill_review_alternatives_caption" = "None of this field's predefined options matched exactly — pick the one you meant";
 "lbl_autofill_scan_photo" = "Photo";
 "lbl_autofill_scan_photo_subtitle_customer" = "Business card, work order, or label";
 "lbl_autofill_scan_photo_subtitle_fire_equipment" = "Fire inspection tag, equipment label, or nameplate";

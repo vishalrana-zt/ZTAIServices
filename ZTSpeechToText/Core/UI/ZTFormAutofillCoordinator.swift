@@ -6,19 +6,48 @@ import Combine
 
 // MARK: - Candidate model
 
+/// A close-but-not-exact alternative for an ambiguous option-field match, offered as a
+/// quick "did you mean" pick in review instead of forcing a re-record. `id` is the value
+/// that would actually be written to the field if chosen (matching the field's own
+/// storage format); `label` is what's shown to the user.
+public struct ZTAutofillAlternative: Identifiable, Equatable {
+    public let id: String
+    public let label: String
+
+    public init(value: String, label: String) {
+        self.id = value
+        self.label = label
+    }
+}
+
 public struct ZTAutofillCandidate: Identifiable {
     public let id: String
     public let label: String
-    public let value: String
+    public var value: String
     public let needsCheck: Bool
     public var isSelected: Bool
+    /// Human-readable text for the review row, when it differs from `value` — e.g. a
+    /// caller whose `value` is an internal storage format (a JSON-encoded multi-select
+    /// dict, an option's raw key rather than its display label) sets this to what should
+    /// actually be shown to the user. Defaults to nil, in which case review falls back to
+    /// showing `value` directly (existing behavior, unchanged for callers that don't set it).
+    public var displayValue: String?
+    /// The full ranked set of close options (current pick included) for an option-based
+    /// field whose extracted answer wasn't a clean exact match — shown as a "did you mean"
+    /// chip picker in review; tapping one calls `selectAlternative`. One of these should
+    /// always equal `(value, displayValue)` — whichever is currently selected. Nil/empty
+    /// for a plain text field or a confident exact match (existing plain-text review row,
+    /// unchanged for callers that don't set this).
+    public var alternatives: [ZTAutofillAlternative]?
 
-    public init(id: String, label: String, value: String, needsCheck: Bool = false, isSelected: Bool = true) {
+    public init(id: String, label: String, value: String, needsCheck: Bool = false, isSelected: Bool = true, displayValue: String? = nil, alternatives: [ZTAutofillAlternative]? = nil) {
         self.id = id
         self.label = label
         self.value = value
         self.needsCheck = needsCheck
         self.isSelected = isSelected
+        self.displayValue = displayValue
+        self.alternatives = alternatives
     }
 }
 
@@ -334,6 +363,15 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     public func toggleCandidate(id: String) {
         guard let idx = candidates.firstIndex(where: { $0.id == id }) else { return }
         candidates[idx].isSelected.toggle()
+    }
+
+    /// Switches a candidate to one of its `alternatives` — the "did you mean" picker in
+    /// review calls this when the user taps a different option than the initial guess.
+    public func selectAlternative(candidateId: String, alternative: ZTAutofillAlternative) {
+        guard let idx = candidates.firstIndex(where: { $0.id == candidateId }) else { return }
+        candidates[idx].value = alternative.id
+        candidates[idx].displayValue = alternative.label
+        candidates[idx].isSelected = true
     }
 
     public func applySelected() {

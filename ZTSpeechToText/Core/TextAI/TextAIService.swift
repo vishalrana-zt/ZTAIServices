@@ -658,13 +658,26 @@ nonisolated private func pageFieldFocus(_ page: UITargetPage, documentType: Stru
         return """
         - Dynamic form section focus:
           The <context> block below lists this section's field labels, one per line, each as
-          `- "<label>"` (choice fields additionally list their allowed options in parentheses).
-          For every label mentioned or clearly implied by the speech, add an entry to the
-          `fields` object in the output keyed by that EXACT label string, with the spoken value
-          as a plain string. For a choice field, put the spoken answer as free text — do not
-          try to match it to one of the listed options yourself, the app does that matching.
-          Do not add an entry for a label that was not mentioned in the speech, and do not
-          invent labels that are not listed in the context.
+          `- "<label>"` (choice fields additionally list their allowed options in parentheses;
+          a date/time/year field instead lists a REQUIRED output format, e.g.
+          `- "Start Date" (date, answer as YYYY-MM-DD)`). For every label mentioned or clearly
+          implied by the speech, add an entry to the `fields` object in the output keyed by
+          that EXACT label string, with the spoken value as a plain string. For a choice
+          field, put the spoken answer as free text, in the user's own words — do not try to
+          match it to one of the listed options yourself, the app does that matching. This
+          applies even when the words spoken are short, vague, or ambiguous between two or
+          more listed options (e.g. just a shared word or a size with no unit): output
+          exactly what was said, never your own guess at which specific option was meant,
+          and NEVER output one of the listed option strings verbatim unless the user actually
+          said that exact text — silently picking one already-worded option because it seems
+          likely is exactly the unreviewable guessing this app is designed to avoid. For a
+          field whose context line
+          names a required format (date/time/year), convert what was said into EXACTLY that
+          format — e.g. "june eleventh nineteen ninety one" for a "YYYY-MM-DD" field becomes
+          "1991-06-11", "quarter past three in the afternoon" for an "HH:MM in 24-hour time"
+          field becomes "15:15" — never leave it as spoken natural language, and never invent
+          a date/time that wasn't actually said. Do not add an entry for a label that was not
+          mentioned in the speech, and do not invent labels that are not listed in the context.
         """
     }
 }

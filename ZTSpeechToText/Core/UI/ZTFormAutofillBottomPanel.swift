@@ -11,7 +11,8 @@ private enum ZTAutofillStrings {
     }
 
     static var pickerDescription: String { localized("lbl_autofill_picker_description", fallback: "Take a photo with Camera or choose one from Photo Library. The text is extracted, matched to the fields, and shown for review before anything is filled.") }
-    static var pickerDescriptionSpeechOnly: String { localized("lbl_autofill_picker_description_speech_only", fallback: "Say the details out loud. They're matched to the fields and shown for review before anything is filled.") }
+    static var pickerDescriptionSpeechOnly: String { localized("lbl_autofill_picker_description_speech_only", fallback: "Describe this section out loud — we'll match what you say to its fields and show it to you for review before anything is saved.") }
+    static var reviewAlternativesCaption: String { localized("lbl_autofill_review_alternatives_caption", fallback: "None of this field's predefined options matched exactly — pick the one you meant") }
     static var scanPhoto: String       { localized("lbl_autofill_scan_photo",           fallback: "Photo") }
     static var camera: String          { localized("btn_camera",                        fallback: "Camera") }
     static var photoLibrary: String    { localized("btn_photo_library",                 fallback: "Photo Library") }
@@ -644,18 +645,51 @@ public struct ZTFormAutofillBottomPanel: View {
     }
 
     private func reviewRow(_ candidate: ZTAutofillCandidate) -> some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             checkmarkCircle(isOn: candidate.isSelected)
+                .padding(.top, 2)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(candidate.label)
-                    .font(.caption)
-                    .foregroundStyle(Color(hex: "#7a8090"))
-                Text(candidate.value)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(Color(hex: "#10121A"))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .multilineTextAlignment(.leading)
+            VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(candidate.label)
+                        .font(.caption)
+                        .foregroundStyle(Color(hex: "#7a8090"))
+                    Text(candidate.displayValue ?? candidate.value)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(Color(hex: "#10121A"))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .multilineTextAlignment(.leading)
+                }
+
+                // A near-match (not exact) for an option field shows its close matches as
+                // a "did you mean" chip picker, so a fuzzy guess is one tap to correct
+                // instead of a re-record or a trip to the field itself. The caption above
+                // it says why the chips exist at all — without it, a plain-text row that
+                // suddenly grows a row of pills reads as unexplained UI, not a prompt.
+                if let alternatives = candidate.alternatives, alternatives.count > 1 {
+                    Text(ZTAutofillStrings.reviewAlternativesCaption)
+                        .font(.caption2)
+                        .foregroundStyle(Color(hex: "#9a9fac"))
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(alternatives) { alt in
+                                let isPicked = alt.id == candidate.value
+                                Button {
+                                    coordinator.selectAlternative(candidateId: candidate.id, alternative: alt)
+                                } label: {
+                                    Text(alt.label)
+                                        .font(.footnote.weight(isPicked ? .semibold : .regular))
+                                        .foregroundStyle(isPicked ? Color.white : Color(hex: "#10121A"))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(isPicked ? Color(hex: "#0B6BEF") : Color(hex: "#f0f1f5"))
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(minLength: 4)
@@ -752,6 +786,16 @@ public struct ZTFormAutofillBottomPanel: View {
 
     private var pickerPanelHeight: CGFloat {
         let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        // Speech-only callers (allowsPhotoCapture == false) never show photoPickerCard, so
+        // the panel only holds the header + one "Speak" row + cancel button — the fixed
+        // heights below assume the full Camera+Speak layout and leave a large empty gap
+        // otherwise.
+        if !coordinator.allowsPhotoCapture {
+            // Header (icon+title row + up to 3 lines of description) + one pickerRow + the
+            // 48pt cancel button + VStack/outer padding adds up closer to ~270-290pt than the
+            // 230 first tried here — that clipped/hid the cancel button below the sheet.
+            return isPad ? 240 : 290
+        }
         if coordinator.supportsTagScan {
             return isPad ? 380 : 420
         }

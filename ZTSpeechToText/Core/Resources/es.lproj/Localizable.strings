@@ -94,6 +94,8 @@
 
 // MARK: - Autofill Panel
 "lbl_autofill_picker_description" = "Toma una foto con Cámara o elige una desde Fototeca. El texto se extrae, se relaciona con los campos y se muestra para revisión antes de completar nada.";
+"lbl_autofill_picker_description_speech_only" = "Describe esta sección en voz alta; relacionaremos lo que digas con sus campos y te lo mostraremos para revisión antes de guardar nada.";
+"lbl_autofill_review_alternatives_caption" = "Ninguna de las opciones predefinidas de este campo coincidió exactamente; elige la correcta";
 "lbl_autofill_scan_photo" = "Foto";
 "lbl_autofill_scan_photo_subtitle_customer" = "Tarjeta de presentación, orden de trabajo o etiqueta";
 "lbl_autofill_scan_photo_subtitle_fire_equipment" = "Etiqueta de inspección contra incendios, etiqueta de equipo o placa";
