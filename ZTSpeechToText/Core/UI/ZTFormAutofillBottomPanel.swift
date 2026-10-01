@@ -345,12 +345,20 @@ public struct ZTFormAutofillBottomPanel: View {
                     subtitle: ZTAutofillStrings.speakSub,
                     trailingBadge: speechRowBadge
                 )
+                // Speech-only callers (FPForm section/row) use a tight fixed
+                // pickerPanelHeight (215/250) with no slack — when speechRowBadge forces
+                // the subtitle to 2 lines, the row's natural height grows ~18pt with no
+                // margin to absorb it, which is exactly what clipped/overflowed before.
+                // Photo-capable callers (Customer/Asset/Equipment) have generous fixed
+                // heights (348-420) already proven to work, so left untouched.
+                .frame(minHeight: coordinator.allowsPhotoCapture ? nil : 60)
             }
             .buttonStyle(.plain)
 
             cancelButton
         }
-        .padding(16)
+        .padding([.horizontal, .top], 16)
+        .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Color.white)
     }
