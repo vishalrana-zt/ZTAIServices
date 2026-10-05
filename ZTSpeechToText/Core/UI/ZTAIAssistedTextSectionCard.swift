@@ -180,7 +180,7 @@ public struct ZTAIAssistedTextSectionHostView: View {
                 ZTAIFeedbackCapsuleView(
                     title: toast.title,
                     onFeedbackTap: { liked in
-                        coordinator.onAnalyticsEvent?("AI_FEEDBACK_SUBMITTED", [
+                        coordinator.onAnalyticsEvent?(ZTAIAnalyticsEvent.feedbackSubmitted.rawValue, [
                             "action": toast.feedbackAction ?? "stt",
                             "rating": liked ? "liked" : "disliked"
                         ])
@@ -592,7 +592,7 @@ public struct ZTAIAssistedTextSectionCard: View {
         .onAppear {
             if editorText != text { editorText = text }
             aiController.onAnalyticsEvent = { event, props in
-                guard event == "AI_FEEDBACK_SUBMITTED" else { return }
+                guard event == ZTAIAnalyticsEvent.feedbackSubmitted.rawValue else { return }
                 onAIFeedbackAnalyticsEvent?(event, props)
             }
         }

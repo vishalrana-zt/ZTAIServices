@@ -345,18 +345,18 @@ public final class ZTAIAssistantController: ObservableObject {
         if isRecording {
             stopRecording(applyText: applyText)
         } else {
-            onAnalyticsEvent?("AI_MIC_TAPPED", [:])
+            onAnalyticsEvent?(ZTAIAnalyticsEvent.micTapped.rawValue, [:])
             startRecording(currentText: currentText, applyText: applyText)
         }
     }
 
     public func runCleanUp(currentText: @escaping () -> String, applyText: @escaping (String) -> Void) {
-        onAnalyticsEvent?("AI_CLEANUP_TAPPED", [:])
+        onAnalyticsEvent?(ZTAIAnalyticsEvent.cleanupTapped.rawValue, [:])
         runAIAction(action: .cleaningUp, currentText: currentText, applyText: applyText)
     }
 
     public func runSummarize(style: ZTAISummaryStyle, currentText: @escaping () -> String, applyText: @escaping (String) -> Void) {
-        onAnalyticsEvent?("AI_SUMMARIZE_TAPPED", ["mode": style.rawValue])
+        onAnalyticsEvent?(ZTAIAnalyticsEvent.summarizeTapped.rawValue, ["mode": style.rawValue])
         runAIAction(action: .summarizing(style), currentText: currentText, applyText: applyText)
     }
 
@@ -1002,7 +1002,7 @@ public struct ZTAIAssistantMenuOverlay: View {
                     toast: toast,
                     onUndoTap: onUndoTap,
                     onFeedbackTap: toast.feedbackAction != nil ? { liked in
-                        controller.onAnalyticsEvent?("AI_FEEDBACK_SUBMITTED", [
+                        controller.onAnalyticsEvent?(ZTAIAnalyticsEvent.feedbackSubmitted.rawValue, [
                             "action": toast.feedbackAction ?? "",
                             "rating": liked ? "liked" : "disliked"
                         ])
@@ -1018,7 +1018,7 @@ public struct ZTAIAssistantMenuOverlay: View {
                 ZTAIFeedbackCapsuleView(
                     title: feedbackToast.title,
                     onFeedbackTap: { liked in
-                        controller.onAnalyticsEvent?("AI_FEEDBACK_SUBMITTED", [
+                        controller.onAnalyticsEvent?(ZTAIAnalyticsEvent.feedbackSubmitted.rawValue, [
                             "action": feedbackToast.feedbackAction ?? "",
                             "rating": liked ? "liked" : "disliked"
                         ])

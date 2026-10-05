@@ -100,7 +100,7 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
 
     public func handleMicTap(isReadOnly: Bool, dismissKeyboard: () -> Void) {
         guard !isReadOnly else { return }
-        onAnalyticsEvent?(AIAnalyticsEvent.micTapped, [:])
+        onAnalyticsEvent?(ZTAIAnalyticsEvent.micTapped.rawValue, [:])
         dismissKeyboard()
 
         Task {
@@ -240,24 +240,19 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
 
     public func reportCleanupTapped() {
         onAnalyticsEvent?(
-            AIAnalyticsEvent.cleanupTapped,
+            ZTAIAnalyticsEvent.cleanupTapped.rawValue,
             [AIAnalyticsProperty.mode: "cleanup"]
         )
     }
 
     public func reportSummarizeTapped(style: ZTAISummaryStyle) {
         onAnalyticsEvent?(
-            AIAnalyticsEvent.summarizeTapped,
+            ZTAIAnalyticsEvent.summarizeTapped.rawValue,
             [AIAnalyticsProperty.mode: "summarize_\(style.rawValue)"]
         )
     }
 }
 
-private enum AIAnalyticsEvent {
-    static let micTapped = "AI_MIC_TAPPED"
-    static let cleanupTapped = "AI_CLEANUP_TAPPED"
-    static let summarizeTapped = "AI_SUMMARIZE_TAPPED"
-}
 
 private enum AIAnalyticsProperty {
     static let mode = "mode"

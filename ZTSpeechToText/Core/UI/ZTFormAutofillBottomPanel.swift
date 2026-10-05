@@ -866,7 +866,7 @@ public struct ZTFormAutofillAppliedBannerView: View {
                 ZTAIFeedbackCapsuleView(
                     title: feedbackToast.title,
                     onFeedbackTap: { liked in
-                        coordinator.onAnalyticsEvent?("AI_FEEDBACK_SUBMITTED", [
+                        coordinator.onAnalyticsEvent?(ZTAIAnalyticsEvent.feedbackSubmitted.rawValue, [
                             "action": feedbackToast.feedbackAction ?? "autofill",
                             "rating": liked ? "liked" : "disliked"
                         ])
