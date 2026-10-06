@@ -77,6 +77,12 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     @Published public private(set) var candidates: [ZTAutofillCandidate] = []
     @Published public private(set) var sourceLabel = ""
     @Published public private(set) var liveTranscript = ""
+    /// True when the captured text was longer than the model is given (see
+    /// `structuredInputLimits`), so the review sheet can tell the user the tail was not read.
+    @Published public private(set) var inputWasTruncated = false
+    /// Whether the truncated input came from dictation (vs a photo), so the notice can say
+    /// "dictate the rest" or "scan the rest".
+    @Published public private(set) var truncatedInputWasSpeech = false
     @Published public private(set) var selectedImage: UIImage? = nil
     @Published public private(set) var ocrText: String = ""
     @Published public private(set) var previewCandidates: [ZTAutofillCandidate] = []
@@ -113,6 +119,29 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     /// autofill, where it should say "row"/"columns"). Defaults to nil, which keeps the
     /// existing shared wording.
     @Published public var speechOnlyPickerDescription: String?
+
+    /// When true (FPForm section/row autofill), the screen behind the sheet can be scrolled
+    /// ONLY while the recording controls are up — the picker, dim and white panel step aside
+    /// then. At every other step the screen behind stays blocked. Off by default:
+    /// Customer/Asset/Equipment keep the dimmed, fully blocked background throughout.
+    @Published public var allowsBackgroundScroll: Bool = false
+
+    /// Height of the speech-only sheet (the picker panel, which the recording controls also
+    /// occupy).
+    public static var speechOnlyPanelHeight: CGFloat {
+        UIDevice.current.userInterfaceIdiom == .pad ? 240 : 290
+    }
+
+    /// True while the recording screen is up. With `allowsBackgroundScroll` the sheet then
+    /// shows only the recording controls (no picker, dim, or white panel), so the caller's
+    /// screen stays visible behind it.
+    @Published public internal(set) var isSpeechSheetShowing: Bool = false
+
+    /// When both are set, the picker header shows an info icon that opens a short toast
+    /// listing what this autofill covers (e.g. which field types voice autofill fills). Nil
+    /// keeps the picker exactly as it is for Customer/Asset/Equipment.
+    @Published public var pickerInfoTitle: String?
+    @Published public var pickerInfoMessage: String?
 
     private let documentType: StructuredDocumentType
     private let fieldMapper: @Sendable (String) -> [ZTAutofillCandidate]
@@ -179,6 +208,8 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     public func openSheet(preferCloudForStructuredExtraction: Bool = false) {
         CloudAPIConfiguration.preferCloudForStructuredExtraction = preferCloudForStructuredExtraction
+        clearFeedbackToast()
+        isSpeechSheetShowing = false
         candidates = []
         previewCandidates = []
         liveTranscript = ""
@@ -195,6 +226,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         extractionTask = nil
         speechBridge.cancel()
         isSheetPresented = false
+        isSpeechSheetShowing = false
         candidates = []
         previewCandidates = []
         liveTranscript = ""
@@ -346,7 +378,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                !final.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 text = final
             }
-            await self.runExtraction(from: text, supplementalContext: self.supplementalFieldContext)
+            await self.runExtraction(from: text, supplementalContext: self.supplementalFieldContext, isSpeechInput: true)
         }
     }
 
@@ -363,7 +395,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         previewCandidates = mapNonEmptyCandidates(from: text, fallbackText: text)
         extractionTask = Task { [weak self] in
             guard let self else { return }
-            await self.runExtraction(from: text, supplementalContext: self.supplementalFieldContext)
+            await self.runExtraction(from: text, supplementalContext: self.supplementalFieldContext, isSpeechInput: true)
         }
     }
 
@@ -413,10 +445,12 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     // MARK: - Private
 
-    private func runExtraction(from text: String, supplementalContext: String? = nil) async {
+    private func runExtraction(from text: String, supplementalContext: String? = nil, isSpeechInput: Bool = false) async {
         step = .extracting
         lastEmptyCandidateReason = nil
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        inputWasTruncated = structuredInputExceedsLimits(trimmed, documentType: documentType, inputSource: isSpeechInput ? .speech : .ocr)
+        truncatedInputWasSpeech = isSpeechInput
         previewCandidates = mapNonEmptyCandidates(from: trimmed, fallbackText: trimmed)
         guard !trimmed.isEmpty else {
             step = .error("No text was captured. Please try again.")
@@ -427,7 +461,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             #if DEBUG
             let extractStart = Date()
             #endif
-            let nonEmpty = try await extractCandidates(from: trimmed, supplementalContext: supplementalContext, allowsRetry: true, attempt: 1)
+            let nonEmpty = try await extractCandidates(from: trimmed, supplementalContext: supplementalContext, isSpeechInput: isSpeechInput, allowsRetry: true, attempt: 1)
             #if DEBUG
             if CloudAPIConfiguration.isLoggingEnabled {
                 print("[AUTOFILL_TIMING] Extraction: \(String(format: "%.2f", Date().timeIntervalSince(extractStart)))s, \(nonEmpty.count) candidates")
@@ -467,7 +501,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         }
     }
 
-    private func extractCandidates(from text: String, supplementalContext: String?, allowsRetry: Bool, attempt: Int) async throws -> [ZTAutofillCandidate] {
+    private func extractCandidates(from text: String, supplementalContext: String?, isSpeechInput: Bool, allowsRetry: Bool, attempt: Int) async throws -> [ZTAutofillCandidate] {
         if CloudAPIConfiguration.preferCloudForStructuredExtraction {
             activeModelBadge = nil
         } else if ZTAIModelBadgeKind.isAppleFoundationModelsAvailable {
@@ -482,7 +516,8 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             text: text,
             preferredLanguage: resolvedLanguage(),
             documentType: documentType,
-            supplementalContext: supplementalContext
+            supplementalContext: supplementalContext,
+            isSpeechInput: isSpeechInput
         )
         #if DEBUG
         if CloudAPIConfiguration.isLoggingEnabled {
@@ -516,7 +551,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             }
             #endif
             if Task.isCancelled { return [] }
-            return try await extractCandidates(from: text, supplementalContext: supplementalContext, allowsRetry: false, attempt: attempt + 1)
+            return try await extractCandidates(from: text, supplementalContext: supplementalContext, isSpeechInput: isSpeechInput, allowsRetry: false, attempt: attempt + 1)
         }
 
         return nonEmpty

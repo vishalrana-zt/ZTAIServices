@@ -208,8 +208,8 @@ public enum AIGlyphPhase: Equatable {
 }
 
 public protocol ZTAITextProcessingServiceProtocol {
-    func cleanUp(text: String, preferredLanguage: SupportedLanguage) async throws -> TextAIExecutionResult
-    func summarize(text: String, style: ZTAISummaryStyle, preferredLanguage: SupportedLanguage) async throws -> TextAIExecutionResult
+    func cleanUp(text: String, preferredLanguage: SupportedLanguage, fieldContext: String?) async throws -> TextAIExecutionResult
+    func summarize(text: String, style: ZTAISummaryStyle, preferredLanguage: SupportedLanguage, fieldContext: String?) async throws -> TextAIExecutionResult
 }
 
 @MainActor
@@ -225,12 +225,12 @@ public actor ZTAITextProcessingServiceAdapter: ZTAITextProcessingServiceProtocol
 
     public init() {}
 
-    public func cleanUp(text: String, preferredLanguage: SupportedLanguage) async throws -> TextAIExecutionResult {
-        try await service.cleanup(text: text, preferredLanguage: preferredLanguage)
+    public func cleanUp(text: String, preferredLanguage: SupportedLanguage, fieldContext: String?) async throws -> TextAIExecutionResult {
+        try await service.cleanup(text: text, preferredLanguage: preferredLanguage, fieldContext: fieldContext)
     }
 
-    public func summarize(text: String, style: ZTAISummaryStyle, preferredLanguage: SupportedLanguage) async throws -> TextAIExecutionResult {
-        try await service.summarize(text: text, preferredLanguage: preferredLanguage, style: style.textAIStyle)
+    public func summarize(text: String, style: ZTAISummaryStyle, preferredLanguage: SupportedLanguage, fieldContext: String?) async throws -> TextAIExecutionResult {
+        try await service.summarize(text: text, preferredLanguage: preferredLanguage, style: style.textAIStyle, fieldContext: fieldContext)
     }
 }
 
@@ -279,6 +279,9 @@ public final class ZTAIAssistantController: ObservableObject {
     @Published public var errorMessage: String?
     @Published public var activeModelBadge: ZTAIModelBadgeKind?
     public var onAnalyticsEvent: ((String, [String: Any]) -> Void)?
+    /// Label of the field being edited (e.g. "Ticket description"), sent with cleanup and
+    /// summarize so the prompt knows what kind of text it is. Set by the host card.
+    public var fieldContext: String?
 
     private let aiCancelRevealDelay: UInt64 = 2_000_000_000
 
@@ -490,9 +493,9 @@ public final class ZTAIAssistantController: ObservableObject {
                 let result: TextAIExecutionResult
                 switch action {
                 case .cleaningUp:
-                    result = try await self.aiService.cleanUp(text: self.preRunSnapshot, preferredLanguage: language)
+                    result = try await self.aiService.cleanUp(text: self.preRunSnapshot, preferredLanguage: language, fieldContext: self.fieldContext)
                 case let .summarizing(style):
-                    result = try await self.aiService.summarize(text: self.preRunSnapshot, style: style, preferredLanguage: language)
+                    result = try await self.aiService.summarize(text: self.preRunSnapshot, style: style, preferredLanguage: language, fieldContext: self.fieldContext)
                 case .idle:
                     result = TextAIExecutionResult(provider: .cloudAPI, outputText: self.preRunSnapshot)
                 }

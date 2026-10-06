@@ -95,7 +95,10 @@
 // MARK: - Autofill Panel
 "lbl_autofill_picker_description" = "Take a photo with Camera or choose one from Photo Library. The text is extracted, matched to the fields, and shown for review before anything is filled.";
 "lbl_autofill_picker_description_speech_only" = "Describe this section out loud — we'll match what you say to its fields and show it to you for review before anything is saved.";
-"lbl_autofill_review_alternatives_caption" = "None of this field's predefined options matched exactly — pick the one you meant";
+"lbl_autofill_review_alternatives_caption" = "No exact match. Pick the option you meant.";
+"lbl_autofill_review_check_match" = "Best guess from what you said. Review it.";
+"lbl_autofill_input_truncated" = "Only the first part was read. Check for anything missing, or dictate the rest again.";
+"lbl_autofill_input_truncated_photo" = "Only the first part was read. Check for anything missing, or scan the rest again.";
 "lbl_autofill_scan_photo" = "Photo";
 "lbl_autofill_scan_photo_subtitle_customer" = "Business card, work order, or label";
 "lbl_autofill_scan_photo_subtitle_fire_equipment" = "Fire inspection tag, equipment label, or nameplate";
@@ -115,13 +118,14 @@
 "lbl_autofill_discard" = "Discard";
 "lbl_autofill_check" = "Check";
 "lbl_autofill_try_again" = "Try again";
-"lbl_autofill_missing_fields" = "Fields not found will need to be filled manually.";
+"lbl_autofill_missing_fields" = "Fill in any fields we couldn't find.";
 "lbl_autofill_undo" = "Undo";
-"lbl_autofill_review_subtitle" = "Untick anything you don't want. Nothing is written to the form until you tap Fill.";
+"lbl_autofill_review_subtitle" = "Uncheck anything you don't want — nothing is added to the form until you tap Fill.";
 "lbl_autofill_fill_nothing" = "Fill nothing";
 "lbl_autofill_field_singular" = "field";
 "lbl_autofill_field_plural" = "fields";
 "lbl_autofill_found_details" = "Found %d details";
+"lbl_autofill_found_detail_one" = "Found 1 detail";
 "lbl_autofill_fill_fields" = "Fill %d fields";
 "lbl_autofill_banner_text" = "%d %@ filled from %@. Check anything marked, then save.";
 "lbl_autofill_source_photo" = "Read from the photo.";

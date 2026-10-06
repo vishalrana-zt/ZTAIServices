@@ -12,7 +12,13 @@ private enum ZTAutofillStrings {
 
     static var pickerDescription: String { localized("lbl_autofill_picker_description", fallback: "Take a photo with Camera or choose one from Photo Library. The text is extracted, matched to the fields, and shown for review before anything is filled.") }
     static var pickerDescriptionSpeechOnly: String { localized("lbl_autofill_picker_description_speech_only", fallback: "Describe this section out loud — we'll match what you say to its fields and show it to you for review before anything is saved.") }
-    static var reviewAlternativesCaption: String { localized("lbl_autofill_review_alternatives_caption", fallback: "None of this field's predefined options matched exactly — pick the one you meant") }
+    static var reviewAlternativesCaption: String { localized("lbl_autofill_review_alternatives_caption", fallback: "No exact match. Pick the option you meant.") }
+    static func inputTruncatedNotice(isSpeech: Bool) -> String {
+        isSpeech
+            ? localized("lbl_autofill_input_truncated", fallback: "Only the first part was read. Check for anything missing, or dictate the rest again.")
+            : localized("lbl_autofill_input_truncated_photo", fallback: "Only the first part was read. Check for anything missing, or scan the rest again.")
+    }
+    static var reviewCheckMatch: String { localized("lbl_autofill_review_check_match", fallback: "Best guess from what you said. Review it.") }
     static var scanPhoto: String       { localized("lbl_autofill_scan_photo",           fallback: "Photo") }
     static var camera: String          { localized("btn_camera",                        fallback: "Camera") }
     static var photoLibrary: String    { localized("btn_photo_library",                 fallback: "Photo Library") }
@@ -31,9 +37,9 @@ private enum ZTAutofillStrings {
     static var discard: String         { localized("lbl_autofill_discard",                fallback: "Discard") }
     static var check: String           { localized("lbl_autofill_check",                  fallback: "Check") }
     static var tryAgain: String        { localized("lbl_autofill_try_again",              fallback: "Try again") }
-    static var missingFields: String   { localized("lbl_autofill_missing_fields",         fallback: "Fields not found will need to be filled manually.") }
+    static var missingFields: String   { localized("lbl_autofill_missing_fields",         fallback: "Fill in any fields we couldn't find.") }
     static var undo: String            { localized("lbl_autofill_undo",                   fallback: "Undo") }
-    static var reviewSubtitle: String  { localized("lbl_autofill_review_subtitle",        fallback: "Untick anything you don't want. Nothing is written to the form until you tap Fill.") }
+    static var reviewSubtitle: String  { localized("lbl_autofill_review_subtitle",        fallback: "Uncheck anything you don't want — nothing is added to the form until you tap Fill.") }
     static var sourcePhoto: String     { localized("lbl_autofill_source_photo",           fallback: "Read from the photo.") }
     static var sourceVoice: String     { localized("lbl_autofill_source_voice",           fallback: "Heard from your dictation.") }
     static var fillNothing: String     { localized("lbl_autofill_fill_nothing",           fallback: "Fill nothing") }
@@ -44,7 +50,8 @@ private enum ZTAutofillStrings {
     static var extractionAlertContinue: String { localized("lbl_autofill_extraction_alert_continue", fallback: "Continue") }
     static var extractionAlertStopDiscard: String { localized("lbl_autofill_extraction_alert_stop_discard", fallback: "Stop & Discard") }
     static func foundDetails(_ n: Int) -> String {
-        String(format: localized("lbl_autofill_found_details", fallback: "Found %d details"), n)
+        if n == 1 { return localized("lbl_autofill_found_detail_one", fallback: "Found 1 detail") }
+        return String(format: localized("lbl_autofill_found_details", fallback: "Found %d details"), n)
     }
     static func fillFields(_ n: Int) -> String {
         guard n > 0 else { return fillNothing }
@@ -154,20 +161,28 @@ public struct ZTFormAutofillSheetHostView: View {
         self.panelTitle = panelTitle
     }
 
+    /// Form/row autofill: once the user taps Speak, only the recording controls are shown —
+    /// the picker, the dim, and the white panel all step aside so the form behind is visible.
+    private var hidesChromeWhileRecording: Bool {
+        coordinator.allowsBackgroundScroll && coordinator.isSpeechSheetShowing
+    }
+
     public var body: some View {
         Color.clear
             .allowsHitTesting(false)
             .overlay {
                 if coordinator.isSheetPresented {
                     ZStack(alignment: .bottom) {
-                        Color.black.opacity(0.28)
+                        // Same dim as every other autofill sheet; it only disappears while
+                        // recording on a caller that allows background scroll.
+                        Color.black.opacity(hidesChromeWhileRecording ? 0 : 0.28)
                             .ignoresSafeArea()
                             .allowsHitTesting(true)
                             .onTapGesture { }
 
                         ZTFormAutofillBottomPanel(coordinator: coordinator, title: panelTitle)
                             .frame(maxWidth: .infinity, alignment: .bottom)
-                            .background(Color.white)
+                            .background(hidesChromeWhileRecording ? Color.clear : Color.white)
                             .clipShape(ZTTopSheetCornersShape(radius: 34))
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
@@ -191,6 +206,8 @@ public struct ZTFormAutofillBottomPanel: View {
     @State private var showPhotoLibraryPicker = false
     @State private var showExtractionDismissAlert = false
     @State private var showSpeechSheet = false
+    @State private var showPickerInfo = false
+    @State private var pickerInfoDismissTask: Task<Void, Never>?
 
 
     public init(coordinator: ZTFormAutofillCoordinator, title: String = "Autofill details") {
@@ -221,8 +238,12 @@ public struct ZTFormAutofillBottomPanel: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
-        .blur(radius: showSpeechSheet ? 4 : 0)
+        .blur(radius: showSpeechSheet && !coordinator.allowsBackgroundScroll ? 4 : 0)
+        .opacity(showSpeechSheet && coordinator.allowsBackgroundScroll ? 0 : 1)
         .allowsHitTesting(!showSpeechSheet)
+        .onChange(of: showSpeechSheet) { isShowing in
+            coordinator.isSpeechSheetShowing = isShowing
+        }
         .presentationDetents(detentsForStep(coordinator.step))
         .presentationDragIndicator(.hidden)
         .modifier(ZTAutofillSheetSizingModifier())
@@ -320,6 +341,17 @@ public struct ZTFormAutofillBottomPanel: View {
                     Text(title)
                         .font(.headline)
                         .foregroundStyle(Color(hex: "#10121A"))
+                    if coordinator.pickerInfoMessage != nil {
+                        Button { togglePickerInfoToast() } label: {
+                            Image(systemName: "info.circle")
+                                .font(.subheadline)
+                                .foregroundStyle(Color(hex: "#7a8090"))
+                                .padding(6)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(coordinator.pickerInfoTitle ?? title)
+                    }
                     Spacer()
                     if let headerBadge = pickerHeaderBadge {
                         ZTAIModelBadge(kind: headerBadge)
@@ -355,6 +387,57 @@ public struct ZTFormAutofillBottomPanel: View {
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Color.white)
+        .overlay(alignment: .center) {
+            if showPickerInfo, let message = coordinator.pickerInfoMessage {
+                pickerInfoToast(title: coordinator.pickerInfoTitle, message: message)
+                    .padding(.horizontal, 12)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .onTapGesture { dismissPickerInfoToast() }
+            }
+        }
+        .onDisappear { pickerInfoDismissTask?.cancel() }
+    }
+
+    /// A transient in-sheet toast (not an alert): shows what voice autofill covers, then
+    /// fades after 5 seconds. Tapping the icon opens it when closed and closes it when open;
+    /// tapping the toast closes it too.
+    private func togglePickerInfoToast() {
+        if showPickerInfo {
+            dismissPickerInfoToast()
+            return
+        }
+        pickerInfoDismissTask?.cancel()
+        withAnimation(.easeOut(duration: 0.18)) { showPickerInfo = true }
+        pickerInfoDismissTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard !Task.isCancelled else { return }
+            dismissPickerInfoToast()
+        }
+    }
+
+    private func dismissPickerInfoToast() {
+        pickerInfoDismissTask?.cancel()
+        withAnimation(.easeIn(duration: 0.2)) { showPickerInfo = false }
+    }
+
+    private func pickerInfoToast(title: String?, message: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let title, !title.isEmpty {
+                Text(title)
+                    .font(.footnote.weight(.semibold))
+            }
+            Text(message)
+                .font(.footnote)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .foregroundStyle(Color.white)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(hex: "#1F2430").opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(color: Color.black.opacity(0.18), radius: 10, y: 4)
+        .accessibilityElement(children: .combine)
     }
 
     private var photoPickerCard: some View {
@@ -577,6 +660,13 @@ public struct ZTFormAutofillBottomPanel: View {
                     .foregroundStyle(Color(hex: "#5a6070"))
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
+                if coordinator.inputWasTruncated {
+                    Label(ZTAutofillStrings.inputTruncatedNotice(isSpeech: coordinator.truncatedInputWasSpeech), systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Color(hex: "#C77700"))
+                        .padding(.top, 4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 32)
@@ -661,6 +751,15 @@ public struct ZTFormAutofillBottomPanel: View {
                         .foregroundStyle(Color(hex: "#10121A"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .multilineTextAlignment(.leading)
+                }
+
+                // A match made by meaning (e.g. spoken in another language than the option
+                // list) is filled but flagged. Rows with their own "did you mean" picker below
+                // already say so, so this only covers the single-suggestion case.
+                if candidate.needsCheck, (candidate.alternatives?.count ?? 0) <= 1 {
+                    Label(ZTAutofillStrings.reviewCheckMatch, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(Color(hex: "#C77700"))
                 }
 
                 // A near-match (not exact) for an option field shows its close matches as
@@ -796,7 +895,7 @@ public struct ZTFormAutofillBottomPanel: View {
             // Header (icon+title row + up to 3 lines of description) + one pickerRow + the
             // 48pt cancel button + VStack/outer padding adds up closer to ~270-290pt than the
             // 230 first tried here — that clipped/hid the cancel button below the sheet.
-            return isPad ? 240 : 290
+            return ZTFormAutofillCoordinator.speechOnlyPanelHeight
         }
         if coordinator.supportsTagScan {
             return isPad ? 380 : 420

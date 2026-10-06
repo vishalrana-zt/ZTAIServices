@@ -150,6 +150,7 @@ public struct ZTAIAssistedTextSectionHostView: View {
             livePreviewText: coordinator.livePreviewText,
             activeModelBadge: coordinator.activeModelBadge,
             onMicTap: {
+                coordinator.clearFeedbackToast()
                 coordinator.handleMicTap(
                     isReadOnly: isReadOnly,
                     dismissKeyboard: dismissKeyboard
@@ -161,6 +162,7 @@ public struct ZTAIAssistedTextSectionHostView: View {
             },
             onAIMenuOpenChanged: { isOpen in
                 coordinator.isAIMenuOpen = isOpen
+                if isOpen { coordinator.clearFeedbackToast() }
             },
             onCleanupAnalyticsTap: {
                 coordinator.reportCleanupTapped()
@@ -454,11 +456,15 @@ public struct ZTAIAssistedTextSectionCard: View {
                         ZTAIAssistantButtonRow(
                             controller: aiController,
                             onMicTap: {
+                                aiController.dismissFeedbackToast()
                                 guard !aiController.isRunningAI else { return }
                                 aiController.closeMenu()
                                 onMicTap?()
                             },
-                            onAITap: { aiController.toggleMenu() },
+                            onAITap: {
+                                aiController.dismissFeedbackToast()
+                                aiController.toggleMenu()
+                            },
                             isRecordingOverride: isSpeechRecordingActive,
                             aiButtonDisabled: isSpeechToTextSheetPresented,
                             showMicButton: showMicButton,
@@ -512,11 +518,15 @@ public struct ZTAIAssistedTextSectionCard: View {
                                     ZTAIAssistantButtonRow(
                                         controller: aiController,
                                         onMicTap: {
+                                            aiController.dismissFeedbackToast()
                                             guard !aiController.isRunningAI else { return }
                                             aiController.closeMenu()
                                             onMicTap?()
                                         },
-                                        onAITap: { aiController.toggleMenu() },
+                                        onAITap: {
+                                aiController.dismissFeedbackToast()
+                                aiController.toggleMenu()
+                            },
                                         isRecordingOverride: isSpeechRecordingActive,
                                         aiButtonDisabled: isSpeechToTextSheetPresented,
                                         showMicButton: showMicButton,
@@ -591,6 +601,7 @@ public struct ZTAIAssistedTextSectionCard: View {
         }
         .onAppear {
             if editorText != text { editorText = text }
+            aiController.fieldContext = title
             aiController.onAnalyticsEvent = { event, props in
                 guard event == ZTAIAnalyticsEvent.feedbackSubmitted.rawValue else { return }
                 onAIFeedbackAnalyticsEvent?(event, props)

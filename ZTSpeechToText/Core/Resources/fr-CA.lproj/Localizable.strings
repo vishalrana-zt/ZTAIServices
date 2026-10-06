@@ -95,7 +95,10 @@
 // MARK: - Autofill Panel
 "lbl_autofill_picker_description" = "Prenez une photo avec Caméra ou choisissez-en une dans Photothèque. Le texte est extrait, associé aux champs et affiché pour vérification avant tout remplissage.";
 "lbl_autofill_picker_description_speech_only" = "Décrivez cette section à voix haute — nous associerons ce que vous dites à ses champs et vous les montrerons pour vérification avant tout enregistrement.";
-"lbl_autofill_review_alternatives_caption" = "Aucune des options prédéfinies de ce champ ne correspondait exactement — choisissez la bonne";
+"lbl_autofill_review_alternatives_caption" = "Aucune correspondance exacte. Choisissez l'option voulue.";
+"lbl_autofill_review_check_match" = "Meilleure estimation selon ce que vous avez dit. Vérifiez-la.";
+"lbl_autofill_input_truncated" = "Seule la première partie a été lue. Vérifiez s'il manque quelque chose, ou dictez le reste de nouveau.";
+"lbl_autofill_input_truncated_photo" = "Seule la première partie a été lue. Vérifiez s'il manque quelque chose, ou numérisez le reste de nouveau.";
 "lbl_autofill_scan_photo" = "Photo";
 "lbl_autofill_scan_photo_subtitle_customer" = "Carte professionnelle, bon de travail ou étiquette";
 "lbl_autofill_scan_photo_subtitle_fire_equipment" = "Étiquette d'inspection incendie, étiquette d'équipement ou plaque signalétique";
@@ -115,13 +118,14 @@
 "lbl_autofill_discard" = "Ignorer";
 "lbl_autofill_check" = "Vérifier";
 "lbl_autofill_try_again" = "Réessayer";
-"lbl_autofill_missing_fields" = "Les champs introuvables devront être remplis manuellement.";
+"lbl_autofill_missing_fields" = "Remplissez les champs que nous n'avons pas trouvés.";
 "lbl_autofill_undo" = "Annuler";
-"lbl_autofill_review_subtitle" = "Décochez ce que vous ne voulez pas. Rien n'est écrit dans le formulaire tant que vous ne touchez pas Remplir.";
+"lbl_autofill_review_subtitle" = "Décochez ce que vous ne voulez pas — rien n'est ajouté au formulaire tant que vous ne touchez pas Remplir.";
 "lbl_autofill_fill_nothing" = "Ne rien remplir";
 "lbl_autofill_field_singular" = "champ";
 "lbl_autofill_field_plural" = "champs";
 "lbl_autofill_found_details" = "%d détails trouvés";
+"lbl_autofill_found_detail_one" = "1 détail trouvé";
 "lbl_autofill_fill_fields" = "Remplir %d champs";
 "lbl_autofill_banner_text" = "%d %@ remplis depuis %@. Vérifiez ce qui est marqué, puis enregistrez.";
 "lbl_autofill_source_photo" = "Lu depuis la photo.";

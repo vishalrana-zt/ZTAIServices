@@ -63,6 +63,11 @@ public struct ZTAIOnboardingHostView: View {
     /// your voice..." copy is simply wrong: there's no photo option to capture from.
     /// Defaults to nil, which keeps Customer/Asset/Equipment's existing copy unchanged.
     public let autofillSubtitleOverride: String?
+    /// Whether the card shows the "Apple Foundation Models badge … can work offline" note.
+    /// Turn it off for a caller that always runs in the cloud (FPForm section/row autofill
+    /// needs internet), where that sentence would be wrong. Defaults to true, so
+    /// Customer/Asset/Equipment and the other tours keep their existing card.
+    public let showsOnDeviceBadgeNote: Bool
     /// Called when user explicitly completes the tour (Skip / Done) with visible step keys.
     public let onDismiss: ([String]) -> Void
     /// Called when the tour is abandoned silently (timeout / VC dismissed) → does NOT mark done.
@@ -75,6 +80,7 @@ public struct ZTAIOnboardingHostView: View {
         frameDebounceDelay: Double = 0.15,
         revealDelay: Double = 0.65,
         autofillSubtitleOverride: String? = nil,
+        showsOnDeviceBadgeNote: Bool = true,
         onDismiss: @escaping ([String]) -> Void,
         onAbandon: @escaping () -> Void = {}
     ) {
@@ -84,6 +90,7 @@ public struct ZTAIOnboardingHostView: View {
         self.frameDebounceDelay = frameDebounceDelay
         self.revealDelay = revealDelay
         self.autofillSubtitleOverride = autofillSubtitleOverride
+        self.showsOnDeviceBadgeNote = showsOnDeviceBadgeNote
         self.onDismiss = onDismiss
         self.onAbandon = onAbandon
     }
@@ -417,7 +424,9 @@ public struct ZTAIOnboardingHostView: View {
                 }
             }
             
-            badgeInfoRow(accent: step.color)
+            if showsOnDeviceBadgeNote {
+                badgeInfoRow(accent: step.color)
+            }
 
             Text(ZTAIOnboardingStrings.outputDisclaimer)
                 .font(.caption)
