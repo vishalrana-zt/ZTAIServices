@@ -22,6 +22,7 @@ final class DictationTranscriberEngine: FinalTranscriptionEngine {
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
         let analyzer = SpeechAnalyzer(modules: [transcriber])
+        await SpeechContextHints.apply(request.contextualStrings, to: analyzer)
         let audioFile = try AVAudioFile(forReading: fileURL)
 
         let resultsTask = Task<String, Error> {

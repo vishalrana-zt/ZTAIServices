@@ -5,17 +5,21 @@ struct TranscriptionRequest {
     let sampleRate: Double
     let localeHint: Locale?
     let timeoutInterval: TimeInterval?
+    /// Words the recognizer should expect (see `SpeechContextHints`). Empty = no hint.
+    let contextualStrings: [String]
 
     init(
         audio: [Float],
         sampleRate: Double,
         localeHint: Locale?,
-        timeoutInterval: TimeInterval? = nil
+        timeoutInterval: TimeInterval? = nil,
+        contextualStrings: [String] = []
     ) {
         self.audio = audio
         self.sampleRate = sampleRate
         self.localeHint = localeHint
         self.timeoutInterval = timeoutInterval
+        self.contextualStrings = contextualStrings
     }
 }
 

@@ -13,7 +13,8 @@ final class SpeechTranscriberEngine: FinalTranscriptionEngine {
                 audio: request.audio,
                 sampleRate: request.sampleRate,
                 localeHint: request.localeHint,
-                preset: .transcription
+                preset: .transcription,
+                contextualStrings: request.contextualStrings
             )
             return TranscriptionResult(text: output.text, locale: output.locale)
         } catch let error as SpeechAnalyzerTranscriptionEngine.EngineError {

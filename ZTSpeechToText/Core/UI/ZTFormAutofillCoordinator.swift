@@ -72,17 +72,40 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         }
     }
 
-    @Published public private(set) var step: Step = .idle
-    @Published public var isSheetPresented = false
+    @Published public private(set) var step: Step = .idle {
+        didSet {
+            guard CloudAPIConfiguration.isLoggingEnabled else { return }
+            ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] step \(Self.describe(oldValue)) -> \(Self.describe(step))")
+            if case .review = step { logReviewSnapshot() }
+        }
+    }
+
+    /// What the review sheet is about to show, row by row.
+    private func logReviewSnapshot() {
+        let rows = candidates.map { c -> String in
+            let shown = c.displayValue ?? c.value
+            return "  - \(c.label) = \"\(shown)\" | ticked=\(c.isSelected) | check=\(c.needsCheck) | choices=\(c.alternatives?.count ?? 0)"
+        }
+        ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] review shown: \(candidates.count) row(s)\n" + rows.joined(separator: "\n"))
+    }
+
+    private static func describe(_ step: Step) -> String {
+        if case .error(let message) = step { return "error(\(message))" }
+        return String(describing: step)
+    }
+    @Published public var isSheetPresented = false {
+        // The recording flag can't outlive the sheet, however the sheet was closed.
+        didSet { if !isSheetPresented { isSpeechSheetShowing = false } }
+    }
     @Published public private(set) var candidates: [ZTAutofillCandidate] = []
     @Published public private(set) var sourceLabel = ""
     @Published public private(set) var liveTranscript = ""
     /// True when the captured text was longer than the model is given (see
     /// `structuredInputLimits`), so the review sheet can tell the user the tail was not read.
     @Published public private(set) var inputWasTruncated = false
-    /// Whether the truncated input came from dictation (vs a photo), so the notice can say
-    /// "dictate the rest" or "scan the rest".
-    @Published public private(set) var truncatedInputWasSpeech = false
+    /// Whether the input being reviewed came from dictation (vs a photo), so notices can say
+    /// "dictate the rest" / "from what you said" or "scan the rest" / "from the photo".
+    @Published public private(set) var inputWasSpeech = false
     @Published public private(set) var selectedImage: UIImage? = nil
     @Published public private(set) var ocrText: String = ""
     @Published public private(set) var previewCandidates: [ZTAutofillCandidate] = []
@@ -125,6 +148,10 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     /// then. At every other step the screen behind stays blocked. Off by default:
     /// Customer/Asset/Equipment keep the dimmed, fully blocked background throughout.
     @Published public var allowsBackgroundScroll: Bool = false
+
+    /// Words the speech recognizer should expect while recording (a form's field and option
+    /// names). Empty by default, so Customer/Asset/Equipment record exactly as before.
+    public var speechVocabulary: [String] = []
 
     /// Height of the speech-only sheet (the picker panel, which the recording controls also
     /// occupy).
@@ -222,6 +249,9 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     }
 
     public func dismiss() {
+        if CloudAPIConfiguration.isLoggingEnabled {
+            ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] dismissed at step \(Self.describe(step))")
+        }
         extractionTask?.cancel()
         extractionTask = nil
         speechBridge.cancel()
@@ -264,7 +294,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                         workImage = await self.ocrEngine.perspectiveCorrected(image)
                         #if DEBUG
                         if CloudAPIConfiguration.isLoggingEnabled {
-                            print("[AUTOFILL_TIMING] PerspectiveCorrection: \(String(format: "%.2f", Date().timeIntervalSince(perspStart)))s input=\(Int(image.size.width))x\(Int(image.size.height)) output=\(Int(workImage.size.width))x\(Int(workImage.size.height))")
+                            ZTAutofillLogBuffer.log("[AUTOFILL_TIMING] PerspectiveCorrection: \(String(format: "%.2f", Date().timeIntervalSince(perspStart)))s input=\(Int(image.size.width))x\(Int(image.size.height)) output=\(Int(workImage.size.width))x\(Int(workImage.size.height))")
                         }
                         #endif
                     } else {
@@ -287,25 +317,25 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                         }.value
                         #if DEBUG
                         if CloudAPIConfiguration.isLoggingEnabled {
-                            print("[AUTOFILL_TIMING] PunchDetection: \(String(format: "%.2f", Date().timeIntervalSince(punchStart)))s, selections=\(punchDetections.count)")
+                            ZTAutofillLogBuffer.log("[AUTOFILL_TIMING] PunchDetection: \(String(format: "%.2f", Date().timeIntervalSince(punchStart)))s, selections=\(punchDetections.count)")
                             let allSelected = punchDetections.filter { $0.selected }
                             let gridSelected = allSelected.filter { $0.strategy == .gridCell }
                             let optionSelected = allSelected.filter { $0.strategy == .optionList }
-                            print("[AUTOFILL_PUNCH] selected=\(allSelected.count)/\(punchDetections.count) gridCell=[\(gridSelected.map { "\($0.lineText)@\(String(format: "%.2f", $0.confidence))" }.joined(separator: ", "))] optionList=[\(optionSelected.map { $0.lineText }.joined(separator: ", "))]")
-                            print("[AUTOFILL_OCR] lines=\(ocrResult.lines.count) text=\(text.prefix(800).replacingOccurrences(of: "\n", with: " | "))")
+                            ZTAutofillLogBuffer.log("[AUTOFILL_PUNCH] selected=\(allSelected.count)/\(punchDetections.count) gridCell=[\(gridSelected.map { "\($0.lineText)@\(String(format: "%.2f", $0.confidence))" }.joined(separator: ", "))] optionList=[\(optionSelected.map { $0.lineText }.joined(separator: ", "))]")
+                            ZTAutofillLogBuffer.log("[AUTOFILL_OCR] lines=\(ocrResult.lines.count) text=\(text.prefix(800).replacingOccurrences(of: "\n", with: " | "))")
                         }
                         #endif
                         let supplementalCtx = self.buildStructuredOCRContext(punchDetections: punchDetections)
                         #if DEBUG
                         if CloudAPIConfiguration.isLoggingEnabled {
-                            print("[AUTOFILL_PUNCH] supplementalContext=\(supplementalCtx ?? "nil")")
+                            ZTAutofillLogBuffer.log("[AUTOFILL_PUNCH] supplementalContext=\(supplementalCtx ?? "nil")")
                         }
                         #endif
                         supplementalContext = supplementalCtx
                     } else {
                         #if DEBUG
                         if CloudAPIConfiguration.isLoggingEnabled {
-                            print("[AUTOFILL_OCR] lines=\(ocrResult.lines.count) text=\(text.prefix(800).replacingOccurrences(of: "\n", with: " | "))")
+                            ZTAutofillLogBuffer.log("[AUTOFILL_OCR] lines=\(ocrResult.lines.count) text=\(text.prefix(800).replacingOccurrences(of: "\n", with: " | "))")
                         }
                         #endif
                         supplementalContext = nil
@@ -316,13 +346,13 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                     #if DEBUG
                     if CloudAPIConfiguration.isLoggingEnabled {
                         let lineCount = text.split(whereSeparator: \.isNewline).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
-                        print("[AUTOFILL_OCR] docType=\(self.documentType.rawValue) lines=\(lineCount) text=\(text.prefix(800).replacingOccurrences(of: "\n", with: " | "))")
+                        ZTAutofillLogBuffer.log("[AUTOFILL_OCR] docType=\(self.documentType.rawValue) lines=\(lineCount) text=\(text.prefix(800).replacingOccurrences(of: "\n", with: " | "))")
                     }
                     #endif
                 }
                 #if DEBUG
                 if CloudAPIConfiguration.isLoggingEnabled {
-                    print("[AUTOFILL_TIMING] OCR: \(String(format: "%.2f", Date().timeIntervalSince(ocrStart)))s")
+                    ZTAutofillLogBuffer.log("[AUTOFILL_TIMING] OCR: \(String(format: "%.2f", Date().timeIntervalSince(ocrStart)))s")
                 }
                 #endif
                 if Task.isCancelled { return }
@@ -402,6 +432,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     public func toggleCandidate(id: String) {
         guard let idx = candidates.firstIndex(where: { $0.id == id }) else { return }
         candidates[idx].isSelected.toggle()
+        ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] review: \(candidates[idx].label) \(candidates[idx].isSelected ? "ticked" : "unticked")")
     }
 
     /// Switches a candidate to one of its `alternatives` — the "did you mean" picker in
@@ -411,10 +442,15 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         candidates[idx].value = alternative.id
         candidates[idx].displayValue = alternative.label
         candidates[idx].isSelected = true
+        ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] review: \(candidates[idx].label) changed to \"\(alternative.label)\"")
     }
 
     public func applySelected() {
         let selected = candidates.filter { $0.isSelected }
+        if CloudAPIConfiguration.isLoggingEnabled {
+            let declined = candidates.filter { !$0.isSelected }.map { $0.label }
+            ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] review: applied \(selected.count) of \(candidates.count) | declined \(declined)")
+        }
         onApply?(selected)
         candidates = []
         previewCandidates = []
@@ -449,8 +485,9 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         step = .extracting
         lastEmptyCandidateReason = nil
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] extraction input: source=\(isSpeechInput ? "speech" : "photo") chars=\(trimmed.count) text=\"\(trimmed)\"")
         inputWasTruncated = structuredInputExceedsLimits(trimmed, documentType: documentType, inputSource: isSpeechInput ? .speech : .ocr)
-        truncatedInputWasSpeech = isSpeechInput
+        inputWasSpeech = isSpeechInput
         previewCandidates = mapNonEmptyCandidates(from: trimmed, fallbackText: trimmed)
         guard !trimmed.isEmpty else {
             step = .error("No text was captured. Please try again.")
@@ -464,7 +501,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             let nonEmpty = try await extractCandidates(from: trimmed, supplementalContext: supplementalContext, isSpeechInput: isSpeechInput, allowsRetry: true, attempt: 1)
             #if DEBUG
             if CloudAPIConfiguration.isLoggingEnabled {
-                print("[AUTOFILL_TIMING] Extraction: \(String(format: "%.2f", Date().timeIntervalSince(extractStart)))s, \(nonEmpty.count) candidates")
+                ZTAutofillLogBuffer.log("[AUTOFILL_TIMING] Extraction: \(String(format: "%.2f", Date().timeIntervalSince(extractStart)))s, \(nonEmpty.count) candidates")
             }
             #endif
             if Task.isCancelled { return }
@@ -512,6 +549,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         #if DEBUG
         let requestStart = Date()
         #endif
+        ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] extraction request: attempt=\(attempt) doc=\(documentType.rawValue) source=\(isSpeechInput ? "speech" : "ocr") context_chars=\(supplementalContext?.count ?? 0) language=\(resolvedLanguage().rawValue)")
         let result = try await textAIService.structuredExtract(
             text: text,
             preferredLanguage: resolvedLanguage(),
@@ -521,7 +559,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         )
         #if DEBUG
         if CloudAPIConfiguration.isLoggingEnabled {
-            print("[AUTOFILL_TIMING] structuredExtract attempt=\(attempt) provider=\(result.provider.rawValue) duration=\(String(format: "%.2f", Date().timeIntervalSince(requestStart)))s")
+            ZTAutofillLogBuffer.log("[AUTOFILL_TIMING] structuredExtract attempt=\(attempt) provider=\(result.provider.rawValue) duration=\(String(format: "%.2f", Date().timeIntervalSince(requestStart)))s")
         }
         #endif
         activeModelBadge = ZTAIModelBadgeKind(provider: result.provider)
@@ -535,9 +573,9 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         }
         #if DEBUG
         if CloudAPIConfiguration.isLoggingEnabled {
-            print("[AUTOFILL_DEBUG] provider=\(result.provider.rawValue) candidates=\(nonEmpty.count) output=\(result.outputText)")
+            ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] provider=\(result.provider.rawValue) candidates=\(nonEmpty.count) output=\(result.outputText)")
             if let lastEmptyCandidateReason {
-                print("[AUTOFILL_DEBUG] emptyCandidateReason=\(lastEmptyCandidateReason)")
+                ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] emptyCandidateReason=\(lastEmptyCandidateReason)")
             }
         }
         #endif
@@ -547,7 +585,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         if nonEmpty.isEmpty, allowsRetry {
             #if DEBUG
             if CloudAPIConfiguration.isLoggingEnabled {
-                print("[AUTOFILL_TIMING] structuredExtract retry triggered after attempt=\(attempt) dueTo=empty_candidates")
+                ZTAutofillLogBuffer.log("[AUTOFILL_TIMING] structuredExtract retry triggered after attempt=\(attempt) dueTo=empty_candidates")
             }
             #endif
             if Task.isCancelled { return [] }
@@ -662,6 +700,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         feedbackToastState = ZTAIToastState(title: title, badge: nil, style: .success, feedbackAction: action)
         feedbackDismissTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 8_000_000_000)
+            guard !Task.isCancelled else { return }
             await MainActor.run { self?.feedbackToastState = nil }
         }
     }

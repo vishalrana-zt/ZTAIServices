@@ -18,7 +18,11 @@ private enum ZTAutofillStrings {
             ? localized("lbl_autofill_input_truncated", fallback: "Only the first part was read. Check for anything missing, or dictate the rest again.")
             : localized("lbl_autofill_input_truncated_photo", fallback: "Only the first part was read. Check for anything missing, or scan the rest again.")
     }
-    static var reviewCheckMatch: String { localized("lbl_autofill_review_check_match", fallback: "Best guess from what you said. Review it.") }
+    static func reviewCheckMatch(isSpeech: Bool) -> String {
+        isSpeech
+            ? localized("lbl_autofill_review_check_match", fallback: "Best guess from what you said. Review it.")
+            : localized("lbl_autofill_review_check_match_photo", fallback: "Best guess from the photo. Review it.")
+    }
     static var scanPhoto: String       { localized("lbl_autofill_scan_photo",           fallback: "Photo") }
     static var camera: String          { localized("btn_camera",                        fallback: "Camera") }
     static var photoLibrary: String    { localized("btn_photo_library",                 fallback: "Photo Library") }
@@ -29,22 +33,12 @@ private enum ZTAutofillStrings {
     static var pullingDetails: String  { localized("lbl_autofill_pulling_details",        fallback: "Finding text in the image") }
     static var extracting: String      { localized("lbl_autofill_extracting_details",     fallback: "Extracting details…") }
     static var matchingFields: String  { localized("lbl_autofill_matching_fields",        fallback: "Matching to form fields") }
-    static var listening: String       { localized("lbl_autofill_listening",              fallback: "Listening…") }
-    static var speakNow: String        { localized("lbl_autofill_speak_now",              fallback: "Speak now…") }
-    static var stop: String            { localized("lbl_autofill_stop",                   fallback: "Stop") }
     static var cancel: String          { localized("lbl_autofill_cancel",                 fallback: "Cancel") }
-    static var textFound: String       { localized("lbl_autofill_text_found",             fallback: "TEXT FOUND") }
     static var discard: String         { localized("lbl_autofill_discard",                fallback: "Discard") }
-    static var check: String           { localized("lbl_autofill_check",                  fallback: "Check") }
     static var tryAgain: String        { localized("lbl_autofill_try_again",              fallback: "Try again") }
     static var missingFields: String   { localized("lbl_autofill_missing_fields",         fallback: "Fill in any fields we couldn't find.") }
-    static var undo: String            { localized("lbl_autofill_undo",                   fallback: "Undo") }
     static var reviewSubtitle: String  { localized("lbl_autofill_review_subtitle",        fallback: "Uncheck anything you don't want — nothing is added to the form until you tap Fill.") }
-    static var sourcePhoto: String     { localized("lbl_autofill_source_photo",           fallback: "Read from the photo.") }
-    static var sourceVoice: String     { localized("lbl_autofill_source_voice",           fallback: "Heard from your dictation.") }
     static var fillNothing: String     { localized("lbl_autofill_fill_nothing",           fallback: "Fill nothing") }
-    static var fieldSingular: String   { localized("lbl_autofill_field_singular",         fallback: "field") }
-    static var fieldPlural: String     { localized("lbl_autofill_field_plural",           fallback: "fields") }
     static var extractionAlertTitle: String { localized("lbl_autofill_extraction_alert_title", fallback: "Extraction in progress") }
     static var extractionAlertMessage: String { localized("lbl_autofill_extraction_alert_message", fallback: "Details are still being extracted. Do you want to stop and discard this autofill?") }
     static var extractionAlertContinue: String { localized("lbl_autofill_extraction_alert_continue", fallback: "Continue") }
@@ -56,11 +50,6 @@ private enum ZTAutofillStrings {
     static func fillFields(_ n: Int) -> String {
         guard n > 0 else { return fillNothing }
         return String(format: localized("lbl_autofill_fill_fields", fallback: "Fill %d fields"), n)
-    }
-    static func bannerText(count: Int, source: String) -> String {
-        let word = count == 1 ? fieldSingular : fieldPlural
-        let fmt = localized("lbl_autofill_banner_text", fallback: "%d %@ filled from %@. Check anything marked, then save.")
-        return String(format: fmt, count, word, source)
     }
 }
 
@@ -294,7 +283,8 @@ public struct ZTFormAutofillBottomPanel: View {
                 preferredLanguage: coordinator.preferredLanguageForSpeechSheet(),
                 operationMode: .postRecording,
                 showsModelProviderSelector: false,
-                showsLiveTranscriptionToggle: false
+                showsLiveTranscriptionToggle: false,
+                contextualStrings: coordinator.speechVocabulary
             ),
             onTextReady: { _, text in
                 coordinator.handleSpokenText(text)
@@ -395,7 +385,10 @@ public struct ZTFormAutofillBottomPanel: View {
                     .onTapGesture { dismissPickerInfoToast() }
             }
         }
-        .onDisappear { pickerInfoDismissTask?.cancel() }
+        .onDisappear {
+            pickerInfoDismissTask?.cancel()
+            showPickerInfo = false
+        }
     }
 
     /// A transient in-sheet toast (not an alert): shows what voice autofill covers, then
@@ -661,7 +654,7 @@ public struct ZTFormAutofillBottomPanel: View {
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
                 if coordinator.inputWasTruncated {
-                    Label(ZTAutofillStrings.inputTruncatedNotice(isSpeech: coordinator.truncatedInputWasSpeech), systemImage: "exclamationmark.triangle.fill")
+                    Label(ZTAutofillStrings.inputTruncatedNotice(isSpeech: coordinator.inputWasSpeech), systemImage: "exclamationmark.triangle.fill")
                         .font(.caption)
                         .foregroundStyle(Color(hex: "#C77700"))
                         .padding(.top, 4)
@@ -757,7 +750,7 @@ public struct ZTFormAutofillBottomPanel: View {
                 // list) is filled but flagged. Rows with their own "did you mean" picker below
                 // already say so, so this only covers the single-suggestion case.
                 if candidate.needsCheck, (candidate.alternatives?.count ?? 0) <= 1 {
-                    Label(ZTAutofillStrings.reviewCheckMatch, systemImage: "exclamationmark.triangle.fill")
+                    Label(ZTAutofillStrings.reviewCheckMatch(isSpeech: coordinator.inputWasSpeech), systemImage: "exclamationmark.triangle.fill")
                         .font(.caption2)
                         .foregroundStyle(Color(hex: "#C77700"))
                 }
@@ -925,10 +918,6 @@ public struct ZTFormAutofillBottomPanel: View {
 
         let renderedHeight = topController.view.bounds.height
         return renderedHeight > 0 ? renderedHeight : nil
-    }
-
-    private func isPresentedAsPopover() -> Bool {
-        presentedPopoverHeight() != nil
     }
 
     private func detentsForStep(_ step: ZTFormAutofillCoordinator.Step) -> Set<PresentationDetent> {

@@ -180,6 +180,16 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
     private let maxRecordingDuration: TimeInterval = 10 * 60
     private var liveLockedLanguage: SupportedLanguage?
     private var sessionPreferredLanguageHint: SupportedLanguage?
+
+    /// Words the Apple recognizer should expect for the current recording (a form's field and
+    /// option names). Set by the recording sheet and cleared when it goes away; empty for every
+    /// other dictation. Read from async transcription code, hence the lock.
+    private let contextualStringsLock = NSLock()
+    private var _contextualStrings: [String] = []
+    public var contextualStrings: [String] {
+        get { contextualStringsLock.lock(); defer { contextualStringsLock.unlock() }; return _contextualStrings }
+        set { contextualStringsLock.lock(); _contextualStrings = newValue; contextualStringsLock.unlock() }
+    }
     private var pendingLiveLockLanguage: SupportedLanguage?
     private var pendingLiveLockConfirmations: Int = 0
     private var lastLiveResolvedLanguage: SupportedLanguage?
@@ -1804,7 +1814,8 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
                 audio: audio,
                 sampleRate: targetSampleRate,
                 localeHint: analyzerLocale,
-                timeoutInterval: nil
+                timeoutInterval: nil,
+                contextualStrings: contextualStrings
             )
         )
         let resolvedLanguage = supportedLanguage(from: output.locale, fallback: languageHint)
@@ -1847,7 +1858,8 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
                 audio: audio,
                 sampleRate: targetSampleRate,
                 localeHint: localeHint,
-                timeoutInterval: nil
+                timeoutInterval: nil,
+                contextualStrings: contextualStrings
             )
         )
         let decodedText = output.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2295,6 +2307,7 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
     private func debugTrace(_ message: String) {
         let sessionTag = "session=\(shortSessionID(activeCaptureSessionID))"
         STTSessionLogger.shared.log(source: "SpeechToTextManager", message: "\(sessionTag) \(message)")
+        ZTAutofillLogBuffer.append("[STT] \(sessionTag) \(message)")
 #if DEBUG
         print("[STT_TRACE][SpeechToTextManager] \(sessionTag) \(message)")
 #endif

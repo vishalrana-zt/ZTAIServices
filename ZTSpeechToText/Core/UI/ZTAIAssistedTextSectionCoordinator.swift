@@ -189,6 +189,7 @@ public final class ZTAIAssistedTextSectionCoordinator: ObservableObject {
         feedbackToastState = ZTAIToastState(title: title, badge: nil, style: .success, feedbackAction: action)
         feedbackDismissTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 10_000_000_000)
+            guard !Task.isCancelled else { return }
             await MainActor.run { self?.feedbackToastState = nil }
         }
     }

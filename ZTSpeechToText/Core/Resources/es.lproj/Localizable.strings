@@ -97,6 +97,7 @@
 "lbl_autofill_picker_description_speech_only" = "Describe esta sección en voz alta; relacionaremos lo que digas con sus campos y te lo mostraremos para revisión antes de guardar nada.";
 "lbl_autofill_review_alternatives_caption" = "Sin coincidencia exacta. Elige la opción que querías.";
 "lbl_autofill_review_check_match" = "Mejor suposición según lo que dijiste. Revísala.";
+"lbl_autofill_review_check_match_photo" = "Mejor suposición según la foto. Revísala.";
 "lbl_autofill_input_truncated" = "Solo se leyó la primera parte. Revisa si falta algo o vuelve a dictar el resto.";
 "lbl_autofill_input_truncated_photo" = "Solo se leyó la primera parte. Revisa si falta algo o vuelve a escanear el resto.";
 "lbl_autofill_scan_photo" = "Foto";

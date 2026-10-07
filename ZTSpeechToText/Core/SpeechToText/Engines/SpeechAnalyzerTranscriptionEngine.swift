@@ -45,7 +45,8 @@ final class SpeechAnalyzerTranscriptionEngine {
         audio: [Float],
         sampleRate: Double,
         localeHint: Locale?,
-        preset: SpeechTranscriber.Preset
+        preset: SpeechTranscriber.Preset,
+        contextualStrings: [String] = []
     ) async throws -> SpeechAnalyzerTranscriptionOutput {
         guard !audio.isEmpty else { throw EngineError.emptyAudio }
         try await ensureSpeechAuthorization()
@@ -68,6 +69,7 @@ final class SpeechAnalyzerTranscriptionEngine {
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
         let analyzer = SpeechAnalyzer(modules: [transcriber])
+        await SpeechContextHints.apply(contextualStrings, to: analyzer)
         let file = try AVAudioFile(forReading: fileURL)
         let resultsTask = Task<String, Error> {
             var latestText = ""

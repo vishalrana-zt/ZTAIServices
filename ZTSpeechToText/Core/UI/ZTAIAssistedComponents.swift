@@ -560,12 +560,15 @@ public final class ZTAIAssistantController: ObservableObject {
         clearFeedbackToast()
         feedbackToastTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: delay)
+            // A cancelled timer (the user tapped something) must not show or clear a toast.
+            guard !Task.isCancelled else { return }
             await MainActor.run {
                 guard let self else { return }
                 guard self.toastState == nil else { return }
                 self.feedbackToastState = ZTAIToastState(title: title, badge: nil, style: .success, feedbackAction: action)
             }
             try? await Task.sleep(nanoseconds: 10_000_000_000)
+            guard !Task.isCancelled else { return }
             await MainActor.run { [weak self] in
                 self?.feedbackToastState = nil
             }

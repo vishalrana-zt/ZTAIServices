@@ -97,6 +97,7 @@
 "lbl_autofill_picker_description_speech_only" = "Describe this section out loud — we'll match what you say to its fields and show it to you for review before anything is saved.";
 "lbl_autofill_review_alternatives_caption" = "No exact match. Pick the option you meant.";
 "lbl_autofill_review_check_match" = "Best guess from what you said. Review it.";
+"lbl_autofill_review_check_match_photo" = "Best guess from the photo. Review it.";
 "lbl_autofill_input_truncated" = "Only the first part was read. Check for anything missing, or dictate the rest again.";
 "lbl_autofill_input_truncated_photo" = "Only the first part was read. Check for anything missing, or scan the rest again.";
 "lbl_autofill_scan_photo" = "Photo";

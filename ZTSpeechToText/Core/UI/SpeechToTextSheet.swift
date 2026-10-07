@@ -18,6 +18,9 @@ public struct SpeechToTextSheetConfiguration {
     public var livePartialMaxAudioSeconds: Double = 12.0
     public var livePartialMinimumAudioSeconds: Double = 0.8
     public var livePollingIntervalNanoseconds: UInt64 = 1_200_000_000
+    /// Words the Apple recognizer should expect (e.g. a form's field and option names). Empty by
+    /// default, so existing callers are unchanged.
+    public var contextualStrings: [String] = []
 
     public init(
         preferredLanguage: SupportedLanguage? = nil,
@@ -28,8 +31,10 @@ public struct SpeechToTextSheetConfiguration {
         showsLiveTranscriptionToggle: Bool = false,
         livePartialMaxAudioSeconds: Double = 12.0,
         livePartialMinimumAudioSeconds: Double = 0.8,
-        livePollingIntervalNanoseconds: UInt64 = 1_200_000_000
+        livePollingIntervalNanoseconds: UInt64 = 1_200_000_000,
+        contextualStrings: [String] = []
     ) {
+        self.contextualStrings = contextualStrings
         self.preferredLanguage = preferredLanguage
         self.operationMode = operationMode
         self.modelProvider = modelProvider
@@ -62,6 +67,7 @@ private struct SpeechToTextFlowSheet: View {
             .padding(.bottom, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .onAppear {
+                manager.contextualStrings = configuration.contextualStrings
                 manager.setModelProvider(.appleModels)
                 applyModeSelection(
                     configuration.operationMode,
@@ -75,6 +81,10 @@ private struct SpeechToTextFlowSheet: View {
                     shouldKickoffSetup: true,
                     allowAutoStartWhenReady: false
                 )
+            }
+            .onDisappear {
+                // Hints belong to this recording only; never leak into other dictation.
+                manager.contextualStrings = []
             }
     }
 
