@@ -448,9 +448,6 @@ public struct ZTAIAssistedTextSectionCard: View {
                             .font(titleFont)
                             .foregroundStyle(titleColor)
                     }
-                    if let badge = resolvedModelBadge {
-                        ZTAIModelBadge(kind: badge)
-                    }
                     Spacer()
                     if canUseAIFeatures && showButtonsInHeader {
                         ZTAIAssistantButtonRow(
