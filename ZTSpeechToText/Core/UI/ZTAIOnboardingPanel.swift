@@ -16,7 +16,7 @@ private enum ZTAIOnboardingStrings {
     static var cleanupSubtitle: String { localized("lbl_ai_onboarding_cleanup_subtitle",  fallback: "Polish your text with Clean Up or summarize it. Choose Short for key points, Standard for a balanced summary, or Detailed for full context.") }
     static var autofillTitle: String   { localized("lbl_ai_onboarding_autofill_title",    fallback: "Auto Fill") }
     static var autofillSubtitle: String{ localized("lbl_ai_onboarding_autofill_subtitle", fallback: "Capture details from a photo or by dictating with your voice. We map them to matching form fields so you can review and save faster.") }
-    static var done: String            { "Done" }
+    static var done: String            { localized("lbl_ai_onboarding_done",              fallback: "Done") }
     static var next: String            { localized("lbl_ai_onboarding_next",              fallback: "Next") }
     static var skip: String            { localized("lbl_ai_onboarding_skip",              fallback: "Skip") }
     static var cleanupPillCleanUp: String  { localized("lbl_ai_onboarding_pill_cleanup",  fallback: "Clean Up") }

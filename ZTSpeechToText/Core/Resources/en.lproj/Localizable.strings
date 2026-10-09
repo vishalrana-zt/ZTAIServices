@@ -153,9 +153,9 @@
 "lbl_ai_onboarding_cleanup_subtitle" = "Polish your text with Clean Up or summarize it. Choose Short for key points, Standard for a balanced summary, or Detailed for full context.";
 "lbl_ai_onboarding_autofill_title" = "Auto Fill";
 "lbl_ai_onboarding_autofill_subtitle" = "Capture details from a photo or by dictating with your speech. We map them to matching fields so you can review and save faster.";
-"lbl_ai_onboarding_got_it" = "Done";
 "lbl_ai_onboarding_next" = "Next";
 "lbl_ai_onboarding_skip" = "Skip";
+"lbl_ai_onboarding_done" = "Done";
 "lbl_ai_onboarding_pill_cleanup" = "Clean Up";
 "lbl_ai_onboarding_pill_short" = "Short";
 "lbl_ai_onboarding_pill_standard" = "Standard";

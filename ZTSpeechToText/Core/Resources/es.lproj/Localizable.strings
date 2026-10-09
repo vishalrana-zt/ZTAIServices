@@ -153,9 +153,9 @@
 "lbl_ai_onboarding_cleanup_subtitle" = "Mejora tu texto o condénsalo: corto, estándar o detallado.";
 "lbl_ai_onboarding_autofill_title" = "Autocompletar";
 "lbl_ai_onboarding_autofill_subtitle" = "Captura detalles desde una foto o dictándolos con tu voz. Los asociamos a los campos correspondientes para que puedas revisar y guardar más rápido.";
-"lbl_ai_onboarding_got_it" = "¡Entendido!";
 "lbl_ai_onboarding_next" = "Siguiente";
 "lbl_ai_onboarding_skip" = "Omitir";
+"lbl_ai_onboarding_done" = "Hecho";
 "lbl_ai_onboarding_pill_cleanup" = "Mejorar";
 "lbl_ai_onboarding_pill_short" = "Corto";
 "lbl_ai_onboarding_pill_standard" = "Estándar";
