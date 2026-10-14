@@ -811,8 +811,8 @@ nonisolated private func pageFieldFocus(_ page: UITargetPage, documentType: Stru
           Hints:
           - `note: ...` = the form author's description of the field. Use it only to decide which spoken details belong to the field; never as the value.
           - `text, exactly as spoken` = free text: the answer is exactly what the user said, in their own words, with any units or extra words that belong to it ("35 psi", "north stairwell"). Never judge it against the field name: a field called "time", "pressure" or "count" still takes whatever was said. Never reduce it to a number, reinterpret it, or skip it because it does not look like the label suggests.
-          - `number` = digits and an optional decimal point only, no units or words ("twelve point five psi" -> "12.5").
-          - `date/time/year, answer as <FORMAT>` = convert what was said into EXACTLY that format ("june eleventh nineteen ninety one" with YYYY-MM-DD -> "1991-06-11"; "quarter past three in the afternoon" with HH:MM 24-hour -> "15:15"). Never invent a date or time that wasn't said. When the hint gives "today is <date>", use it for a date or date-time said without a year (the current year) and to resolve "today", "yesterday" or "tomorrow". Never fill a year-only field unless a year was said. Leave relative weekdays such as "next Friday" empty.
+          - `number` = digits and an optional decimal point only, no units or words ("twelve point five psi" -> "12.5"). If no number was said, skip the field: never answer 0 or guess.
+          - `date/time/year, answer as <FORMAT>` = convert what was said into EXACTLY that format ("june eleventh nineteen ninety one" with YYYY-MM-DD -> "1991-06-11"; "quarter past three in the afternoon" with HH:MM 24-hour -> "15:15"). Never invent a date or time that wasn't said. When the hint gives "today is <weekday> <date>", use it for a date or date-time said without a year (the current year) and to work out "today", "yesterday", "tomorrow" and "the day after tomorrow". Weekday names are looked up, never worked out: use the weekday lists in the hint ("Friday" alone or "last Friday" = the Friday in the most recent list; "next Friday" or "this Friday" = the Friday in the coming list; a weekday alone never uses the coming list). When the hint gives "the time now is <time>", use it for "now", "right now" or "current time", giving exactly that time with its minutes (in a date-and-time field: today's date with that time). These words count in any language ("hoy", "mañana", "viernes", "ahora", "aujourd'hui", "demain", "vendredi", "maintenant"). Never fill a year-only field unless a year was said.
           - `options: ...` = choice field. Put what the user said in their own words in `fields`; the app matches it to an option, you must not. If the words are short, vague or fit several options, still output exactly what was said. NEVER put a listed option in `fields` unless the user said that exact text.
           - `optionHints` (optional, choice fields only): when the user's answer is in a different language than the listed options, or is a clear translation of exactly ONE listed option, also add the field's label -> that option string exactly as listed (several, comma-separated, for a "one or more" field). Leave the hint out whenever you are unsure — the app shows hints to the user as "please check".
           - `one or more may be chosen` = list everything the user said for the field, separated by commas.
@@ -1781,7 +1781,8 @@ actor CloudTextProvider: TextModelProvider {
                 NSURLErrorNetworkConnectionLost,
                 NSURLErrorCannotConnectToHost,
                 NSURLErrorCannotFindHost,
-                NSURLErrorDNSLookupFailed
+                NSURLErrorDNSLookupFailed,
+                NSURLErrorCannotParseResponse   // a reply that arrived unreadable ("cannot parse response"): a second try usually works
             ]
             return retryableCodes.contains(nsError.code)
         }
