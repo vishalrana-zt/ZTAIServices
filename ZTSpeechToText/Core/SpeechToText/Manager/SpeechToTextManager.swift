@@ -170,6 +170,10 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
     private var postRecordingAudioFileURL: URL?
     private var postRecordingAudioFileFinalized = false
     private var hasInputTapInstalled = false
+    /// Serialises everything that touches the input tap. `startListening` runs on a background queue while
+    /// `stopListening` can run on main, and an `installTap` on a bus that still has a tap raises an uncatchable
+    /// Objective-C exception.
+    private let inputTapLock = NSRecursiveLock()
 
     private var autoStopOnSilence = false
     private var requiredSilenceDuration: TimeInterval = 1.0
@@ -821,12 +825,20 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
             cleanupPostRecordingAudioFileIfNeeded()
         }
 
+        inputTapLock.lock()
+        defer { inputTapLock.unlock() }
+
+        // The microphone can be taken by a call, Siri or another app between the check above and now.
+        guard session.isInputAvailable else { throw STTError.audioSessionFailure }
+
         let input = audioEngine.inputNode
-        if hasInputTapInstalled {
-            input.removeTap(onBus: 0)
-            hasInputTapInstalled = false
-        }
+        // Always clear bus 0 (a no-op when there is no tap) rather than trusting `hasInputTapInstalled`:
+        // a stale flag leaves the old tap in place and the next installTap throws.
+        if audioEngine.isRunning { audioEngine.stop() }
+        input.removeTap(onBus: 0)
+        hasInputTapInstalled = false
         let inputFormat = input.outputFormat(forBus: 0)
+        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else { throw STTError.audioSessionFailure }
         guard let targetFormat = AVAudioFormat(
             commonFormat: .pcmFormatFloat32,
             sampleRate: targetSampleRate,
@@ -837,6 +849,15 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
         }
         if operationMode == .postRecording {
             try preparePostRecordingAudioFileIfNeeded(format: targetFormat)
+        }
+
+        // The hardware format can change (route change, call) while the converters above are built; a tap
+        // installed with an outdated format throws. Re-read it and bail out cleanly if it moved.
+        let currentFormat = input.outputFormat(forBus: 0)
+        guard currentFormat.sampleRate == inputFormat.sampleRate,
+              currentFormat.channelCount == inputFormat.channelCount else {
+            cleanupPostRecordingAudioFileIfNeeded()
+            throw STTError.audioSessionFailure
         }
 
         input.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
@@ -925,11 +946,13 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
     }
 
     public func stopListening() {
+        inputTapLock.lock()
         if hasInputTapInstalled {
             audioEngine.inputNode.removeTap(onBus: 0)
             hasInputTapInstalled = false
         }
         audioEngine.stop()
+        inputTapLock.unlock()
         finalizePostRecordingAudioFileIfNeeded()
         try? AVAudioSession.sharedInstance().setActive(false)
         isListening = false
