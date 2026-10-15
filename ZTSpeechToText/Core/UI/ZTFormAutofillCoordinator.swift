@@ -75,7 +75,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     @Published public private(set) var step: Step = .idle {
         didSet {
             guard CloudAPIConfiguration.isLoggingEnabled else { return }
-            ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] step \(Self.describe(oldValue)) -> \(Self.describe(step))")
+            ZTAutofillLogBuffer.log("[AUTOFILL] step \(Self.describe(oldValue)) -> \(Self.describe(step))")
             if case .review = step { logReviewSnapshot() }
         }
     }
@@ -86,7 +86,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             let shown = c.displayValue ?? c.value
             return "  - \(c.label) = \"\(shown)\" | ticked=\(c.isSelected) | check=\(c.needsCheck) | choices=\(c.alternatives?.count ?? 0)"
         }
-        ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] review shown: \(candidates.count) row(s)\n" + rows.joined(separator: "\n"))
+        ZTAutofillLogBuffer.log("[AUTOFILL] review shown: \(candidates.count) row(s)\n" + rows.joined(separator: "\n"))
     }
 
     private static func describe(_ step: Step) -> String {
@@ -121,6 +121,13 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     public var onApply: (([ZTAutofillCandidate]) -> Void)?
     public var onUndo: (() -> Void)?
     public var onAnalyticsEvent: ((String, [String: Any]) -> Void)?
+
+    /// Called once per voice autofill attempt, after extraction finishes (or fails), with what was
+    /// spoken and how it went: transcript, language, document type, outcome, labels the model
+    /// answered, duration. Kept apart from `onAnalyticsEvent` on purpose, because hosts forward
+    /// that one to analytics and a transcript must not go there. Speech input only; the host adds
+    /// its screen name.
+    public var onSpeechLog: (([String: Any]) -> Void)?
 
     /// Extra context threaded into the extraction prompt's `<context>` block for the
     /// SPEECH path (`selectSpeak`/`stopListening` and `handleSpokenText`). The OCR/photo
@@ -250,7 +257,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
 
     public func dismiss() {
         if CloudAPIConfiguration.isLoggingEnabled {
-            ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] dismissed at step \(Self.describe(step))")
+            ZTAutofillLogBuffer.log("[AUTOFILL] dismissed at step \(Self.describe(step))")
         }
         extractionTask?.cancel()
         extractionTask = nil
@@ -432,7 +439,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     public func toggleCandidate(id: String) {
         guard let idx = candidates.firstIndex(where: { $0.id == id }) else { return }
         candidates[idx].isSelected.toggle()
-        ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] review: \(candidates[idx].label) \(candidates[idx].isSelected ? "ticked" : "unticked")")
+        ZTAutofillLogBuffer.log("[AUTOFILL] review: \(candidates[idx].label) \(candidates[idx].isSelected ? "ticked" : "unticked")")
     }
 
     /// Switches a candidate to one of its `alternatives` — the "did you mean" picker in
@@ -442,14 +449,14 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         candidates[idx].value = alternative.id
         candidates[idx].displayValue = alternative.label
         candidates[idx].isSelected = true
-        ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] review: \(candidates[idx].label) changed to \"\(alternative.label)\"")
+        ZTAutofillLogBuffer.log("[AUTOFILL] review: \(candidates[idx].label) changed to \"\(alternative.label)\"")
     }
 
     public func applySelected() {
         let selected = candidates.filter { $0.isSelected }
         if CloudAPIConfiguration.isLoggingEnabled {
             let declined = candidates.filter { !$0.isSelected }.map { $0.label }
-            ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] review: applied \(selected.count) of \(candidates.count) | declined \(declined)")
+            ZTAutofillLogBuffer.log("[AUTOFILL] review: applied \(selected.count) of \(candidates.count) | declined \(declined)")
         }
         onApply?(selected)
         candidates = []
@@ -485,11 +492,27 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         step = .extracting
         lastEmptyCandidateReason = nil
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] extraction input: source=\(isSpeechInput ? "speech" : "photo") chars=\(trimmed.count) text=\"\(trimmed)\"")
+        let speechLogStart = Date()
+        func logSpeech(_ outcome: String, answered: [String] = [], error: String? = nil) {
+            guard isSpeechInput, let onSpeechLog else { return }
+            var info: [String: Any] = [
+                "transcript": trimmed,
+                "transcriptChars": trimmed.count,
+                "language": resolvedLanguage().rawValue,
+                "documentType": documentType.rawValue,
+                "answeredCount": answered.count,
+                "answeredLabels": answered.joined(separator: " | "),
+                "durationSeconds": (Date().timeIntervalSince(speechLogStart) * 100).rounded() / 100
+            ]
+            if let error, !error.isEmpty { info["error"] = error }
+            onSpeechLog(info)
+        }
+        ZTAutofillLogBuffer.log("[AUTOFILL] extraction input: source=\(isSpeechInput ? "speech" : "photo") chars=\(trimmed.count) text=\"\(trimmed)\"")
         inputWasTruncated = structuredInputExceedsLimits(trimmed, documentType: documentType, inputSource: isSpeechInput ? .speech : .ocr)
         inputWasSpeech = isSpeechInput
         previewCandidates = mapNonEmptyCandidates(from: trimmed, fallbackText: trimmed)
         guard !trimmed.isEmpty else {
+            logSpeech("no_text")
             step = .error("No text was captured. Please try again.")
             return
         }
@@ -507,8 +530,10 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             if Task.isCancelled { return }
 
             if nonEmpty.isEmpty {
+                logSpeech("no_fields_found")
                 step = .error(emptyCandidateMessage())
             } else {
+                logSpeech("review", answered: nonEmpty.map { $0.label })
                 candidates = nonEmpty
                 previewCandidates = nonEmpty
                 step = .review
@@ -516,6 +541,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         } catch {
             if Task.isCancelled { return }
             if isOffline(error) {
+                logSpeech("offline", error: error.localizedDescription)
                 if !previewCandidates.isEmpty {
                     candidates = previewCandidates
                     step = .review
@@ -529,11 +555,13 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
             }
 
             if let reason = lastEmptyCandidateReason, !reason.isEmpty {
+                logSpeech("no_fields_found", error: reason)
                 step = .error(emptyCandidateMessage())
                 return
             }
 
             let msg = (error as? TextAIError)?.localizedDescription ?? error.localizedDescription
+            logSpeech("error", error: msg)
             step = .error(msg)
         }
     }
@@ -549,7 +577,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         #if DEBUG
         let requestStart = Date()
         #endif
-        ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] extraction request: attempt=\(attempt) doc=\(documentType.rawValue) source=\(isSpeechInput ? "speech" : "ocr") context_chars=\(supplementalContext?.count ?? 0) language=\(resolvedLanguage().rawValue)")
+        ZTAutofillLogBuffer.log("[AUTOFILL] extraction request: attempt=\(attempt) doc=\(documentType.rawValue) source=\(isSpeechInput ? "speech" : "ocr") context_chars=\(supplementalContext?.count ?? 0) language=\(resolvedLanguage().rawValue)")
         let result = try await textAIService.structuredExtract(
             text: text,
             preferredLanguage: resolvedLanguage(),
@@ -573,9 +601,9 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         }
         #if DEBUG
         if CloudAPIConfiguration.isLoggingEnabled {
-            ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] provider=\(result.provider.rawValue) candidates=\(nonEmpty.count) output=\(result.outputText)")
+            ZTAutofillLogBuffer.log("[AUTOFILL] provider=\(result.provider.rawValue) candidates=\(nonEmpty.count) output=\(result.outputText)")
             if let lastEmptyCandidateReason {
-                ZTAutofillLogBuffer.log("[AUTOFILL_DEBUG] emptyCandidateReason=\(lastEmptyCandidateReason)")
+                ZTAutofillLogBuffer.log("[AUTOFILL] emptyCandidateReason=\(lastEmptyCandidateReason)")
             }
         }
         #endif
