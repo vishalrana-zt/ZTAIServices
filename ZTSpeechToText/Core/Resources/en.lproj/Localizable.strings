@@ -132,7 +132,7 @@
 "lbl_autofill_source_photo" = "Read from the photo.";
 "lbl_autofill_source_voice" = "Heard from your dictation.";
 "err_autofill_no_internet" = "No internet connection. Connect to the internet and try again.";
-"err_autofill_no_details_extracted" = "No details could be extracted from the provided input.";
+"err_autofill_no_details_extracted" = "No details could be extracted from the provided input. Try saying the field name and value, e.g. \"Comments: valve is open\".";
 "err_autofill_reason_unusable_response" = "The extracted response did not include usable field values for this form.";
 "err_autofill_reason_doc_type_mismatch" = "Detected document type '%@' instead of fire equipment details.";
 "err_autofill_reason_equipment_empty" = "Extracted output did not include equipment field values to map into this form.";

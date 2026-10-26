@@ -132,7 +132,7 @@
 "lbl_autofill_source_photo" = "Leído desde la foto.";
 "lbl_autofill_source_voice" = "Escuchado desde su dictado.";
 "err_autofill_no_internet" = "No hay conexión a internet. Conéctate a internet y vuelve a intentarlo.";
-"err_autofill_no_details_extracted" = "No se pudieron extraer detalles de la entrada proporcionada.";
+"err_autofill_no_details_extracted" = "No se pudieron extraer detalles de la entrada proporcionada. Intenta decir el nombre del campo y el valor, p. ej. \"Comentarios: la válvula está abierta\".";
 "err_autofill_reason_unusable_response" = "La respuesta extraída no incluyó valores de campo utilizables para este formulario.";
 "err_autofill_reason_doc_type_mismatch" = "Se detectó el tipo de documento '%@' en lugar de detalles de equipo contra incendios.";
 "err_autofill_reason_equipment_empty" = "La salida extraída no incluyó valores de campos de equipo para mapear en este formulario.";

@@ -129,6 +129,13 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     /// its screen name.
     public var onSpeechLog: (([String: Any]) -> Void)?
 
+    // Telemetry for the current speech attempt, reported through `onSpeechLog`.
+    private var lastSTTSeconds: Double?
+    private var lastProviderName: String?
+    private var lastExtractSeconds: Double?
+    private var lastAttemptCount = 0
+    private var speechChangedCount = 0
+
     /// Extra context threaded into the extraction prompt's `<context>` block for the
     /// SPEECH path (`selectSpeak`/`stopListening` and `handleSpokenText`). The OCR/photo
     /// path builds its own supplemental context internally and ignores this property.
@@ -411,6 +418,8 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         extractionTask = Task { [weak self] in
             guard let self else { return }
             var text = fallback
+            let sttStart = Date()
+            defer { self.lastSTTSeconds = (Date().timeIntervalSince(sttStart) * 100).rounded() / 100 }
             if let final = try? await self.speechBridge.stop(),
                !final.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 text = final
@@ -424,6 +433,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     }
 
     public func handleSpokenText(_ text: String) {
+        lastSTTSeconds = nil
         extractionTask?.cancel()
         speechBridge.cancel()
         sourceLabel = Self.localizedLabel("lbl_autofill_source_voice", fallback: "Heard from your dictation.")
@@ -449,6 +459,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         candidates[idx].value = alternative.id
         candidates[idx].displayValue = alternative.label
         candidates[idx].isSelected = true
+        speechChangedCount += 1
         ZTAutofillLogBuffer.log("[AUTOFILL] review: \(candidates[idx].label) changed to \"\(alternative.label)\"")
     }
 
@@ -457,6 +468,18 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         if CloudAPIConfiguration.isLoggingEnabled {
             let declined = candidates.filter { !$0.isSelected }.map { $0.label }
             ZTAutofillLogBuffer.log("[AUTOFILL] review: applied \(selected.count) of \(candidates.count) | declined \(declined)")
+        }
+        if inputWasSpeech, let onSpeechLog {
+            onSpeechLog([
+                "event": "autofill_applied",
+                "documentType": documentType.rawValue,
+                "language": resolvedLanguage().rawValue,
+                "outcome": "applied",
+                "suggestedCount": candidates.count,
+                "appliedCount": selected.count,
+                "declinedLabels": candidates.filter { !$0.isSelected }.map { $0.label }.joined(separator: " | "),
+                "changedCount": speechChangedCount
+            ])
         }
         onApply?(selected)
         candidates = []
@@ -493,6 +516,10 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         lastEmptyCandidateReason = nil
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let speechLogStart = Date()
+        lastProviderName = nil
+        lastExtractSeconds = nil
+        lastAttemptCount = 0
+        speechChangedCount = 0
         func logSpeech(_ outcome: String, answered: [String] = [], error: String? = nil) {
             guard isSpeechInput, let onSpeechLog else { return }
             var info: [String: Any] = [
@@ -502,8 +529,15 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
                 "documentType": documentType.rawValue,
                 "answeredCount": answered.count,
                 "answeredLabels": answered.joined(separator: " | "),
-                "durationSeconds": (Date().timeIntervalSince(speechLogStart) * 100).rounded() / 100
+                "durationSeconds": (Date().timeIntervalSince(speechLogStart) * 100).rounded() / 100,
+                "outcome": outcome
             ]
+            if let lastSTTSeconds { info["sttSeconds"] = lastSTTSeconds }
+            if let lastProviderName { info["provider"] = lastProviderName }
+            if let lastExtractSeconds { info["extractSeconds"] = lastExtractSeconds }
+            if lastAttemptCount > 0 { info["attempts"] = lastAttemptCount }
+            if outcome == "no_text" { info["reason"] = "empty_transcript" }
+            if outcome == "no_fields_found" { info["reason"] = "no_matching_field" }
             if let error, !error.isEmpty { info["error"] = error }
             onSpeechLog(info)
         }
@@ -511,7 +545,8 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         inputWasTruncated = structuredInputExceedsLimits(trimmed, documentType: documentType, inputSource: isSpeechInput ? .speech : .ocr)
         inputWasSpeech = isSpeechInput
         previewCandidates = mapNonEmptyCandidates(from: trimmed, fallbackText: trimmed)
-        guard !trimmed.isEmpty else {
+        // Punctuation-only transcripts (e.g. ".") carry nothing to extract: skip the AI call.
+        guard trimmed.contains(where: { $0.isLetter || $0.isNumber }) else {
             logSpeech("no_text")
             step = .error("No text was captured. Please try again.")
             return
@@ -578,13 +613,23 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         let requestStart = Date()
         #endif
         ZTAutofillLogBuffer.log("[AUTOFILL] extraction request: attempt=\(attempt) doc=\(documentType.rawValue) source=\(isSpeechInput ? "speech" : "ocr") context_chars=\(supplementalContext?.count ?? 0) language=\(resolvedLanguage().rawValue)")
-        let result = try await textAIService.structuredExtract(
+        let attemptStart = Date()
+        lastAttemptCount = attempt
+        let result: TextAIExecutionResult
+        do {
+            result = try await textAIService.structuredExtract(
             text: text,
             preferredLanguage: resolvedLanguage(),
             documentType: documentType,
             supplementalContext: supplementalContext,
             isSpeechInput: isSpeechInput
-        )
+            )
+        } catch {
+            lastExtractSeconds = (Date().timeIntervalSince(attemptStart) * 100).rounded() / 100
+            throw error
+        }
+        lastProviderName = result.provider.rawValue
+        lastExtractSeconds = (Date().timeIntervalSince(attemptStart) * 100).rounded() / 100
         #if DEBUG
         if CloudAPIConfiguration.isLoggingEnabled {
             ZTAutofillLogBuffer.log("[AUTOFILL_TIMING] structuredExtract attempt=\(attempt) provider=\(result.provider.rawValue) duration=\(String(format: "%.2f", Date().timeIntervalSince(requestStart)))s")
@@ -754,7 +799,7 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
         }
         return Self.localizedLabel(
             "err_autofill_no_details_extracted",
-            fallback: "No matching form fields were found from this input."
+            fallback: "No matching form fields were found. Try saying the field name and value, e.g. \"Comments: valve is open\"."
         )
     }
 

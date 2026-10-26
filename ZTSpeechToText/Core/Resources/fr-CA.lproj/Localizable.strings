@@ -132,7 +132,7 @@
 "lbl_autofill_source_photo" = "Lu depuis la photo.";
 "lbl_autofill_source_voice" = "Entendu depuis votre dictée.";
 "err_autofill_no_internet" = "Aucune connexion internet. Connectez-vous à internet et réessayez.";
-"err_autofill_no_details_extracted" = "Aucun détail n'a pu être extrait de l'entrée fournie.";
+"err_autofill_no_details_extracted" = "Aucun détail n'a pu être extrait de l'entrée fournie. Essayez de dire le nom du champ et la valeur, p. ex. « Commentaires : la vanne est ouverte ».";
 "err_autofill_reason_unusable_response" = "La réponse extraite ne contenait pas de valeurs de champs exploitables pour ce formulaire.";
 "err_autofill_reason_doc_type_mismatch" = "Le type de document '%@' a été détecté au lieu de détails d'équipement incendie.";
 "err_autofill_reason_equipment_empty" = "La sortie extraite ne contenait pas de valeurs de champs d'équipement à mapper dans ce formulaire.";
