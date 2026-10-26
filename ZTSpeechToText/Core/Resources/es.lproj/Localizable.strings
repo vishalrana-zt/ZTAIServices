@@ -97,7 +97,7 @@
 "lbl_autofill_picker_description_speech_only" = "Describe esta sección en voz alta; relacionaremos lo que digas con sus campos y te lo mostraremos para revisión antes de guardar nada.";
 "lbl_autofill_try_saying" = "Di el campo y luego su valor";
 "lbl_autofill_try_saying_example_1" = "\"Comentarios: la válvula está abierta\"";
-"lbl_autofill_try_saying_example_2" = "\"Lecturas: 45 psi\"";
+"lbl_autofill_try_saying_example_2" = "\"Hora de inicio: 1 PM\"";
 "lbl_autofill_try_saying_and" = "y";
 "lbl_autofill_review_alternatives_caption" = "Sin coincidencia exacta. Elige la opción que querías.";
 "lbl_autofill_review_check_match" = "Mejor suposición según lo que dijiste. Revísala.";

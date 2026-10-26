@@ -97,7 +97,7 @@
 "lbl_autofill_picker_description_speech_only" = "Décrivez cette section à voix haute — nous associerons ce que vous dites à ses champs et vous les montrerons pour vérification avant tout enregistrement.";
 "lbl_autofill_try_saying" = "Dites le champ, puis sa valeur";
 "lbl_autofill_try_saying_example_1" = "« Commentaires : la vanne est ouverte »";
-"lbl_autofill_try_saying_example_2" = "« Heure de début 13 h, inspecté par Alex »";
+"lbl_autofill_try_saying_example_2" = "« Heure de début : 13 h »";
 "lbl_autofill_try_saying_and" = "et";
 "lbl_autofill_review_alternatives_caption" = "Aucune correspondance exacte. Choisissez l'option voulue.";
 "lbl_autofill_review_check_match" = "Meilleure estimation selon ce que vous avez dit. Vérifiez-la.";

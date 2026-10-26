@@ -14,7 +14,7 @@ private enum ZTAutofillStrings {
     static var pickerDescriptionSpeechOnly: String { localized("lbl_autofill_picker_description_speech_only", fallback: "Describe this section out loud — we'll match what you say to its fields and show it to you for review before anything is saved.") }
     static var speechTryTitle: String { localized("lbl_autofill_try_saying", fallback: "Say the field, then its value") }
     static var speechTryExample1: String { localized("lbl_autofill_try_saying_example_1", fallback: "\"Comments: valve is open\"") }
-    static var speechTryExample2: String { localized("lbl_autofill_try_saying_example_2", fallback: "\"Start time 1 PM, inspected by Alex\"") }
+    static var speechTryExample2: String { localized("lbl_autofill_try_saying_example_2", fallback: "\"Start time: 1 PM\"") }
     static var reviewAlternativesCaption: String { localized("lbl_autofill_review_alternatives_caption", fallback: "No exact match. Pick the option you meant.") }
     static func inputTruncatedNotice(isSpeech: Bool) -> String {
         isSpeech
