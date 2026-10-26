@@ -157,6 +157,11 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     /// existing shared wording.
     @Published public var speechOnlyPickerDescription: String?
 
+    /// Example phrases for the picker's "Try saying" card, built by the host from the open form's
+    /// real field labels (e.g. `"Start time 1 PM"`). Only the first two are shown. nil or empty keeps
+    /// the generic examples. Speech-only mode only.
+    @Published public var speechTryExamples: [String]?
+
     /// When true (FPForm section/row autofill), the screen behind the sheet can be scrolled
     /// ONLY while the recording controls are up — the picker, dim and white panel step aside
     /// then. At every other step the screen behind stays blocked. Off by default:
