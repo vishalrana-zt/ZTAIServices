@@ -158,8 +158,8 @@ public final class ZTFormAutofillCoordinator: ObservableObject {
     @Published public var speechOnlyPickerDescription: String?
 
     /// Example phrases for the picker's "Try saying" card, built by the host from the open form's
-    /// real field labels (e.g. `"Start time 1 PM"`). Only the first two are shown. nil or empty keeps
-    /// the generic examples. Speech-only mode only.
+    /// real field labels. Not shown for now: the card shows one fixed example. Kept so hosts can
+    /// keep passing it and the card can use it again.
     @Published public var speechTryExamples: [String]?
 
     /// When true (FPForm section/row autofill), the screen behind the sheet can be scrolled

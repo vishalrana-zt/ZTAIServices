@@ -95,7 +95,7 @@
 // MARK: - Autofill Panel
 "lbl_autofill_picker_description" = "Take a photo with Camera or choose one from Photo Library. The text is extracted, matched to the fields, and shown for review before anything is filled.";
 "lbl_autofill_picker_description_speech_only" = "Describe this section out loud — we'll match what you say to its fields and show it to you for review before anything is saved.";
-"lbl_autofill_try_saying" = "Say the field, then its value";
+"lbl_autofill_try_saying" = "Say the field name, then your value";
 "lbl_autofill_try_saying_example_1" = "\"Comments: valve is open\"";
 "lbl_autofill_try_saying_example_2" = "\"Start time: 1 PM\"";
 "lbl_autofill_try_saying_and" = "and";
