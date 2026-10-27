@@ -95,10 +95,6 @@
 // MARK: - Autofill Panel
 "lbl_autofill_picker_description" = "Toma una foto con Cámara o elige una desde Fototeca. El texto se extrae, se relaciona con los campos y se muestra para revisión antes de completar nada.";
 "lbl_autofill_picker_description_speech_only" = "Describe esta sección en voz alta; relacionaremos lo que digas con sus campos y te lo mostraremos para revisión antes de guardar nada.";
-"lbl_autofill_try_saying" = "Di el nombre del campo y luego tu valor";
-"lbl_autofill_try_saying_example_1" = "\"Comentarios: la válvula está abierta\"";
-"lbl_autofill_try_saying_example_2" = "\"Hora de inicio: 1 PM\"";
-"lbl_autofill_try_saying_and" = "y";
 "lbl_autofill_review_alternatives_caption" = "Sin coincidencia exacta. Elige la opción que querías.";
 "lbl_autofill_review_check_match" = "Mejor suposición según lo que dijiste. Revísala.";
 "lbl_autofill_review_check_match_photo" = "Mejor suposición según la foto. Revísala.";

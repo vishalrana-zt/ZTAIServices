@@ -12,9 +12,6 @@ private enum ZTAutofillStrings {
 
     static var pickerDescription: String { localized("lbl_autofill_picker_description", fallback: "Take a photo with Camera or choose one from Photo Library. The text is extracted, matched to the fields, and shown for review before anything is filled.") }
     static var pickerDescriptionSpeechOnly: String { localized("lbl_autofill_picker_description_speech_only", fallback: "Describe this section out loud — we'll match what you say to its fields and show it to you for review before anything is saved.") }
-    static var speechTryTitle: String { localized("lbl_autofill_try_saying", fallback: "Say the field name, then your value") }
-    static var speechTryExample1: String { localized("lbl_autofill_try_saying_example_1", fallback: "\"Comments: valve is open\"") }
-    static var speechTryExample2: String { localized("lbl_autofill_try_saying_example_2", fallback: "\"Start time: 1 PM\"") }
     static var reviewAlternativesCaption: String { localized("lbl_autofill_review_alternatives_caption", fallback: "No exact match. Pick the option you meant.") }
     static func inputTruncatedNotice(isSpeech: Bool) -> String {
         isSpeech
@@ -361,8 +358,6 @@ public struct ZTFormAutofillBottomPanel: View {
 
             if coordinator.allowsPhotoCapture {
                 photoPickerCard
-            } else {
-                speechTryCard
             }
 
             Button { showSpeechSheet = true } label: {
@@ -437,22 +432,6 @@ public struct ZTFormAutofillBottomPanel: View {
         .shadow(color: Color.black.opacity(0.18), radius: 10, y: 4)
         .accessibilityElement(children: .combine)
     }
-    private var speechTryCard: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(ZTAutofillStrings.speechTryTitle, systemImage: "lightbulb")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(Color(hex: "#2f5fb3"))
-            Text(ZTAutofillStrings.speechTryExample1)
-        }
-        .font(.footnote)
-        .foregroundStyle(Color(hex: "#2a2f3a"))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Color(hex: "#eef4ff"), in: RoundedRectangle(cornerRadius: 12))
-        .accessibilityElement(children: .combine)
-    }
-
-
     private var photoPickerCard: some View {
         VStack(spacing: 0) {
             // Photo action row — full row is tappable
@@ -908,8 +887,7 @@ public struct ZTFormAutofillBottomPanel: View {
             // Header (icon+title row + up to 3 lines of description) + one pickerRow + the
             // 48pt cancel button + VStack/outer padding adds up closer to ~270-290pt than the
             // 230 first tried here — that clipped/hid the cancel button below the sheet.
-            // The "Try saying" card (title + one example line + spacing) adds about 90pt.
-            return ZTFormAutofillCoordinator.speechOnlyPanelHeight + 90
+            return ZTFormAutofillCoordinator.speechOnlyPanelHeight
         }
         if coordinator.supportsTagScan {
             return isPad ? 380 : 420
