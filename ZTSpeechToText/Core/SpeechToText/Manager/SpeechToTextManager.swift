@@ -832,6 +832,10 @@ public final class SpeechToTextManager: NSObject, @unchecked Sendable {
         guard session.isInputAvailable else { throw STTError.audioSessionFailure }
 
         let input = audioEngine.inputNode
+        if audioEngine.isRunning { audioEngine.stop() }
+        input.removeTap(onBus: 0)
+        hasInputTapInstalled = false
+        
         // Always clear bus 0 (a no-op when there is no tap) rather than trusting `hasInputTapInstalled`:
         // a stale flag leaves the old tap in place and the next installTap throws.
         if audioEngine.isRunning { audioEngine.stop() }
